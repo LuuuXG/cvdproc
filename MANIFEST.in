@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+recursive-include cvdproc/bash *.sh
+recursive-include cvdproc/matlab *.m
+recursive-include cvdproc/utils/python *.py
+recursive-include cvdproc/utils/bash *.sh
+recursive-include cvdproc/utils/matlab *.m

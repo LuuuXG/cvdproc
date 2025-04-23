@@ -1,0 +1,25 @@
+# Ignore IDE and Python cache
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore egg and build folders
+*.egg-info/
+build/
+dist/
+
+# Ignore module data folder (external download)
+cvdproc/data/
+
+cvdproc/trash/
+
+# Jupyter
+.ipynb_checkpoints/
+
+*.log
+
+# OS generated
+.DS_Store
+Thumbs.db
