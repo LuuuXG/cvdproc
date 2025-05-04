@@ -319,9 +319,6 @@ class WMHSegmentationPipeline:
                 fazekas_classification_node.inputs.wmh_mask_vol_filename = f'sub-{self.subject.subject_id}{session_entity}_TotalWMHVolume.csv'
                 fazekas_classification_node.inputs.pwmh_mask_vol_filename = f'sub-{self.subject.subject_id}{session_entity}_PWMHVolume.csv'
                 fazekas_classification_node.inputs.dwmh_mask_vol_filename = f'sub-{self.subject.subject_id}{session_entity}_DWMHVolume.csv'
-
-            elif t1w_file == '' and 'Fazekas' in self.location_method:
-                raise ValueError("Fazekas method requires T1w image. Please provide a T1w image or choose another method.")
             elif 'bullseyes' in self.location_method:
                 bullseyes_node = Node(Bullseyes(), name="bullseyes")
 
