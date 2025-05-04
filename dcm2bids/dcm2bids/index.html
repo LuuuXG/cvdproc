@@ -538,8 +538,8 @@
 <p>We are using the <a href="https://unfmontreal.github.io/Dcm2Bids/3.1.1/">dcm2bids</a> to convert DICOM files to BIDS format. Before running the code, please make sure you have installed the <code>dcm2bids</code> (it should have been installed when you installed the cvdproc) and <code>dcm2niix</code> (you can install it via <code>apt install dcm2niix</code>)</p>
 <h2 id="create-a-new-bids-dataset">Create a new BIDS dataset</h2>
 <p>If you want to create a new BIDS dataset, you can use the following command:</p>
-<pre><code class="language-bash">cvdproc --run_initialization &lt;path/to/the/folder/you/want/to/create&gt;
-</code></pre>
+<div class="highlight"><pre><span></span><code>cvdproc<span class="w"> </span>--run_initialization<span class="w"> </span>&lt;path/to/the/folder/you/want/to/create&gt;
+</code></pre></div>
 <p>You don't need to create the folder manually, the code will create it for you.</p>
 <h2 id="convert-dicom-to-bids">Convert DICOM to BIDS</h2>
 <p>If you already have a BIDS root folder or just created one with the command above, you can follow the steps below to convert DICOM files to BIDS format.</p>
@@ -547,22 +547,24 @@
 <p>Please refer to the official dcm2bids documentation <a href="https://unfmontreal.github.io/Dcm2Bids/3.2.0/how-to/create-config-file/">How to create a configuration file</a> for the most detailed guidance.</p>
 <p>Here we take the example of converting a 3D T1w image to BIDS format.</p>
 <p>Create a file named <code>dcm2bids_config.json</code> in the <code>code</code> folder of your BIDS root directory (the file name and location can be changed, but we name it this way for convenience). The content of the file is as follows:</p>
-<pre><code class="language-json">{
-  &quot;descriptions&quot;: [
-    {
-      &quot;datatype&quot;: &quot;anat&quot;,
-      &quot;suffix&quot;: &quot;T1w&quot;,
-      &quot;criteria&quot;: {
-        &quot;SeriesDescription&quot;: &quot;*mprage*&quot;,
-      }
-    }
-  ]
-}
-</code></pre>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;descriptions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;datatype&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;anat&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;suffix&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;T1w&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;criteria&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;SeriesDescription&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;*mprage*&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>The most important part of the configuration file is the <code>criteria</code> field, which specifies how to match the DICOM files. In this case, we are matching the <code>SeriesDescription</code> field with a regular expression <code>*mprage*</code>. If your DICOM files do not have this field or have a different value, you can try to use the <code>dcm2bids_helper</code> command to get the information, or you can use <code>dcm2niix</code> (which can also be found in MRIcroGL) to get the information in the JSON file. <strong>You can also skip this step (just copy the content above) and wait for the next step to see how we solve it.</strong></p>
 <h3 id="create-a-cvdproc-configuration-file">Create a cvdproc configuration file</h3>
-<p>!!! info "cvdproc config file"
-    This step is very important because it is the core of the <code>cvdproc</code> command to specify parameters.</p>
+<div class="admonition info">
+<p class="admonition-title">cvdproc config file</p>
+<p>This step is very important because it is the core of the <code>cvdproc</code> command to specify parameters.</p>
+</div>
 
 
 
