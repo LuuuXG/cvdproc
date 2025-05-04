@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cvdproc"
+version = "0.0.1"
+description = "CVDProc: CerebroVascular Disease imaging Processing"
+readme = "README.md"
+authors = [
+    { name = "Youjie Wang", email = "wangyoujie2002@163.com" }
+]
+requires-python = ">=3.6"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.21.0",
+    "pandas",
+    "scipy>=1.7.0",
+    "matplotlib",
+    "scikit-image>=0.18.0",
+    "nipype",
+    "packaging",
+    "dipy",
+    "pybids",
+    "nibabel>=3.2.0",
+    "pyyaml>=5.4.0",
+    "xlwt>=1.3.0",
+    "scienceplots>=1.0.9",
+    "dcm2bids",
+    "openpyxl"
+]
+
+[project.scripts]
+cvdproc = "cvdproc.main:main_entry"
+cvdproc_tool = "cvdproc.utils.python.tool_manager:main"

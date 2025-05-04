@@ -10,6 +10,229 @@ from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, Traite
 from nipype.interfaces.utility import IdentityInterface
 from traits.api import Bool, Int, Str
 
+import logging
+logger = logging.getLogger(__name__)
+
+####################################
+# Generate b0_all and acqparam.txt #
+####################################
+class B0AllAndAcqparamInputSpec(BaseInterfaceInputSpec):
+    dwi_img = File(desc="Path to the DWI image. First volume is b0 image")
+    dwi_bval = File(desc="Path to the bval file")
+    phase_encoding_number = traits.Str(desc="Phase encoding number")
+    total_readout_time = traits.Str(desc="Total readout time")
+
+    reverse_dwi_img = File(desc="Path to reverse phase-encoded DWI image")
+    reverse_dwi_bval = File(desc="Path to bval file for reverse DWI (optional)")
+    reverse_phase_encoding_number = traits.Str(desc="Phase encoding number for reverse DWI")
+    reverse_total_readout_time = traits.Str(desc="Total readout time for reverse DWI")
+
+    output_path = Directory(desc="Output directory")
+
+class B0AllAndAcqparamOutputSpec(TraitedSpec):
+    acqparam = File(desc="Path to the acqparam.txt file")
+    b0_all = File(desc="Path to the b0_all image")
+
+class B0AllAndAcqparam(BaseInterface):
+    input_spec = B0AllAndAcqparamInputSpec
+    output_spec = B0AllAndAcqparamOutputSpec
+
+    def _run_interface(self, runtime):
+        logger.info("Generating b0_all and acqparam.txt...")
+
+        # --- Handle forward DWI ---
+        dwi_img = nib.load(self.inputs.dwi_img)
+        dwi_data = dwi_img.get_fdata()
+        bval = np.loadtxt(self.inputs.dwi_bval)
+
+        b0_indices = np.where(bval < 50)[0]
+        logger.info(f"Found {len(b0_indices)} b=0 volumes in DWI")
+
+        b0_vols = dwi_data[..., b0_indices]
+        b0_mean = np.mean(b0_vols, axis=3)
+        b0_1_path = os.path.join(self.inputs.output_path, "b0_1.nii.gz")
+        nib.save(nib.Nifti1Image(b0_mean, dwi_img.affine, dwi_img.header), b0_1_path)
+
+        # --- Handle reverse DWI ---
+        rev_img = nib.load(self.inputs.reverse_dwi_img)
+        rev_data = rev_img.get_fdata()
+
+        if rev_data.ndim == 3:
+            logger.info("Reverse DWI is 3D.")
+            b0_2_data = rev_data
+        else:
+            logger.info("Reverse DWI is 4D.")
+            rev_bval = np.loadtxt(self.inputs.reverse_dwi_bval)
+            rev_b0_indices = np.where(rev_bval < 50)[0]
+            logger.info(f"Found {len(rev_b0_indices)} b=0 volumes in reverse DWI")
+            b0_2_data = np.mean(rev_data[..., rev_b0_indices], axis=3)
+
+        b0_2_path = os.path.join(self.inputs.output_path, "b0_2.nii.gz")
+        nib.save(nib.Nifti1Image(b0_2_data, rev_img.affine, rev_img.header), b0_2_path)
+
+        # --- Merge b0_1 and b0_2 ---
+        subprocess.run(['fslmerge', '-t', os.path.join(self.inputs.output_path, 'b0_all.nii.gz'), b0_1_path, b0_2_path], check=True)
+
+        # --- Write acqparam.txt ---
+        with open(os.path.join(self.inputs.output_path, 'acqparam.txt'), 'w') as f:
+            f.write(self.inputs.phase_encoding_number + ' ' + str(self.inputs.total_readout_time) + '\n')
+            f.write(self.inputs.reverse_phase_encoding_number + ' ' + str(self.inputs.reverse_total_readout_time))
+
+        # --- Cleanup ---
+        os.remove(b0_1_path)
+        os.remove(b0_2_path)
+
+        self._b0_all = os.path.join(self.inputs.output_path, 'b0_all.nii.gz')
+        self._acqparam = os.path.join(self.inputs.output_path, 'acqparam.txt')
+
+        return runtime
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['acqparam'] = self._acqparam
+        outputs['b0_all'] = self._b0_all
+
+        return outputs
+
+######################
+# Generate index.txt #
+######################
+
+class IndexTxtInputSpec(BaseInterfaceInputSpec):
+    bval_file = File(exists=True, mandatory=True, desc="Path to the .bval file")
+    output_dir = Directory(mandatory=True, desc="Directory to save the index.txt")
+
+class IndexTxtOutputSpec(TraitedSpec):
+    index_file = File(desc="Path to the generated index.txt file")
+
+class IndexTxt(BaseInterface):
+    input_spec = IndexTxtInputSpec
+    output_spec = IndexTxtOutputSpec
+
+    def _run_interface(self, runtime):
+        logger.info("Generating index.txt from bval file...")
+
+        bval_path = self.inputs.bval_file
+        output_dir = self.inputs.output_dir
+
+        with open(bval_path, 'r') as f:
+            bvals = f.read().split()
+            b_number = len(bvals)
+
+        logger.info(f"Detected {b_number} b-values")
+
+        index_str = ' '.join(['1'] * b_number)
+        index_path = os.path.join(output_dir, "index.txt")
+        with open(index_path, 'w') as f:
+            f.write(index_str + "\n")
+
+        logger.info(f"index.txt saved to: {index_path}")
+        self._index_file = index_path
+
+        return runtime
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['index_file'] = self._index_file
+
+        return outputs
+
+#########
+# TOPUP #
+#########
+
+class TopupInputSpec(CommandLineInputSpec):
+    b0_all_file = File(exists=True, mandatory=True, desc="Path to the b0_all image", argstr="--imain=%s")
+    acqparam_file = File(exists=True, mandatory=True, desc="Path to the acqparam.txt file", argstr="--datain=%s")
+    config_file = Str(desc="Path to the config file", argstr="--config=%s")
+    output_basename = Str(desc="Path to the output basename", argstr="--out=%s")
+    output_b0_basename = Str(desc="Path to the output b0 basename", argstr="--iout=%s")
+
+class TopupOutputSpec(TraitedSpec):
+    topup_basename = Str(desc="Path to the topup basename")
+    b0_image = File(desc="Path to the b0 image")
+
+class Topup(CommandLine):
+    _cmd = 'topup'
+    input_spec = TopupInputSpec
+    output_spec = TopupOutputSpec
+    terminal_output = 'allatonce'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['topup_basename'] = os.path.abspath(self.inputs.output_basename)
+        outputs['b0_image'] = os.path.abspath(self.inputs.output_b0_basename + ".nii.gz")
+
+        return outputs
+    
+###########################
+# eddy_cuda10.2 diffusion #
+###########################
+
+class EddyCudaInputSpec(CommandLineInputSpec):
+    dwi_file = File(exists=True, mandatory=True, desc="Path to the DWI image", argstr="--imain=%s")
+    mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask", argstr="--mask=%s")
+    bval_file = File(exists=True, mandatory=True, desc="Path to the .bval file", argstr="--bvals=%s")
+    bvec_file = File(exists=True, mandatory=True, desc="Path to the .bvec file", argstr="--bvecs=%s")
+    index_file = File(exists=True, mandatory=True, desc="Path to the index.txt file", argstr="--index=%s")
+    acqparam_file = File(exists=True, mandatory=True, desc="Path to the acqparam.txt file", argstr="--acqp=%s")
+    topup_basename = Str(desc="Path to the topup basename", argstr="--topup=%s")
+    output_basename = Str(desc="Path to the output basename", argstr="--out=%s")
+
+class EddyCudaOutputSpec(TraitedSpec):
+    eddy_corrected_data = File(desc="Path to the eddy-corrected DWI image")
+    eddy_corrected_bvecs = File(desc="Path to the eddy-corrected bvecs file")
+    bvals = File(desc="Path to the bvals file")
+    dwi_b0_brain_mask = File(desc="Path to the brain mask for b0 image")
+
+class EddyCuda(CommandLine):
+    _cmd = 'eddy_cuda10.2 diffusion'
+    input_spec = EddyCudaInputSpec
+    output_spec = EddyCudaOutputSpec
+    terminal_output = 'allatonce'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['eddy_corrected_data'] = os.path.abspath(self.inputs.output_basename + ".nii.gz")
+        outputs['eddy_corrected_bvecs'] = os.path.abspath(self.inputs.output_basename + ".eddy_rotated_bvecs")
+        outputs['bvals'] = os.path.abspath(self.inputs.bval_file)
+        outputs['dwi_b0_brain_mask'] = os.path.abspath(self.inputs.mask_file)
+
+        return outputs
+
+###########
+# DTI fit #
+###########
+class DTIFitInputSpec(CommandLineInputSpec):
+    dwi_file = File(exists=True, mandatory=True, desc="Path to the DWI image", argstr="-k %s")
+    bval_file = File(exists=True, mandatory=True, desc="Path to the .bval file", argstr="-b %s")
+    bvec_file = File(exists=True, mandatory=True, desc="Path to the .bvec file", argstr="-r %s")
+    mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask", argstr="-m %s")
+    output_basename = Str(desc="Path to the output basename", argstr="-o %s")
+
+class DTIFitOutputSpec(TraitedSpec):
+    output_dir = Directory(desc="Path to the output directory")
+    dti_fa = File(desc="Path to the FA image")
+    dti_md = File(desc="Path to the MD image")
+    dti_mo = File(desc="Path to the MO image")
+    dti_tensor = File(desc="Path to the tensor image")
+
+class DTIFit(CommandLine):
+    _cmd = 'dtifit'
+    input_spec = DTIFitInputSpec
+    output_spec = DTIFitOutputSpec
+    terminal_output = 'allatonce'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['dti_fa'] = os.path.abspath(self.inputs.output_basename + "_FA.nii.gz")
+        outputs['dti_md'] = os.path.abspath(self.inputs.output_basename + "_MD.nii.gz")
+        outputs['dti_mo'] = os.path.abspath(self.inputs.output_basename + "_MO.nii.gz")
+        outputs['dti_tensor'] = os.path.abspath(self.inputs.output_basename + "_tensor.nii.gz")
+        outputs['output_dir'] = os.path.abspath(os.path.dirname(self.inputs.output_basename))
+
+        return outputs
+
 ###########################################
 # DTI preprocessing, dtifit, and bedpostx #
 ###########################################
@@ -28,6 +251,9 @@ class DTIpreprocessingInputSpec(BaseInterfaceInputSpec):
     script_path_dtipreprocess = Str(desc='Path to the script') # DTI processing, fitting, and Bedpostx
 
 class DTIpreprocessingOutputSpec(TraitedSpec):
+    eddy_corrected_dwi = File(desc='eddy corrected dwi')
+    eddy_corrected_bvec = File(desc='eddy corrected bvec')
+    dwi_mask = File(desc='DWI mask')
     fa_file = File(desc='FA file')
     bedpostx_input_dir = Directory(desc='Bedpostx output directory')
 
@@ -123,6 +349,9 @@ class DTIpreprocessing(BaseInterface):
         shutil.copy(os.path.join(output_path, 'eddy_corrected_data.eddy_rotated_bvecs'), os.path.join(bedpostx_input_dir, 'bvecs'))
         shutil.copy(dwi_bval, os.path.join(bedpostx_input_dir, 'bvals'))
         
+        self._eddy_corrected_data = os.path.join(output_path, 'eddy_corrected_data.nii.gz')
+        self._eddy_corrected_bvec = os.path.join(output_path, 'eddy_corrected_data.eddy_rotated_bvecs')
+        self._dwi_mask = os.path.join(output_path, 'dwi_b0_brain_mask.nii.gz')
         self._fa_file = fa_file
         self._bedpostx_input_dir = bedpostx_input_dir
             
@@ -130,6 +359,9 @@ class DTIpreprocessing(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
+        outputs['eddy_corrected_dwi'] = self._eddy_corrected_data
+        outputs['eddy_corrected_bvec'] = self._eddy_corrected_bvec
+        outputs['dwi_mask'] = self._dwi_mask
         outputs['fa_file'] = self._fa_file
         outputs['bedpostx_input_dir'] = self._bedpostx_input_dir
 
@@ -138,6 +370,48 @@ class DTIpreprocessing(BaseInterface):
 ############
 # bedpostx #
 ############
+
+class PrepareBedpostxInputSpec(BaseInterfaceInputSpec):
+    dwi_img = File(exists=True, desc='DWI image')
+    bvec = File(exists=True, desc='Bvec file')
+    bval = File(exists=True, desc='Bval file')
+    mask = File(exists=True, desc='Mask file')
+    output_dir = Directory(exists=True, desc='Output directory')
+
+class PrepareBedpostxOutputSpec(TraitedSpec):
+    bedpostx_input_dir = Directory(desc='Bedpostx input directory')
+
+class PrepareBedpostx(BaseInterface):
+    input_spec = PrepareBedpostxInputSpec
+    output_spec = PrepareBedpostxOutputSpec
+
+    def _run_interface(self, runtime):
+        dwi_img = self.inputs.dwi_img
+        bvec = self.inputs.bvec
+        bval = self.inputs.bval
+        mask = self.inputs.mask
+        output_dir = self.inputs.output_dir
+
+        # Create the bedpostx input directory
+        bedpostx_input_dir = output_dir
+        os.makedirs(bedpostx_input_dir, exist_ok=True)
+
+        # Copy the files to the bedpostx input directory
+        shutil.copy(dwi_img, os.path.join(bedpostx_input_dir, 'data.nii.gz'))
+        shutil.copy(bvec, os.path.join(bedpostx_input_dir, 'bvecs'))
+        shutil.copy(bval, os.path.join(bedpostx_input_dir, 'bvals'))
+        shutil.copy(mask, os.path.join(bedpostx_input_dir, 'nodif_brain_mask.nii.gz'))
+
+        self._bedpostx_input_dir = bedpostx_input_dir
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['bedpostx_input_dir'] = self._bedpostx_input_dir
+
+        return outputs
+
 class BedpostxInputSpec(CommandLineInputSpec):
     input_dir = Str(argstr='%s', position=0, desc='Input directory', mandatory=True)
 
@@ -177,6 +451,8 @@ class TractographyOutputSpec(TraitedSpec):
     cortex_mask = File(desc='Cortex mask')
     fs_processing_dir = Directory(desc='Freesurfer processing directory')
     fs_orig = Directory(desc='orig.nii.gz')
+    fs_to_fa_xfm = File(desc='Transform from fs to FA space')
+    t1w_to_fa_xfm = File(desc='Transform from T1w to FA space')
     # BELOW: The masks are in fsaverage space
     lh_unconn_mask = File(desc='Unconnected mask')
     rh_unconn_mask = File(desc='Unconnected mask')
@@ -537,6 +813,8 @@ class Tractography(BaseInterface):
 
         self._fs_processing_dir = fs_processing_dir
         self._fs_orig = os.path.join(fs_processing_dir, 'orig.nii.gz')
+        self._fs_to_fa_xfm = os.path.join(fs_processing_dir, 'freesurfer2fa.mat')
+        self._t1w_to_fa_xfm = os.path.join(fs_processing_dir, 'struct2fa.mat')
 
         self._lh_low_conn_mask = os.path.join(probtrackx_output_dir1, 'lh.LowConn_fsaverage.mgh')
         self._rh_low_conn_mask = os.path.join(probtrackx_output_dir1, 'rh.LowConn_fsaverage.mgh')
@@ -563,6 +841,8 @@ class Tractography(BaseInterface):
         outputs['cortex_mask'] = self._cortex_mask
         outputs['fs_processing_dir'] = self._fs_processing_dir
         outputs['fs_orig'] = self._fs_orig
+        outputs['fs_to_fa_xfm'] = self._fs_to_fa_xfm
+        outputs['t1w_to_fa_xfm'] = self._t1w_to_fa_xfm
         outputs['lh_low_conn_mask'] = self._lh_low_conn_mask
         outputs['rh_low_conn_mask'] = self._rh_low_conn_mask
         outputs['lh_low_conn_corrected_mask'] = self._lh_low_conn_corrected_mask

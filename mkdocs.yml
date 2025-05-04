@@ -1,0 +1,18 @@
+site_name: cvdproc
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - DCM2BIDS:
+      - dcm2bids: dcm2bids/dcm2bids.md
+  - Pipelines:
+      - Overview: pipelines/index.md
+      - WMH Quantification: pipelines/wmh_quantification.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tasklist

@@ -4,6 +4,8 @@ import pandas as pd
 import nibabel as nib
 import numpy as np
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface, Merge, Function
@@ -12,6 +14,11 @@ from .freewater.single_shell_freewater import SingleShellFW
 from ..smri.mirror.mirror_nipype import MirrorMask
 from nipype.interfaces.fsl import FLIRT
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
+from nipype.interfaces.mrtrix3 import Tractography, MRConvert
+from ..common.unzip import UnzipCommandLine
+from ..common.move_file import MoveFileCommandLine
+from ..common.delete_file import DeleteFileCommandLine
+from ..dmri.psmd.psmd_nipype import PSMDCommandLine, SavePSMDOutputCommandLine
 
 class FDTPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
@@ -28,15 +35,21 @@ class FDTPipeline:
         self.use_which_t1w = kwargs.get('use_which_t1w', None) # which t1w file to use
         self.preprocess = kwargs.get('preprocess', False) # whether to preprocess DTI
         self.synb0 = kwargs.get('synb0', False) # whether to use synthetic b0 image
-        self.tractography = kwargs.get('tractography', False)
+        self.tractography = kwargs.get('tractography', None)
+        self.tckgen_method = kwargs.get('tckgen_method', 'iFOD2')
         self.dtialps = kwargs.get('dtialps', False)
         self.single_shell_freewater = kwargs.get('single_shell_freewater', False)
+        self.psmd = kwargs.get('psmd', False)
+        self.psmd_lesion_mask = kwargs.get('psmd_lesion_mask', None) # Mask to exclude in PSMD calculation
+        self.use_which_psmd_lesion_mask = kwargs.get('use_which_psmd_lesion_mask', None)
+        self.use_freesurfer_clinical = kwargs.get('use_freesurfer_clinical', False) # whether to use freesurfer clinical directory
 
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
         self.script_path1 = os.path.join(base_dir, 'bash', 'fdt_dti.sh') # DTI processing, fitting, and Bedpostx
         self.script_path2 = os.path.join(base_dir, 'bash', 'fdt_fs_processing.sh') # FreeSurfer processing
         self.alps_script_path = os.path.join(base_dir, 'external', 'alps', 'alps.sh') # DTI-ALPS
+        self.psmd_skeleton_mask = os.path.join(base_dir, 'external', 'psmd', 'skeleton_mask_2019.nii.gz')
 
         # extract results
         self.extract_from = kwargs.get('extract_from', None)
@@ -162,6 +175,8 @@ class FDTPipeline:
         ############################################
         # 1. DTI processing, fitting, and bedpostX #
         ############################################
+        preproc_dwi_node = Node(IdentityInterface(fields=['preproc_dwi', 'bvec', 'bval', 'dwi_mask']), name='preproc_dwi')
+
         if self.preprocess:
             dtipreprocessing_node = Node(DTIpreprocessing(), name='dtipreprocessing')
             fdt_workflow.connect(inputnode, 'bids_dir', dtipreprocessing_node, 'bids_dir')
@@ -177,21 +192,26 @@ class FDTPipeline:
             fdt_workflow.connect(inputnode, 'total_readout_time', dtipreprocessing_node, 'total_readout_time')
             dtipreprocessing_node.inputs.script_path_dtipreprocess = self.script_path1
 
+            fdt_workflow.connect(dtipreprocessing_node, 'eddy_corrected_dwi', preproc_dwi_node, 'preproc_dwi')
+            fdt_workflow.connect(dtipreprocessing_node, 'eddy_corrected_bvec', preproc_dwi_node, 'bvec')
+            fdt_workflow.connect(inputnode, 'bval_file', preproc_dwi_node, 'bval')
+            fdt_workflow.connect(dtipreprocessing_node, 'dwi_mask', preproc_dwi_node, 'dwi_mask')
+
             bedpostx_node = Node(Bedpostx(), name='bedpostx')
             fdt_workflow.connect(dtipreprocessing_node, 'bedpostx_input_dir', bedpostx_node, 'input_dir')
-
+        else:
+            preproc_dwi_node.inputs.preproc_dwi = os.path.join(self.output_path, 'eddy_corrected_data.nii.gz')
+            preproc_dwi_node.inputs.bvec = os.path.join(self.output_path, 'eddy_corrected_data.eddy_rotated_bvecs')
+            preproc_dwi_node.inputs.bval = dwi_bval
+            preproc_dwi_node.inputs.dwi_mask = os.path.join(self.output_path, 'dwi_b0_brain_mask.nii.gz')
+        
         #########################################################################
         # 2. Tractography: Designed for lesion-based probabilistic tractography #
         #########################################################################
-        if self.tractography:
-            fs_output = self.session.freesurfer_dir
-            # decide to use which mask as seed
-            if self.seed_mask == 'lesion_mask':
-                lesion_mask_dir = self.session.lesion_mask_dir
-            else:
-                # TODO
-                print("No other mask available now.")
-                
+
+        # Decide one seed mask to use
+        if self.tractography is not None:
+            lesion_mask_dir = self.session._find_output(self.seed_mask)
             seed_mask = [file for file in os.listdir(lesion_mask_dir) if f'{self.use_which_mask}' in file]
             if seed_mask is not None and len(seed_mask) == 1:
                 print(f"Using seed mask: {seed_mask[0]}.")
@@ -203,6 +223,12 @@ class FDTPipeline:
             else:
                 print("No seed mask found.")
                 return False
+
+        if 'fdt' in self.tractography:
+            if self.use_freesurfer_clinical:
+                fs_output = self.session.freesurfer_clinical_dir
+            else:
+                fs_output = self.session.freesurfer_dir
 
             fs_processing_dir = os.path.join(self.output_path, 'fs_processing')
             os.makedirs(fs_processing_dir, exist_ok=True)
@@ -309,6 +335,35 @@ class FDTPipeline:
             mirror_extract_parameters_node.inputs.fs_subjects_dir = os.path.dirname(fs_output)
             mirror_extract_parameters_node.inputs.sessions = self.subject.sessions_id
             mirror_extract_parameters_node.inputs.csv_file_name = 'mirror_surface_parameters.csv'
+        
+        if 'mrtrix3' in self.tractography:
+            # self.tckgen_method must be in one of: 'FACT', 'iFOD2', 'iFOD1', 'NullDist1', 'NullDist2', 'SD_STREAM',
+            # 'SeedTest', 'Tensor_Det', 'Tensor_Prob'
+            if self.tckgen_method not in ['FACT', 'iFOD2', 'iFOD1', 'NullDist1', 'NullDist2', 'SD_STREAM',
+                                        'SeedTest', 'Tensor_Det', 'Tensor_Prob']:
+                raise ValueError(f"Invalid tckgen method: {self.tckgen_method}. Must be one of: "
+                                 "'FACT', 'iFOD2', 'iFOD1', 'NullDist1', 'NullDist2', 'SD_STREAM', "
+                                 "'SeedTest', 'Tensor_Det', 'Tensor_Prob'")
+            
+            logger.warning(f"Using tckgen method: {self.tckgen_method}.")
+            logger.warning(f"Only these methods are tested: 'Tensor_Det', 'Tensor_Prob'.")
+            
+            mri_convert_node = Node(MRConvert(), name='mri_convert')
+            mri_convert_node.inputs.out_file = os.path.join(self.output_path, 'preproc_dwi.mif')
+            mri_convert_node.inputs.args = '-force'
+            fdt_workflow.connect(preproc_dwi_node, 'preproc_dwi', mri_convert_node, 'in_file')
+            fdt_workflow.connect(preproc_dwi_node, 'bvec', mri_convert_node, 'in_bvec')
+            fdt_workflow.connect(preproc_dwi_node, 'bval', mri_convert_node, 'in_bval')
+
+            tckgen_node = Node(Tractography(), name='tckgen')
+            tckgen_outout_dir = os.path.join(self.output_path, 'tckgen_output')
+            os.makedirs(tckgen_outout_dir, exist_ok=True)
+            fdt_workflow.connect(mri_convert_node, 'out_file', tckgen_node, 'in_file')
+            fdt_workflow.connect(preproc_dwi_node, 'dwi_mask', tckgen_node, 'roi_mask')
+            tckgen_node.inputs.seed_image = seed_mask
+            tckgen_node.inputs.out_file = os.path.join(tckgen_outout_dir, 'tracked.tck')
+            tckgen_node.inputs.algorithm = self.tckgen_method
+            tckgen_node.inputs.select = 10000
 
         ############
         # DTI-ALPS #
@@ -346,6 +401,59 @@ class FDTPipeline:
             single_shell_freewater_node.inputs.working_directory = fw_output_path
             single_shell_freewater_node.inputs.output_directory = fw_output_path
             single_shell_freewater_node.inputs.crop_shells = False
+        
+        ########
+        # PSMD #
+        ########
+        if self.psmd:
+            unzip_node = Node(UnzipCommandLine(), name="unzip_node")
+            if self.preprocess:
+                fdt_workflow.connect(dtipreprocessing_node, 'eddy_corrected_dwi', unzip_node, 'file')
+            else:
+                unzip_node.inputs.file = eddy_correct_dwi = os.path.join(self.output_path, 'eddy_corrected_data.nii.gz')
+            unzip_node.inputs.decompress = True
+            unzip_node.inputs.keep = True
+
+            move_file_node = Node(MoveFileCommandLine(), name="move_file_node")
+            fdt_workflow.connect(unzip_node, 'unzipped_file', move_file_node, 'source_file')
+            move_file_node.inputs.destination_file = os.path.join(self.output_path, 'data.nii')
+
+            psmd_node = Node(PSMDCommandLine(), name="psmd_node")
+            fdt_workflow.connect(move_file_node, 'moved_file', psmd_node, 'dwi_data')
+            fdt_workflow.connect(inputnode, 'bval_file', psmd_node, 'bval_file')
+            if self.preprocess:
+                fdt_workflow.connect(dtipreprocessing_node, 'eddy_corrected_bvec', psmd_node, 'bvec_file')
+            else:
+                psmd_node.inputs.bvec_file = os.path.join(self.output_path, 'eddy_corrected_data.eddy_rotated_bvecs')
+            psmd_node.inputs.mask_file = self.psmd_skeleton_mask
+            if self.psmd_lesion_mask is not None:
+                psmd_lesion_mask_dir = self.session._find_output(self.psmd_lesion_mask)
+
+                if self.use_which_psmd_lesion_mask is None:
+                    self.use_which_psmd_lesion_mask = ''
+
+                psmd_lesion_mask = [file for file in os.listdir(psmd_lesion_mask_dir) if f'{self.use_which_psmd_lesion_mask}' in file]
+                if psmd_lesion_mask is not None and len(psmd_lesion_mask) == 1:
+                    print(f"Using lesion mask: {psmd_lesion_mask[0]}.")
+                    psmd_lesion_mask = os.path.join(psmd_lesion_mask_dir, psmd_lesion_mask[0])
+                elif psmd_lesion_mask is not None and len(psmd_lesion_mask) > 1:
+                    print(f"Using the first lesion mask found: {psmd_lesion_mask[0]}.")
+                    psmd_lesion_mask = os.path.join(psmd_lesion_mask_dir, psmd_lesion_mask[0])
+                else:
+                    print("No lesion mask found.")
+
+                psmd_node.inputs.lesion_mask = psmd_lesion_mask
+
+            save_psmd_node = Node(SavePSMDOutputCommandLine(), name="save_psmd_node")
+            save_psmd_node.inputs.output_file = os.path.join(self.output_path, 'psmd_output.csv')
+            save_psmd_node.inputs.subject_id = self.subject.subject_id
+            save_psmd_node.inputs.session_id = self.session.session_id
+            fdt_workflow.connect(psmd_node, "psmd", save_psmd_node, "psmd")
+            fdt_workflow.connect(psmd_node, "psmd_left", save_psmd_node, "psmd_left")
+            fdt_workflow.connect(psmd_node, "psmd_right", save_psmd_node, "psmd_right")
+
+            delete_dwi_file_node = Node(DeleteFileCommandLine(), name="delete_dwi_file_node")
+            fdt_workflow.connect(psmd_node, "dwi", delete_dwi_file_node, "file")
             
         return fdt_workflow
     

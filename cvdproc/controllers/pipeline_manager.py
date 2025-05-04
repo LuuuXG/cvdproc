@@ -6,6 +6,7 @@ from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline, FreesurferC
 from ..pipelines.smri.cat12_pipeline import CAT12Pipeline
 from ..pipelines.smri.fsl_anat_pipeline import FSLANATPipeline
 from ..pipelines.dmri.fdt_pipeline import FDTPipeline
+from ..pipelines.dmri.dwi_pipeline import DWIPipeline
 from ..pipelines.nipype_test.test import TestPipeline
 from ..pipelines.qmri.sepia_qsm_pipeline import SepiaQSMPipeline
 
@@ -50,6 +51,8 @@ class PipelineManager:
         #### Diffusion MRI ####
         elif pipeline_name.lower() == "fdt":
             return FDTPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "dwi_pipeline":
+            return DWIPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Quantiative MRI ####
         elif pipeline_name.lower() == "sepia_qsm":

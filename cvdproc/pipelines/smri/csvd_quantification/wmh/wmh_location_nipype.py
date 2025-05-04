@@ -25,7 +25,7 @@ Different methods of WMH location quantification
 
 class FazekasInputSpec(BaseInterfaceInputSpec):
     wmh_img = File(mandatory=True, desc="Path to the WMH mask")
-    fsl_anat_dir = Directory(desc="Path to the FSL ANAT output directory")
+    fsl_anat_dir = Str(desc="Path to the FSL ANAT output directory")
     t1_to_flair_xfm = File(desc="Path to the T1 to FLAIR transformation matrix")
     flair_img = File(desc="Path to the FLAIR image")
     # use 'fsl_anat' or 'WMHSynthSeg' or 'SynthSeg'

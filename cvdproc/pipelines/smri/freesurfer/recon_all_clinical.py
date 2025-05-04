@@ -120,6 +120,19 @@ class PostProcess(BaseInterface):
 
         os.environ['SUBJECTS_DIR'] = fs_subjects_dir
 
+        # make sure the 'fsaverage' soft link is created and pointing to the correct directory ($FREESURFER_HOME/subjects/fsaverage)
+        subprocess.run([
+            'ln', '-sf',
+            os.path.join(os.environ.get('FREESURFER_HOME'), 'subjects', 'fsaverage'),
+            os.path.join(fs_subjects_dir, 'fsaverage')
+        ], check=True)
+
+        if os.path.exists(os.path.join(fs_output_dir, 'scripts', 'IsRunning.lh+rh')):
+            # remove the IsRunning.lh+rh file
+            subprocess.run([
+                'rm', os.path.join(fs_output_dir, 'scripts', 'IsRunning.lh+rh')
+            ])
+
         # create link
         subprocess.run([
             'ln', '-sf',

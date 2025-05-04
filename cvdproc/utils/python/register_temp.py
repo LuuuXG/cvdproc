@@ -4,9 +4,9 @@ import shutil
 
 bids_root_dir = '/mnt/f/BIDS/SVD_BIDS'
 
-subject_id = 'SVD0075'
+subject_id = 'SVD0033'
 
-session_id_dti = '02'
+session_id_dti = '03'
 session_id_lesion = '01'
 
 dwi_path = os.path.join(bids_root_dir, f'sub-{subject_id}', f'ses-{session_id_lesion}', 'dwi', f'sub-{subject_id}_ses-{session_id_lesion}_acq-DWIb1000_dir-PA_dwi.nii.gz')

@@ -11,6 +11,14 @@ from .controllers.pipeline_manager import PipelineManager
 from .controllers.get_pipeline_workflow import get_pipeline_workflow
 from .controllers.run_pipeline_workflow import run_pipeline_workflow
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 def load_config(config_file):
     """加载 YAML 配置文件"""
     with open(config_file, 'r') as f:

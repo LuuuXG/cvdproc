@@ -30,6 +30,7 @@ class BIDSSession:
 
         # Derivatives: derivatives/<output_name>/sub-<subject_id>/ses-<session_id>/<pipeline>
         self.freesurfer_dir = self._find_output('freesurfer')
+        self.freesurfer_clinical_dir = self._find_output('freesurfer_clinical')
         self.lesion_mask_dir = self._find_output('lesion_mask')
         self.fsl_anat_dir = self._find_output('fsl_anat')
         self.xfm_dir = self._find_output('xfm')

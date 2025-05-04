@@ -131,6 +131,8 @@ def extract_roi_means(input_image, roi_image, ignore_background, output_path):
 
     print(f"ROI means saved to {output_path}")
 
+    return output_path
+
 def change_dtype(input_image, target_dtype, output_path):
     img = load_image(input_image)
     data = img.get_fdata().astype(np.dtype(target_dtype))

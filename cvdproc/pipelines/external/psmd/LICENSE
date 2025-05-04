@@ -1,0 +1,48 @@
+IMPORTANT: This tool is not a medical device and for research use only!
+Do NOT use this  tool for diagnosis, prognosis, monitoring or any other
+purposes in clinical use.
+
+This script is provided under the revised BSD (3-clause) license
+
+Copyright (c) 2016-2020, Institute for Stroke and Dementia Research, Munich, 
+Germany, http://www.isd-muc.de
+Copyright (c) 2020, MIAC AG Basel, Switzerland, https://miac.swiss
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The use of the software needs to be acknowledged through proper citations:
+
+For the PSMD pipeline:
+Baykara E, Gesierich B, Adam R, Tuladhar AM, Biesbroek JM, Koek HL, Ropele S, 
+Jouvent E, Alzheimer’s Disease Neuroimaging Initiative (ADNI), Chabriat H, 
+Ertl-Wagner B, Ewers M, Schmidt R, de Leeuw FE, Biessels GJ, Dichgans M, Duering M
+A novel imaging marker for small vessel disease based on skeletonization of 
+white matter tracts and diffusion histograms
+Annals of Neurology 2016, 80(4):581-92, DOI: 10.1002/ana.24758
+
+For FSL-TBSS:
+Follow the guidelines at http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/TBSS
