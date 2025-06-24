@@ -46,6 +46,9 @@ class BIDSSession:
             return []
         if modality == 'dwi':
             return sorted(glob.glob(os.path.join(modality_dir, '*.nii*')) + glob.glob(os.path.join(modality_dir, '*.bval')) + glob.glob(os.path.join(modality_dir, '*.bvec')) + glob.glob(os.path.join(modality_dir, '*.json')))
+        elif modality == 'fmap':
+            # return all files
+            return sorted(glob.glob(os.path.join(modality_dir, '*')))
         else:
             return sorted(glob.glob(os.path.join(modality_dir, '*.nii*')))
     

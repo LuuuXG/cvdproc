@@ -1,14 +1,12 @@
 import os
 import pandas as pd
 import json
-import logging
 import nibabel as nib
 import numpy as np
-logger = logging.getLogger(__name__)
 
 from nipype import Node, Workflow, MapNode
-from nipype.interfaces.utility import IdentityInterface, Merge, Function
-from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, DTIFit, DTIpreprocessing, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters, DTIALPSsimple
+from nipype.interfaces.utility import IdentityInterface, Merge
+from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, Padding, EddyCuda, OrderEddyOutputs, DTIFit, RenameDTIFitOutputs, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters, DTIALPSsimple
 from .synb0.synb0_nipype import Synb0
 from .freewater.single_shell_freewater import SingleShellFW
 from ..smri.mirror.mirror_nipype import MirrorMask
@@ -17,8 +15,10 @@ from nipype.interfaces.dipy import Denoise
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
 from nipype.interfaces.mrtrix3 import Tractography, MRConvert, DWIDenoise, MRDeGibbs, DWIPreproc
 from cvdproc.pipelines.dmri.mrtrix3.tcksample_nipype import TckSampleCommand, CalculateMeanTckSample
+from cvdproc.pipelines.dmri.mrtrix3.denoise_degibbs_nipype import DenoiseDegibbs, MrtrixDenoise, MrtrixDegibbs
 from cvdproc.pipelines.dmri.stats.dti_scalar_maps import GenerateWMMaskCommandLine, CalculateScalarMaps
-from ..common.unzip import UnzipCommandLine
+from cvdproc.pipelines.dmri.dipy.dipy_freewater_dti import FreeWaterTensor
+from ..common.unzip import GunzipInterface
 from ..common.move_file import MoveFileCommandLine
 from ..common.copy_file import CopyFileCommandLine
 from ..common.delete_file import DeleteFileCommandLine
@@ -44,7 +44,7 @@ class DWIPipeline:
 
         # Preprocessing
         self.preprocess = kwargs.get('preprocess', False) # whether to preprocess
-        self.preprocess_method = kwargs.get('preprocess_method', 'fdt') # preprocessing method
+        self.preprocess_method = kwargs.get('preprocess_method', ['fdt']) # preprocessing method
         self.synb0 = kwargs.get('synb0', False) # whether to use synthetic b0 image for TOPUP
         self.use_which_reverse_b0 = kwargs.get('use_which_reverse_b0', None) # whether to use reverse b0 image for TOPUP. if synb0 is True, this will be ignored
 
@@ -62,7 +62,7 @@ class DWIPipeline:
         self.dtialps = kwargs.get('dtialps', False)
 
         # Freewater
-        self.single_shell_freewater = kwargs.get('single_shell_freewater', False)
+        self.freewater = kwargs.get('freewater', [])
 
         # PSMD
         self.psmd = kwargs.get('psmd', False)
@@ -97,10 +97,12 @@ class DWIPipeline:
 
         dwi_files = self.session.get_dwi_files()
         phase_encoding_direction_dict = {
-            "i": "-1 0 0",
-            "i-": "1 0 0",
-            "j": "0 -1 0",
-            "j-": "0 1 0"
+            "i": "1 0 0",
+            "i-": "-1 0 0",
+            "j": "0 1 0",
+            "j-": "0 -1 0",
+            "k": "0 0 1",
+            "k-": "0 0 -1"
         }  
         
         if self.use_which_dwi:
@@ -149,22 +151,22 @@ class DWIPipeline:
             total_readout_time = str(total_readout_time)
             phase_encoding_direction = dwi_json_data['PhaseEncodingDirection']     
         except KeyError:
-            logger.warning("Seems TotalReadoutTime or PhaseEncodingDirection not found in the json file.")
+            print("[Warn] Seems TotalReadoutTime or PhaseEncodingDirection not found in the json file.")
             if not total_readout_time:
                 total_readout_time = '0.05'
-                logger.warning("Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
+                print("[Warn] Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
 
         # Find Reverse b0 Image
         if not self.synb0 and self.use_which_reverse_b0 is not None:
-            dwi_files = self.session.get_dwi_files()
-            reverse_b0_files = [file for file in dwi_files if self.use_which_reverse_b0 in file['path']]
+            # TODO: Use the 'IntendedFor' field in the json file to find the reverse b0 image
+            fmap_files = self.session.get_fmap_files()
+            reverse_b0_files = [file for file in fmap_files if self.use_which_reverse_b0 in file['path']]
             
             if len(reverse_b0_files) != 4:
-                #logger.error(f"Found reverse b0 files: {reverse_b0_files}")
                 raise FileNotFoundError(f"No specific reverse b0 file found for {self.use_which_reverse_b0} or more than one found.")
             
             reverse_b0_files_dict = {file['type']: file['path'] for file in reverse_b0_files}
-            logger.info(f"Using reverse b0 files: {reverse_b0_files_dict}")
+            print(f"Using reverse b0 files: {reverse_b0_files_dict}")
 
             reverse_b0_image = reverse_b0_files_dict['dwi']
             reverse_b0_json = reverse_b0_files_dict['json']
@@ -178,10 +180,10 @@ class DWIPipeline:
                 reverse_b0_phase_encoding_direction = reverse_b0_json_data['PhaseEncodingDirection']
 
             except KeyError:
-                logger.warning("Seems TotalReadoutTime or PhaseEncodingDirection not found in the json file.")
+                print("Seems TotalReadoutTime or PhaseEncodingDirection not found in the json file.")
                 if not reverse_b0_total_readout_time:
                     reverse_b0_total_readout_time = '0.05'
-                    logger.warning("Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
+                    print("Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
         else:
             reverse_b0_image = None
 
@@ -192,22 +194,25 @@ class DWIPipeline:
             if len(t1w_files) != 1:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
+            print(f"Using T1w: {t1w_file}")
         else:
-            print("No specific T1w file selected. Using the first one.")
             t1w_files = [t1w_files[0]]
             t1w_file = t1w_files[0]
+            print(f"No specific T1w file selected. Using the first one: {t1w_file}.")
         
         # get FLAIR image
         flair_files = self.session.get_flair_files()
         if self.use_which_flair:
             flair_files = [f for f in flair_files if self.use_which_flair in f]
             if len(flair_files) != 1:
-                raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
+                #raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
+                print(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
             flair_file = flair_files[0]
+            print(f"Using FLAIR: {flair_file}")
         else:
-            print("No specific FLAIR file selected. Using the first one.")
             flair_files = [flair_files[0]]
             flair_file = flair_files[0]
+            print(f"No specific FLAIR file selected. Using the first one :{flair_file}.")
 
         if self.use_freesurfer_clinical:
             fs_output = self.session.freesurfer_clinical_dir
@@ -218,7 +223,7 @@ class DWIPipeline:
         # dwi_workflow #
         ################
         dwi_workflow = Workflow(name='dwi_workflow')
-        dwi_workflow.base_dir = self.output_path
+        dwi_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}")
 
         inputnode = Node(IdentityInterface(fields=['bids_dir', 't1w_file',
                                                    'dwi_file', 'bval_file',
@@ -245,24 +250,52 @@ class DWIPipeline:
         #               Prerocessing               #
         ############################################
 
+        # Directories for intermediate results
+        preproc_intermediate_dir = os.path.join(self.output_path, 'preproc_intermediate')
+
         # Node to store the b0_all and acqparam for TOPUP
         b0_all_node = Node(IdentityInterface(fields=['b0_all', 'acqparam']), name='b0_all')
 
         # Node to store preprocessed DWI data
         preproc_dwi_node = Node(IdentityInterface(fields=['preproc_dwi', 'bvec', 'bval', 'dwi_mask']), name='preproc_dwi')
+        
+        if self.preprocess:
+            # Padding: make sure the slices in the z direction are even
+            # If no need to pad, the output will be the same as input
+            padding_node = Node(Padding(), name='padding')
+            dwi_workflow.connect(inputnode, 'dwi_file', padding_node, 'dwi_file')
+            dwi_workflow.connect(inputnode, 'bvec_file', padding_node, 'bvec_file')
+            dwi_workflow.connect(inputnode, 'bval_file', padding_node, 'bval_file')
+            dwi_workflow.connect(inputnode, 'json_file', padding_node, 'json_file')
+            padding_node.inputs.output_dir = os.path.dirname(dwi_image)
+            padding_node.inputs.basename = rename_bids_file(dwi_image, {"desc": "padding"}, 'dwi', '')
+            
+            # Denoise using MRtrix3
+            denoise_node = Node(MrtrixDenoise(), name='denoise')
+            dwi_workflow.connect(padding_node, 'padded_dwi_file', denoise_node, 'dwi_img')
+            dwi_workflow.connect(padding_node, 'padded_bvec_file', denoise_node, 'dwi_bvec')
+            dwi_workflow.connect(padding_node, 'padded_bval_file', denoise_node, 'dwi_bval')
+            denoise_node.inputs.output_dir = preproc_intermediate_dir
 
-        if self.preprocess_method is None:
-            raise ValueError("Preprocess method is not specified. Please specify a preprocess method.")
-        else:
+            # Degibbs using MRtrix3
+            degibbs_node = Node(MrtrixDegibbs(), name='degibbs')
+            dwi_workflow.connect(denoise_node, 'output_dwi_img', degibbs_node, 'dwi_img')
+            dwi_workflow.connect(denoise_node, 'output_dwi_bvec', degibbs_node, 'dwi_bvec')
+            dwi_workflow.connect(denoise_node, 'output_dwi_bval', degibbs_node, 'dwi_bval')
+            degibbs_node.inputs.output_dir = preproc_intermediate_dir
+
+            # Get b0 image for TOPUP
+            # Need a b0_all image and acqparam.txt file for FSL TOPUP
             if self.synb0:
                 synb0_node = Node(Synb0(), name='synb0')
                 dwi_workflow.connect([
                     (inputnode, synb0_node, [('t1w_file', 't1w_img'),
-                                             ('dwi_file', 'dwi_img'),
-                                             ('output_path_synb0', 'output_path_synb0'),
-                                             ('phase_encoding_number', 'phase_encoding_number'),
-                                             ('total_readout_time', 'total_readout_time')])
+                                                ('output_path_synb0', 'output_path_synb0'),
+                                                ('json_file', 'dwi_json')]),
+                    (degibbs_node, synb0_node, [('output_dwi_img', 'dwi_img')])
                 ])
+
+                synb0_node.inputs.fmap_output_dir = os.path.join(self.subject.bids_dir, f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", 'fmap')
 
                 dwi_workflow.connect(synb0_node, 'acqparam', b0_all_node, 'acqparam')
                 dwi_workflow.connect(synb0_node, 'b0_all', b0_all_node, 'b0_all')
@@ -270,12 +303,12 @@ class DWIPipeline:
                 if reverse_b0_image is not None:
                     create_b0_acqparam_node = Node(B0AllAndAcqparam(), name='create_b0_acqparam')
                     dwi_workflow.connect([
-                        (inputnode, create_b0_acqparam_node, [('dwi_file', 'dwi_img'),
-                                                            ('bval_file', 'dwi_bval'),
-                                                            ('phase_encoding_number', 'phase_encoding_number'),
-                                                            ('total_readout_time', 'total_readout_time'),
-                                                            ('output_path', 'output_path')])
+                        (inputnode, create_b0_acqparam_node, [('phase_encoding_number', 'phase_encoding_number'),
+                                                            ('total_readout_time', 'total_readout_time')]),
+                        (degibbs_node, create_b0_acqparam_node, [('output_dwi_img', 'dwi_img'),
+                                                                        ('output_dwi_bval', 'dwi_bval')])
                     ])
+                    create_b0_acqparam_node.inputs.output_path = preproc_intermediate_dir
                     create_b0_acqparam_node.inputs.reverse_dwi_img = reverse_b0_image
                     create_b0_acqparam_node.inputs.reverse_dwi_bval = reverse_b0_bval
                     create_b0_acqparam_node.inputs.reverse_phase_encoding_number = phase_encoding_direction_dict[reverse_b0_phase_encoding_direction]
@@ -283,153 +316,145 @@ class DWIPipeline:
 
                     dwi_workflow.connect(create_b0_acqparam_node, 'b0_all', b0_all_node, 'b0_all')
                     dwi_workflow.connect(create_b0_acqparam_node, 'acqparam', b0_all_node, 'acqparam')
-            
+
+            # Main preprocessing workflow, according to the preprocess method
             if self.preprocess_method == 'fdt':
-                if self.preprocess:
-                    # denoise_node = Node(Denoise(), name='denoise')
-                    # dwi_workflow.connect(inputnode, 'dwi_file', denoise_node, 'in_file')
-                    # denoise_node.inputs.noise_model = 'rician'
+                topup_node = Node(Topup(), name='topup')
+                dwi_workflow.connect([
+                    (b0_all_node, topup_node, [('b0_all', 'b0_all_file'),
+                                                ('acqparam', 'acqparam_file')])
+                ])
+                topup_node.inputs.output_basename = os.path.join(preproc_intermediate_dir, 'topup_results')
+                topup_node.inputs.output_b0_basename = os.path.join(preproc_intermediate_dir, 'hifi_b0')
+                topup_node.inputs.config_file = 'b02b0.cnf'
 
-                    topup_node = Node(Topup(), name='topup')
-                    dwi_workflow.connect([
-                        (b0_all_node, topup_node, [('b0_all', 'b0_all_file'),
-                                                    ('acqparam', 'acqparam_file')])
-                    ])
-                    topup_node.inputs.output_basename = os.path.join(self.output_path, 'topup_results')
-                    topup_node.inputs.output_b0_basename = os.path.join(self.output_path, 'hifi_b0')
-                    topup_node.inputs.config_file = 'b02b0.cnf'
+                extract_b0_node = Node(ExtractROI(), name='extract_b0')
+                dwi_workflow.connect(topup_node, 'b0_image', extract_b0_node, 'in_file')
+                extract_b0_node.inputs.roi_file = os.path.join(preproc_intermediate_dir, 'dwi_b0.nii.gz')
+                extract_b0_node.inputs.t_min = 0
+                extract_b0_node.inputs.t_size = 1
 
-                    extract_b0_node = Node(ExtractROI(), name='extract_b0')
-                    dwi_workflow.connect(topup_node, 'b0_image', extract_b0_node, 'in_file')
-                    extract_b0_node.inputs.roi_file = os.path.join(self.output_path, 'dwi_b0.nii.gz')
-                    extract_b0_node.inputs.t_min = 0
-                    extract_b0_node.inputs.t_size = 1
+                create_dwi_mask_node = Node(MRISynthstripCommandLine(), name='create_dwi_mask')
+                dwi_workflow.connect([
+                    (extract_b0_node, create_dwi_mask_node, [('roi_file', 'input_file')])
+                ])
+                dwi_mask_filepath = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
+                create_dwi_mask_node.inputs.mask_file = dwi_mask_filepath
 
-                    create_dwi_mask_node = Node(MRISynthstripCommandLine(), name='create_dwi_mask')
-                    dwi_workflow.connect([
-                        (extract_b0_node, create_dwi_mask_node, [('roi_file', 'input_file')])
-                    ])
-                    create_dwi_mask_node.inputs.mask_file = os.path.join(self.output_path, 'dwi_b0_brain_mask.nii.gz')
+                create_index_node = Node(IndexTxt(), name='create_index')
+                dwi_workflow.connect(degibbs_node, 'output_dwi_bval', create_index_node, 'bval_file')
+                create_index_node.inputs.output_dir = preproc_intermediate_dir
 
-                    create_index_node = Node(IndexTxt(), name='create_index')
-                    dwi_workflow.connect(inputnode, 'bval_file', create_index_node, 'bval_file')
-                    dwi_workflow.connect(inputnode, 'output_path', create_index_node, 'output_dir')
+                eddy_node = Node(EddyCuda(), name='eddy')
+                dwi_workflow.connect([
+                    (degibbs_node, eddy_node, [('output_dwi_img', 'dwi_file'), ('output_dwi_bvec', 'bvec_file'), ('output_dwi_bval', 'bval_file')]),
+                    (b0_all_node, eddy_node, [('acqparam', 'acqparam_file')]),
+                    (create_index_node, eddy_node, [('index_file', 'index_file')]),
+                    (create_dwi_mask_node, eddy_node, [('mask_file', 'mask_file')]),
+                    (topup_node, eddy_node, [('topup_basename', 'topup_basename')]),
+                ])
+                eddy_node.inputs.output_basename = os.path.join(preproc_intermediate_dir, 'eddy_corrected_data')
 
-                    eddy_node = Node(EddyCuda(), name='eddy')
-                    dwi_workflow.connect([
-                        (inputnode, eddy_node, [('dwi_file', 'dwi_file'), ('bvec_file', 'bvec_file'), ('bval_file', 'bval_file')]),
-                        (b0_all_node, eddy_node, [('acqparam', 'acqparam_file')]),
-                        (create_index_node, eddy_node, [('index_file', 'index_file')]),
-                        (create_dwi_mask_node, eddy_node, [('mask_file', 'mask_file')]),
-                        (topup_node, eddy_node, [('topup_basename', 'topup_basename')]),
-                    ])
-                    eddy_node.inputs.output_basename = os.path.join(self.output_path, 'eddy_corrected_data')
+                order_eddy_outputs_node = Node(OrderEddyOutputs(), name='order_eddy_outputs')
+                dwi_workflow.connect(eddy_node, 'output_filename', order_eddy_outputs_node, 'eddy_output_filename')
+                dwi_workflow.connect(eddy_node, 'bvals', order_eddy_outputs_node, 'bval')
+                dwi_workflow.connect(eddy_node, 'eddy_output_dir', order_eddy_outputs_node, 'eddy_output_dir')
+                dwi_workflow.connect(inputnode, 'output_path', order_eddy_outputs_node, 'new_output_dir')
+                order_eddy_outputs_node.inputs.new_output_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '')
 
-                    dwi_workflow.connect(eddy_node, 'eddy_corrected_data', preproc_dwi_node, 'preproc_dwi')
-                    dwi_workflow.connect(eddy_node, 'eddy_corrected_bvecs', preproc_dwi_node, 'bvec')
-                    dwi_workflow.connect(inputnode, 'bval_file', preproc_dwi_node, 'bval')
-                    dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')
-                else:
-                    preproc_dwi_node.inputs.preproc_dwi = os.path.join(self.output_path, 'eddy_corrected_data.nii.gz')
-                    preproc_dwi_node.inputs.bvec = os.path.join(self.output_path, 'eddy_corrected_data.eddy_rotated_bvecs')
-                    preproc_dwi_node.inputs.bval = dwi_bval
-                    preproc_dwi_node.inputs.dwi_mask = os.path.join(self.output_path, 'dwi_b0_brain_mask.nii.gz')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_dwi', preproc_dwi_node, 'preproc_dwi')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bvec', preproc_dwi_node, 'bvec')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bval', preproc_dwi_node, 'bval')
+                dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')                    
             elif self.preprocess_method == 'mrtrix3':
-                if self.preprocess:
-                    # Get dwi_raw.mif
-                    convert_raw_dwi_mif_node = Node(MRConvert(), name='convert_raw_dwi_mif')
-                    dwi_workflow.connect(inputnode, 'dwi_file', convert_raw_dwi_mif_node, 'in_file')
-                    dwi_workflow.connect(inputnode, 'bvec_file', convert_raw_dwi_mif_node, 'in_bvec')
-                    dwi_workflow.connect(inputnode, 'bval_file', convert_raw_dwi_mif_node, 'in_bval')
-                    convert_raw_dwi_mif_node.inputs.out_file = os.path.join(self.output_path, 'dwi_raw.mif')
-                    convert_raw_dwi_mif_node.inputs.args = '-force'
+                # Get b0_all.mif
+                convert_b0_all_mif_node = Node(MRConvert(), name='convert_b0_all_mif')
+                dwi_workflow.connect(b0_all_node, 'b0_all', convert_b0_all_mif_node, 'in_file')
+                convert_b0_all_mif_node.inputs.out_file = os.path.join(preproc_intermediate_dir, 'b0_all.mif')
+                convert_b0_all_mif_node.inputs.args = '-force'
+                #convert_raw_dwi_mif_node.inputs.args = f'-import_pe_table {os.path.join(self.output_path, "acqparam.txt")}'
 
-                    # Get b0_all.mif
-                    convert_b0_all_mif_node = Node(MRConvert(), name='convert_b0_all_mif')
-                    dwi_workflow.connect(b0_all_node, 'b0_all', convert_b0_all_mif_node, 'in_file')
-                    convert_b0_all_mif_node.inputs.out_file = os.path.join(self.output_path, 'b0_all.mif')
-                    convert_b0_all_mif_node.inputs.args = '-force'
-                    #convert_raw_dwi_mif_node.inputs.args = f'-import_pe_table {os.path.join(self.output_path, "acqparam.txt")}'
+                # Convert denoised and degibbsed DWI to mif
+                convert_denoised_degibbs_mif_node = Node(MRConvert(), name='convert_denoised_degibbs_mif')
+                dwi_workflow.connect(degibbs_node, 'output_dwi_img', convert_denoised_degibbs_mif_node, 'in_file')
+                dwi_workflow.connect(degibbs_node, 'output_dwi_bvec', convert_denoised_degibbs_mif_node, 'in_bvec')
+                dwi_workflow.connect(degibbs_node, 'output_dwi_bval', convert_denoised_degibbs_mif_node, 'in_bval')
+                convert_denoised_degibbs_mif_node.inputs.out_file = os.path.join(preproc_intermediate_dir, 'dwi_denoise_degibbs.mif')
+                convert_denoised_degibbs_mif_node.inputs.args = '-force'
 
-                    # denoise
-                    denoise_node = Node(DWIDenoise(), name='denoise')
-                    dwi_workflow.connect(convert_raw_dwi_mif_node, 'out_file', denoise_node, 'in_file')
-                    denoise_node.inputs.out_file = os.path.join(self.output_path, 'dwi_denoised.mif')
-                    denoise_node.inputs.noise = os.path.join(self.output_path, 'noise.mif')
+                # TOPUP and Eddy 
+                # I don't know how to integrate TOPUP and Eddy in mrtrix3 if use synb0 :(
+                # preprocess
+                dwi_preprocess_node = Node(DWIPreproc(), name='dwi_preprocess')
+                dwi_workflow.connect(convert_denoised_degibbs_mif_node, 'out_file', dwi_preprocess_node, 'in_file')
+                dwi_workflow.connect(convert_b0_all_mif_node, 'out_file', dwi_preprocess_node, 'in_epi')
+                dwi_preprocess_node.inputs.out_file = os.path.join(preproc_intermediate_dir, 'dwi_preproc.mif')
+                dwi_preprocess_node.inputs.rpe_options = 'pair'
+                dwi_preprocess_node.inputs.pe_dir = phase_encoding_direction
 
-                    # degibbs
-                    degibbs_node = Node(MRDeGibbs(), name='degibbs')
-                    dwi_workflow.connect(denoise_node, 'out_file', degibbs_node, 'in_file')
-                    degibbs_node.inputs.out_file = os.path.join(self.output_path, 'dwi_denoised_degibbs.mif')
+                # alternative of preprocess
+                # https://community.mrtrix.org/t/synb0-for-dwifslpreproc-how/6386/2
+                # TODO
 
-                    # TOPUP and Eddy (I don't know how to integrate TOPUP and Eddy in mrtrix3 if use synb0 :( )
-                    # preprocess
-                    dwi_preprocess_node = Node(DWIPreproc(), name='dwi_preprocess')
-                    dwi_workflow.connect(degibbs_node, 'out_file', dwi_preprocess_node, 'in_file')
-                    dwi_workflow.connect(convert_b0_all_mif_node, 'out_file', dwi_preprocess_node, 'in_epi')
-                    dwi_preprocess_node.inputs.out_file = os.path.join(self.output_path, 'dwi_preproc.mif')
-                    dwi_preprocess_node.inputs.rpe_options = 'pair'
-                    dwi_preprocess_node.inputs.pe_dir = phase_encoding_direction
+                # convert to nifti
+                convert_preproc_dwi_node = Node(MRConvert(), name='convert_preproc_dwi')
+                dwi_workflow.connect(dwi_preprocess_node, 'out_file', convert_preproc_dwi_node, 'in_file')
+                convert_preproc_dwi_node.inputs.out_file = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz'))
+                convert_preproc_dwi_node.inputs.out_bvec = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bvec'))
+                convert_preproc_dwi_node.inputs.out_bval = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bval'))
+                convert_preproc_dwi_node.inputs.args = '-force'
 
-                    # alternative of preprocess
-                    # https://community.mrtrix.org/t/synb0-for-dwifslpreproc-how/6386/2
-                    #TODO
+                # get the mask
+                extract_b0_node = Node(ExtractROI(), name='extract_b0')
+                dwi_workflow.connect(convert_preproc_dwi_node, 'out_file', extract_b0_node, 'in_file')
+                extract_b0_node.inputs.roi_file = os.path.join(preproc_intermediate_dir, 'dwi_b0.nii.gz')
+                extract_b0_node.inputs.t_min = 0
+                extract_b0_node.inputs.t_size = 1
 
-                    # convert to nifti
-                    convert_preproc_dwi_node = Node(MRConvert(), name='convert_preproc_dwi')
-                    dwi_workflow.connect(dwi_preprocess_node, 'out_file', convert_preproc_dwi_node, 'in_file')
-                    convert_preproc_dwi_node.inputs.out_file = os.path.join(self.output_path, 'dwi_preproc.nii.gz')
-                    convert_preproc_dwi_node.inputs.out_bvec = os.path.join(self.output_path, 'dwi_preproc.bvec')
-                    convert_preproc_dwi_node.inputs.out_bval = os.path.join(self.output_path, 'dwi_preproc.bval')
-                    convert_preproc_dwi_node.inputs.args = '-force'
+                create_dwi_mask_node = Node(MRISynthstripCommandLine(), name='create_dwi_mask')
+                dwi_workflow.connect(extract_b0_node, 'roi_file', create_dwi_mask_node, 'input_file')
+                create_dwi_mask_node.inputs.mask_file = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
 
-                    # get the mask
-                    extract_b0_node = Node(ExtractROI(), name='extract_b0')
-                    dwi_workflow.connect(convert_preproc_dwi_node, 'out_file', extract_b0_node, 'in_file')
-                    extract_b0_node.inputs.roi_file = os.path.join(self.output_path, 'dwi_b0.nii.gz')
-                    extract_b0_node.inputs.t_min = 0
-                    extract_b0_node.inputs.t_size = 1
+                dwi_workflow.connect(convert_preproc_dwi_node, 'out_file', preproc_dwi_node, 'preproc_dwi')
+                dwi_workflow.connect(convert_preproc_dwi_node, 'out_bvec', preproc_dwi_node, 'bvec')
+                dwi_workflow.connect(convert_preproc_dwi_node, 'out_bval', preproc_dwi_node, 'bval')
+                dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')
+        else:
+            preproc_dwi_node.inputs.preproc_dwi = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz'))
+            preproc_dwi_node.inputs.bvec = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bvec'))
+            preproc_dwi_node.inputs.bval = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bval'))
+            preproc_dwi_node.inputs.dwi_mask = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
 
-                    create_dwi_mask_node = Node(MRISynthstripCommandLine(), name='create_dwi_mask')
-                    dwi_workflow.connect(extract_b0_node, 'roi_file', create_dwi_mask_node, 'input_file')
-                    create_dwi_mask_node.inputs.mask_file = os.path.join(self.output_path, 'dwi_b0_brain_mask.nii.gz')
-
-                    dwi_workflow.connect(convert_preproc_dwi_node, 'out_file', preproc_dwi_node, 'preproc_dwi')
-                    dwi_workflow.connect(convert_preproc_dwi_node, 'out_bvec', preproc_dwi_node, 'bvec')
-                    dwi_workflow.connect(convert_preproc_dwi_node, 'out_bval', preproc_dwi_node, 'bval')
-                    dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')
-                else:
-                    preproc_dwi_node.inputs.preproc_dwi = os.path.join(self.output_path, 'dwi_preproc.nii.gz')
-                    preproc_dwi_node.inputs.bvec = os.path.join(self.output_path, 'dwi_preproc.bvec')
-                    preproc_dwi_node.inputs.bval = os.path.join(self.output_path, 'dwi_preproc.bval')
-                    preproc_dwi_node.inputs.dwi_mask = os.path.join(self.output_path, 'dwi_b0_brain_mask.nii.gz')
-                    
-        
         ##########################
         #         DTI fit        #
         ##########################
-        dti_fit_output_node = Node(IdentityInterface(fields=['output_dir', 'fa_img', 'md_img', 'tensor_img']), name='dti_fit_output')
+        dti_fit_output_node = Node(IdentityInterface(fields=['fa_img', 'md_img', 'tensor_img']), name='dti_fit_output')
 
         if self.dti_fit:
-            dti_fit_node = Node(DTIFit(), name='dti_fit')
-            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', dti_fit_node, 'dwi_file')
-            dwi_workflow.connect(preproc_dwi_node, 'bvec', dti_fit_node, 'bvec_file')
-            dwi_workflow.connect(preproc_dwi_node, 'bval', dti_fit_node, 'bval_file')
-            dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', dti_fit_node, 'mask_file')
-            dti_fit_node.inputs.output_basename = os.path.join(self.output_path, 'dti')
+            dtifit_output_dir = os.path.join(self.output_path, 'dtifit')
 
-            dwi_workflow.connect([
-                (dti_fit_node, dti_fit_output_node, [('dti_fa', 'fa_img'),
-                                                     ('dti_md', 'md_img'),
-                                                     ('dti_tensor', 'tensor_img'),
-                                                     ('output_dir', 'output_dir')]),
-            ])
-        else:
-            dti_fit_output_node.inputs.fa_img = os.path.join(self.output_path, 'dti_FA.nii.gz')
-            dti_fit_output_node.inputs.md_img = os.path.join(self.output_path, 'dti_MD.nii.gz')
-            dti_fit_output_node.inputs.tensor_img = os.path.join(self.output_path, 'dti_tensor.nii.gz')
-            dti_fit_output_node.inputs.output_dir = self.output_path
-        
+            target_fa_output = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "fa"}, 'dwimap', '.nii.gz'))
+            if os.path.exists(target_fa_output):
+                print(f"DTI FA image already exists: {target_fa_output}. Skipping DTI fit.")
+                dti_fit_output_node.inputs.fa_img = target_fa_output
+                dti_fit_output_node.inputs.md_img = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "md"}, 'dwimap', '.nii.gz'))
+                dti_fit_output_node.inputs.tensor_img = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "tensor"}, 'dwimap', '.nii.gz'))
+            else:
+                dti_fit_node = Node(DTIFit(), name='dti_fit')
+                dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', dti_fit_node, 'dwi_file')
+                dwi_workflow.connect(preproc_dwi_node, 'bvec', dti_fit_node, 'bvec_file')
+                dwi_workflow.connect(preproc_dwi_node, 'bval', dti_fit_node, 'bval_file')
+                dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', dti_fit_node, 'mask_file')
+                dti_fit_node.inputs.output_basename = os.path.join(dtifit_output_dir, 'dti')
+
+                rename_dtifit_outputs_node = Node(RenameDTIFitOutputs(), name='rename_dtifit_outputs')
+                dwi_workflow.connect(dti_fit_node, 'output_basename', rename_dtifit_outputs_node, 'dtifit_output_basename')
+                dwi_workflow.connect(inputnode, 'dwi_file', rename_dtifit_outputs_node, 'dwi_file')
+
+                dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_fa', dti_fit_output_node, 'fa_img')
+                dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_md', dti_fit_output_node, 'md_img')
+                dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_tensor', dti_fit_output_node, 'tensor_img')
+
         #########################################################################
         # 2. Tractography: Designed for lesion-based probabilistic tractography #
         #########################################################################
@@ -474,7 +499,6 @@ class DWIPipeline:
             tractography_node.inputs.seed_mask_dtispace = seed_mask
             tractography_node.inputs.fs_processing_dir = fs_processing_dir
             dwi_workflow.connect(inputnode, 't1w_file', tractography_node, 't1w_file')
-            #dwi_workflow.connect(dtipreprocessing_node, 'fa_file', tractography_node, 'fa_file')
             tractography_node.inputs.fa_file = os.path.join(self.output_path, 'dti_FA.nii.gz')
             tractography_node.inputs.script_path_fspreprocess = self.script_path2
             if self.preprocess:
@@ -585,8 +609,8 @@ class DWIPipeline:
                                  "'FACT', 'iFOD2', 'iFOD1', 'NullDist1', 'NullDist2', 'SD_STREAM', "
                                  "'SeedTest', 'Tensor_Det', 'Tensor_Prob'")
             
-            logger.warning(f"Using tckgen method: {self.tckgen_method}.")
-            logger.warning(f"Only these methods are tested: 'Tensor_Det', 'Tensor_Prob'.")
+            print(f"Using tckgen method: {self.tckgen_method}.")
+            print(f"Only these methods are tested: 'Tensor_Det', 'Tensor_Prob'.")
             
             mri_convert_node = Node(MRConvert(), name='mri_convert')
             mri_convert_node.inputs.out_file = os.path.join(self.output_path, 'preproc_dwi.mif')
@@ -603,6 +627,7 @@ class DWIPipeline:
             tckgen_node.inputs.out_file = os.path.join(tckgen_outout_dir, 'tracked.tck')
             tckgen_node.inputs.algorithm = self.tckgen_method
             tckgen_node.inputs.select = 10000
+            tckgen_node.inputs.nthreads = 4
             tckgen_node.inputs.args = '-force'
 
             dwi_workflow.connect(tckgen_node, 'out_file', seed_based_track_node, 'seed_based_track')
@@ -619,7 +644,9 @@ class DWIPipeline:
             dtialps_node = Node(DTIALPSsimple(), name='dtialps')
             dtialps_node.inputs.perform_roi_analysis = '1'
             dtialps_node.inputs.use_templete = '1'
-            dwi_workflow.connect(dti_fit_output_node, 'output_dir', dtialps_node, 'dtifit_output_dir')
+            dwi_workflow.connect(dti_fit_output_node, 'fa_img', dtialps_node, 'fa_file')
+            dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dtialps_node, 'tensor_file')
+            dwi_workflow.connect(dti_fit_output_node, 'md_img', dtialps_node, 'md_file')
             dtialps_node.inputs.alps_input_dir = dtialps_output_dir
             dtialps_node.inputs.skip_preprocessing = '1'
             dtialps_node.inputs.alps_script_path = self.alps_script_path
@@ -627,9 +654,9 @@ class DWIPipeline:
         ##########################
         # Single Shell Freewater #
         ##########################
-        freewater_node = Node(IdentityInterface(fields=['fw_img']), name='freewater_node')
+        freewater_node = Node(IdentityInterface(fields=['single_shell_fw_img', 'dti_fw_img']), name='freewater_node')
 
-        if self.single_shell_freewater:
+        if 'single_shell_freewater' in self.freewater:
             single_shell_freewater_node = Node(SingleShellFW(), name='single_shell_freewater')
 
             dwi_workflow.connect(inputnode, 'bval_file', single_shell_freewater_node, 'fbval')
@@ -647,21 +674,34 @@ class DWIPipeline:
         else:
             freewater_node.inputs.fw_img = os.path.join(self.output_path, 'single_shell_freewater', 'freewater.nii.gz')
         
+        if 'dti_freewater' in self.freewater:
+            dti_freewater_node = Node(FreeWaterTensor(), name='dti_freewater')
+            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', dti_freewater_node, 'dwi_file')
+            dwi_workflow.connect(preproc_dwi_node, 'bvec', dti_freewater_node, 'bvec_file')
+            dwi_workflow.connect(preproc_dwi_node, 'bval', dti_freewater_node, 'bval_file')
+            dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', dti_freewater_node, 'mask_file')
+
+            fw_output_path = os.path.join(self.output_path, 'tensor_model_freewater')
+            dti_freewater_node.inputs.output_dir = fw_output_path
+
+            dwi_workflow.connect(dti_freewater_node, 'freewater_file', freewater_node, 'dti_fw_img')
+        else:
+            freewater_node.inputs.dti_fw_img = os.path.join(self.output_path, 'tensor_model_freewater', 'dti_freewater.nii.gz')
+        
         ########
         # PSMD #
         ########
         if self.psmd:
-            unzip_node = Node(UnzipCommandLine(), name="unzip_node")
-            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', unzip_node, 'file')
-            unzip_node.inputs.decompress = True
-            unzip_node.inputs.keep = True
+            psmd_output_dir = os.path.join(self.output_path, 'psmd')
 
-            move_file_node = Node(MoveFileCommandLine(), name="move_file_node")
-            dwi_workflow.connect(unzip_node, 'unzipped_file', move_file_node, 'source_file')
-            move_file_node.inputs.destination_file = os.path.join(self.output_path, 'data.nii')
+            # unzip_node = Node(GunzipInterface(), name="unzip_node")
+            # dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', unzip_node, 'file')
+            # unzip_node.inputs.out_dir = psmd_output_dir
+            # unzip_node.inputs.keep = True
+            # unzip_node.inputs.out_basename = 'data.nii'
 
             psmd_node = Node(PSMDCommandLine(), name="psmd_node")
-            dwi_workflow.connect(move_file_node, 'moved_file', psmd_node, 'dwi_data')
+            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', psmd_node, 'dwi_data')
             dwi_workflow.connect(inputnode, 'bval_file', psmd_node, 'bval_file')
             dwi_workflow.connect(preproc_dwi_node, 'bvec', psmd_node, 'bvec_file')
             psmd_node.inputs.mask_file = self.psmd_skeleton_mask
@@ -682,17 +722,10 @@ class DWIPipeline:
                     print("No lesion mask found.")
 
                 psmd_node.inputs.lesion_mask = psmd_lesion_mask
+            psmd_node.inputs.output_dir = psmd_output_dir
 
-            save_psmd_node = Node(SavePSMDOutputCommandLine(), name="save_psmd_node")
-            save_psmd_node.inputs.output_file = os.path.join(self.output_path, 'psmd_output.csv')
-            save_psmd_node.inputs.subject_id = self.subject.subject_id
-            save_psmd_node.inputs.session_id = self.session.session_id
-            dwi_workflow.connect(psmd_node, "psmd", save_psmd_node, "psmd")
-            dwi_workflow.connect(psmd_node, "psmd_left", save_psmd_node, "psmd_left")
-            dwi_workflow.connect(psmd_node, "psmd_right", save_psmd_node, "psmd_right")
-
-            delete_dwi_file_node = Node(DeleteFileCommandLine(), name="delete_dwi_file_node")
-            dwi_workflow.connect(psmd_node, "dwi", delete_dwi_file_node, "file")
+            # delete_dwi_file_node = Node(DeleteFileCommandLine(), name="delete_dwi_file_node")
+            # dwi_workflow.connect(psmd_node, "dwi", delete_dwi_file_node, "file")
         
         #########################
         # Calculate DWI metrics #
@@ -701,10 +734,11 @@ class DWIPipeline:
             dwi_metrics_output_dir = os.path.join(self.output_path, 'dwi_metrics_stats')
             os.makedirs(dwi_metrics_output_dir, exist_ok=True)
 
-            dwi_metrics_node = Node(Merge(3), name='dwi_metrics')
+            dwi_metrics_node = Node(Merge(4), name='dwi_metrics')
             dwi_workflow.connect(dti_fit_output_node, 'fa_img', dwi_metrics_node, 'in1')
             dwi_workflow.connect(dti_fit_output_node, 'md_img', dwi_metrics_node, 'in2')
             dwi_workflow.connect(freewater_node, 'fw_img', dwi_metrics_node, 'in3')
+            dwi_workflow.connect(freewater_node, 'dti_fw_img', dwi_metrics_node, 'in4')
 
             exist_dwi_metrics_node = Node(FilterExisting(), name='exist_dwi_metrics')
             dwi_workflow.connect(dwi_metrics_node, 'out', exist_dwi_metrics_node, 'input_file_list')
@@ -753,9 +787,9 @@ class DWIPipeline:
                 # search for the first file contain '_WMHmask' in dir
                 wmh_mask = [file for file in os.listdir(wmh_output_dir) if '_WMHmask' in file]
                 if wmh_mask is not None and len(wmh_mask) == 1:
-                    logger.warning(f"Using WMH mask: {wmh_mask[0]}.")
+                    print(f"Using WMH mask: {wmh_mask[0]}.")
                 elif wmh_mask is not None and len(wmh_mask) > 1:
-                    logger.warning(f"Using the first mask found: {wmh_mask[0]}.")
+                    print(f"Using the first mask found: {wmh_mask[0]}.")
                 else:
                     #logger.warning("No WMH mask found.")
                     raise FileNotFoundError(f"No WMH mask found in {wmh_output_dir}. Please check the directory.")
@@ -765,9 +799,9 @@ class DWIPipeline:
                 # search for the first file contain '_from-FLAIR_to-T1w_xfm' in dir
                 xfm_file = [file for file in os.listdir(xfm_output_dir) if '_from-FLAIR_to-T1w_xfm' in file]
                 if xfm_file is not None and len(xfm_file) == 1:
-                    logger.warning(f"Using xfm file: {xfm_file[0]}.")
+                    print(f"Using xfm file: {xfm_file[0]}.")
                 elif xfm_file is not None and len(xfm_file) > 1:
-                    logger.warning(f"Using the first xfm file found: {xfm_file[0]}.")
+                    print(f"Using the first xfm file found: {xfm_file[0]}.")
                 else:
                     #logger.warning("No xfm file found.")
                     raise FileNotFoundError(f"No xfm file found in {xfm_output_dir}. Please check the directory.")
@@ -843,101 +877,194 @@ class DWIPipeline:
     def extract_results(self):
         os.makedirs(self.output_path, exist_ok=True)
 
-        fdt_output_path = self.extract_from
+        dwi_output_path = self.extract_from
 
         # DTI-ALPS
-        columns = ['Subject', 'Session', 'ALPS_L', 'ALPS_R', 'ALPS_mean']
-        results_df = pd.DataFrame(columns=columns)
+        alps_columns = ['DWI_pipeline_id', 'Subject', 'Session', 'ALPS_L', 'ALPS_R', 'ALPS_mean']
+        alps_results_df = pd.DataFrame(columns=alps_columns)
 
-        for subject_folder in os.listdir(fdt_output_path):
-            subject_id = subject_folder.split('-')[1]
-            subject_folder_path = os.path.join(fdt_output_path, subject_folder)
+        # PSMD
+        psmd_columns = ['DWI_pipeline_id', 'Subject', 'Session', 'PSMD', 'PSMD_Left', 'PSMD_Right']
+        psmd_results_df = pd.DataFrame(columns=psmd_columns)
 
-            if os.path.isdir(subject_folder_path):
-                session_folders = [f for f in os.listdir(subject_folder_path) if 'ses-' in f]
+        # Track-based DWI metrics
+        track_dwi_metrics_columns = ['DWI_pipeline_id', 'Subject', 'Session', 'Track_DTI_FA', 'Track_DTI_MD', 'Track_SS_FW', 'Track_DTI_FW'] # SS for single shell
+        track_dwi_metrics_df = pd.DataFrame(columns=track_dwi_metrics_columns)
 
-                if session_folders:
-                    for session_folder in session_folders:
-                        session_id = session_folder.split('-')[1]
-                        session_path = os.path.join(subject_folder_path, session_folder)
+        # Mask-based DWI metrics
+        mask_dwi_metrics_columns = ['DWI_pipeline_id', 'Subject', 'Session',
+                                    'Seedmask_DTI_FA', 'Seedmask_DTI_MD', 'Seedmask_SS_FW', 'Seedmask_DTI_FW',
+                                    'WMHmask_DTI_FA', 'WMHmask_DTI_MD', 'WMHmask_SS_FW', 'WMHmask_DTI_FW',
+                                    'WMraw_DTI_FA', 'WMraw_DTI_MD', 'WMraw_SS_FW', 'WMraw_DTI_FW',
+                                    'WMfinal_DTI_FA', 'WMfinal_DTI_MD', 'WMfinal_SS_FW', 'WMfinal_DTI_FW']
+        mask_dwi_metrics_df = pd.DataFrame(columns=mask_dwi_metrics_columns)
 
-                        dti_alps_stat = os.path.join(session_path, 'DTI-ALPS', 'alps.stat', 'alps.csv')
-                        if os.path.exists(dti_alps_stat):
-                            df = pd.read_csv(dti_alps_stat)
-                            if {'alps_L', 'alps_R', 'alps'}.issubset(df.columns):
-                                new_data = pd.DataFrame([{
-                                    'Subject': subject_id,
-                                    'Session': session_id,
-                                    'ALPS_L': df['alps_L'].values[0],
-                                    'ALPS_R': df['alps_R'].values[0],
-                                    'ALPS_mean': df['alps'].values[0]
-                                }])
-                                results_df = pd.concat([results_df, new_data], ignore_index=True)
-                else:
-                    dti_alps_stat = os.path.join(subject_folder_path, 'DTI-ALPS', 'alps.stat', 'alps.csv')
-
-                    if os.path.exists(dti_alps_stat):
-                        df = pd.read_csv(dti_alps_stat)
-                        if {'alps_L', 'alps_R', 'alps'}.issubset(df.columns):
-                            new_data = pd.DataFrame([{
-                                'Subject': subject_id,
-                                'Session': 'N/A',
-                                'ALPS_L': df['alps_L'].values[0],
-                                'ALPS_R': df['alps_R'].values[0],
-                                'ALPS_mean': df['alps'].values[0]
-                            }])
-                            results_df = pd.concat([results_df, new_data], ignore_index=True)
-
-        output_excel_path = os.path.join(self.output_path, 'alps_results.xlsx')
-        results_df.to_excel(output_excel_path, header=True, index=False)
-        print(f"Quantification results saved to {output_excel_path}")
-
-        # Lesion-based probabilistic tractography
-        # TODO: situation when there are no sessions
+        # Surface parameters
         surface_parameters_df = pd.DataFrame()
         mirror_surface_parameters_df = pd.DataFrame()
 
-        for subject_folder in os.listdir(fdt_output_path):
+        # Assume have sub + ses
+        # Loop through all subjects (start with sub-) and sessions (start with ses-)
+        print(f"Reading .csv results from {dwi_output_path}...")
+        for subject_folder in os.listdir(dwi_output_path):
+            if not subject_folder.startswith('sub-'):
+                continue
+
             subject_id = subject_folder.split('-')[1]
-            subject_folder_path = os.path.join(fdt_output_path, subject_folder)
+            subject_folder_path = os.path.join(dwi_output_path, subject_folder)
 
-            if os.path.isdir(subject_folder_path):
-                session_folders = [f for f in os.listdir(subject_folder_path) if 'ses-' in f]
+            for session_folder in os.listdir(subject_folder_path):
+                if not session_folder.startswith('ses-'):
+                    continue
 
-                if session_folders:
-                    for session_folder in session_folders:
-                        session_id = session_folder.split('-')[1]
-                        session_path = os.path.join(subject_folder_path, session_folder)
+                session_id = session_folder.split('-')[1]
+                session_path = os.path.join(subject_folder_path, session_folder)
 
-                        # surface_parameters.csv
-                        surface_csv = os.path.join(session_path, "surface_parameters.csv")
-                        if os.path.exists(surface_csv):
-                            df = pd.read_csv(surface_csv)
-                            df.insert(0, 'fdt_id', f'sub-{subject_id}_ses-{session_id}')
-                            df.insert(1, 'subject', f'sub-{subject_id}')
-                            surface_parameters_df = pd.concat([surface_parameters_df, df], ignore_index=True)
+                dti_alps_csv = os.path.join(session_path, 'DTI-ALPS', 'alps.stat', 'alps.csv')
+                psmd_csv = os.path.join(session_path, 'psmd_output.csv')
+                tract_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_FA_mean.csv')
+                tract_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_MD_mean.csv')
+                tract_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_freewater_mean.csv')
+                tract_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_freewater_mean.csv')
+                wmraw_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_FA_in_WM_in_dwi_stats.csv')
+                wmraw_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_MD_in_WM_in_dwi_stats.csv')
+                wmraw_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'freewater_in_WM_in_dwi_stats.csv')
+                wmraw_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_freewater_in_WM_in_dwi_stats.csv')
+                wmfinal_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_FA_in_WM_final_stats.csv')
+                wmfinal_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_MD_in_WM_final_stats.csv')
+                wmfinal_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'freewater_in_WM_final_stats.csv')
+                wmfinal_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_freewater_in_WM_final_stats.csv')
+                wmh_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_FA_in_wmh_mask_in_dwi_stats.csv')
+                wmh_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_MD_in_wmh_mask_in_dwi_stats.csv')
+                wmh_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'freewater_in_wmh_mask_in_dwi_stats.csv')
+                wmh_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_freewater_in_wmh_mask_in_dwi_stats.csv')
+                seedmask_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_FA_in_dti_infarction_stats.csv') # should be replaced when using different seed mask
+                seedmask_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_MD_in_dti_infarction_stats.csv')
+                seedmask_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'freewater_in_dti_infarction_stats.csv')
+                seedmask_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'dti_freewater_in_dti_infarction_stats.csv')
+                surface_csv = os.path.join(session_path, 'surface_parameters.csv')
+                mirror_surface_csv = os.path.join(session_path, 'mirror_surface_parameters.csv')
+                
+                # DTI-ALPS
+                if os.path.exists(dti_alps_csv):
+                    alps_df = pd.read_csv(dti_alps_csv)
+                    if {'alps_L', 'alps_R', 'alps'}.issubset(alps_df.columns):
+                        new_data = pd.DataFrame([{
+                            'DWI_pipeline_id': f"sub-{subject_id}_ses-{session_id}",
+                            'Subject': f"sub-{subject_id}",
+                            'Session': f"ses-{session_id}",
+                            'ALPS_L': alps_df['alps_L'].values[0],
+                            'ALPS_R': alps_df['alps_R'].values[0],
+                            'ALPS_mean': alps_df['alps'].values[0]
+                        }])
+                        alps_results_df = pd.concat([alps_results_df, new_data], ignore_index=True)
+                
+                # PSMD
+                if os.path.exists(psmd_csv):
+                    psmd_df = pd.read_csv(psmd_csv)
+                    if {'PSMD', 'PSMD_Left', 'PSMD_Right'}.issubset(psmd_df.columns):
+                        new_data = pd.DataFrame([{
+                            'DWI_pipeline_id': f"sub-{subject_id}_ses-{session_id}",
+                            'Subject': f"sub-{subject_id}",
+                            'Session': f"ses-{session_id}",
+                            'PSMD': psmd_df['PSMD'].values[0],
+                            'PSMD_Left': psmd_df['PSMD_Left'].values[0],
+                            'PSMD_Right': psmd_df['PSMD_Right'].values[0]
+                        }])
+                        psmd_results_df = pd.concat([psmd_results_df, new_data], ignore_index=True)
+                
+                # Track-based DWI metrics
+                new_data = pd.DataFrame([{
+                    'DWI_pipeline_id': f"sub-{subject_id}_ses-{session_id}",
+                    'Subject': f"sub-{subject_id}",
+                    'Session': f"ses-{session_id}",
+                    'Track_DTI_FA': pd.read_csv(tract_fa_csv)['mean'].values[0] if os.path.exists(tract_fa_csv) else None,
+                    'Track_DTI_MD': pd.read_csv(tract_md_csv)['mean'].values[0] if os.path.exists(tract_md_csv) else None,
+                    'Track_SS_FW': pd.read_csv(tract_ss_fw_csv)['mean'].values[0] if os.path.exists(tract_ss_fw_csv) else None,
+                    'Track_DTI_FW': pd.read_csv(tract_dti_fw_csv)['mean'].values[0] if os.path.exists(tract_dti_fw_csv) else None
+                }])
+                track_dwi_metrics_df = pd.concat([track_dwi_metrics_df, new_data], ignore_index=True)
 
-                        # mirror_surface_parameters.csv
-                        mirror_csv = os.path.join(session_path, "mirror_surface_parameters.csv")
-                        if os.path.exists(mirror_csv):
-                            df_mirror = pd.read_csv(mirror_csv)
-                            df_mirror.insert(0, 'fdt_id', f'sub-{subject_id}_ses-{session_id}')
-                            df_mirror.insert(1, 'subject', f'sub-{subject_id}')
-                            mirror_surface_parameters_df = pd.concat([mirror_surface_parameters_df, df_mirror], ignore_index=True)
+                # Mask-based DWI metrics
+                new_data = pd.DataFrame([{
+                    'DWI_pipeline_id': f"sub-{subject_id}_ses-{session_id}",
+                    'Subject': f"sub-{subject_id}",
+                    'Session': f"ses-{session_id}",
+                    'Seedmask_DTI_FA': pd.read_csv(seedmask_fa_csv).iloc[1, 1] if os.path.exists(seedmask_fa_csv) else None,
+                    'Seedmask_DTI_MD': pd.read_csv(seedmask_md_csv).iloc[1, 1] if os.path.exists(seedmask_md_csv) else None,
+                    'Seedmask_SS_FW': pd.read_csv(seedmask_ss_fw_csv).iloc[1, 1] if os.path.exists(seedmask_ss_fw_csv) else None,
+                    'Seedmask_DTI_FW': pd.read_csv(seedmask_dti_fw_csv).iloc[1, 1] if os.path.exists(seedmask_dti_fw_csv) else None,
+                    'WMHmask_DTI_FA': pd.read_csv(wmh_fa_csv).iloc[1, 1] if os.path.exists(wmh_fa_csv) else None,
+                    'WMHmask_DTI_MD': pd.read_csv(wmh_md_csv).iloc[1, 1] if os.path.exists(wmh_md_csv) else None,
+                    'WMHmask_SS_FW': pd.read_csv(wmh_ss_fw_csv).iloc[1, 1] if os.path.exists(wmh_ss_fw_csv) else None,
+                    'WMHmask_DTI_FW': pd.read_csv(wmh_dti_fw_csv).iloc[1, 1] if os.path.exists(wmh_dti_fw_csv) else None,
+                    'WMraw_DTI_FA': pd.read_csv(wmraw_fa_csv).iloc[1, 1] if os.path.exists(wmraw_fa_csv) else None,
+                    'WMraw_DTI_MD': pd.read_csv(wmraw_md_csv).iloc[1, 1] if os.path.exists(wmraw_md_csv) else None,
+                    'WMraw_SS_FW': pd.read_csv(wmraw_ss_fw_csv).iloc[1, 1] if os.path.exists(wmraw_ss_fw_csv) else None,
+                    'WMraw_DTI_FW': pd.read_csv(wmraw_dti_fw_csv).iloc[1, 1] if os.path.exists(wmraw_dti_fw_csv) else None,
+                    'WMfinal_DTI_FA': pd.read_csv(wmfinal_fa_csv).iloc[1, 1] if os.path.exists(wmfinal_fa_csv) else None,
+                    'WMfinal_DTI_MD': pd.read_csv(wmfinal_md_csv).iloc[1, 1] if os.path.exists(wmfinal_md_csv) else None,
+                    'WMfinal_SS_FW': pd.read_csv(wmfinal_ss_fw_csv).iloc[1, 1] if os.path.exists(wmfinal_ss_fw_csv) else None,
+                    'WMfinal_DTI_FW': pd.read_csv(wmfinal_dti_fw_csv).iloc[1, 1] if os.path.exists(wmfinal_dti_fw_csv) else None
+                }])
+                mask_dwi_metrics_df = pd.concat([mask_dwi_metrics_df, new_data], ignore_index=True)
+
+                # Surface parameters
+                if os.path.exists(surface_csv):
+                    df = pd.read_csv(surface_csv)
+                    df.insert(0, 'DWI_pipeline_id', f'sub-{subject_id}_ses-{session_id}')
+                    df.insert(1, 'Subject', f'sub-{subject_id}')
+                    df.insert(2, 'Session', f'ses-{session_id}')
+                    surface_parameters_df = pd.concat([surface_parameters_df, df], ignore_index=True)
+                
+                if os.path.exists(mirror_surface_csv):
+                    df_mirror = pd.read_csv(mirror_surface_csv)
+                    df_mirror.insert(0, 'DWI_pipeline_id', f'sub-{subject_id}_ses-{session_id}')
+                    df_mirror.insert(1, 'Subject', f'sub-{subject_id}')
+                    df_mirror.insert(2, 'Session', f'ses-{session_id}')
+                    mirror_surface_parameters_df = pd.concat([mirror_surface_parameters_df, df_mirror], ignore_index=True)
 
         # Save results
+        alps_output_excel = os.path.join(self.output_path, 'alps_results.xlsx')
+        psmd_output_excel = os.path.join(self.output_path, 'psmd_results.xlsx')
+        track_dwi_metrics_output_excel = os.path.join(self.output_path, 'track_dwi_metrics_results.xlsx')
+        mask_dwi_metrics_output_excel = os.path.join(self.output_path, 'mask_dwi_metrics_results.xlsx')
         surface_output_excel = os.path.join(self.output_path, 'surface_parameters_results.xlsx')
         mirror_output_excel = os.path.join(self.output_path, 'mirror_surface_parameters_results.xlsx')
+        if not alps_results_df.empty:
+            alps_results_df.to_excel(alps_output_excel, header=True, index=False)
+            print(f"DTI-ALPS results saved to {alps_output_excel}")
+        else:
+            print("No DTI-ALPS results found.")
+        if not psmd_results_df.empty:
+            psmd_results_df.to_excel(psmd_output_excel, header=True, index=False)
+            print(f"PSMD results saved to {psmd_output_excel}")
+        else:
+            print("No PSMD results found.")
+        if not track_dwi_metrics_df.empty:
+            track_dwi_metrics_df.to_excel(track_dwi_metrics_output_excel, header=True, index=False)
+            print(f"Track-based DWI metrics results saved to {track_dwi_metrics_output_excel}")
+        else:
+            print("No track-based DWI metrics results found.")
+        if not mask_dwi_metrics_df.empty:
+            mask_dwi_metrics_df.to_excel(mask_dwi_metrics_output_excel, header=True, index=False)
+            print(f"Mask-based DWI metrics results saved to {mask_dwi_metrics_output_excel}")
+        else:
+            print("No mask-based DWI metrics results found.")
+
+        # Save surface parameters
+        if 'session' in surface_parameters_df.columns:
+            surface_parameters_df.drop(columns=['session'], inplace=True)
+        if 'session' in mirror_surface_parameters_df.columns:
+            mirror_surface_parameters_df.drop(columns=['session'], inplace=True)
 
         if not surface_parameters_df.empty:
             surface_parameters_df.to_excel(surface_output_excel, header=True, index=False)
             print(f"Surface parameters results saved to {surface_output_excel}")
         else:
             print("No surface parameters found.")
-
         if not mirror_surface_parameters_df.empty:
             mirror_surface_parameters_df.to_excel(mirror_output_excel, header=True, index=False)
             print(f"Mirror surface parameters results saved to {mirror_output_excel}")
         else:
             print("No mirror surface parameters found.")
-

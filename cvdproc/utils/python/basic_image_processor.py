@@ -389,8 +389,6 @@ def main():
             calculate_volume(args.input, args.output)
         elif args.roi_vol is not None:
             calculate_roi_volume(args.input, args.extract, args.output)
-        elif args.swap_lr is not None:
-            swap_lr(args.input[0], args.input[1], args.output[0], args.output[1])
         elif args.extract is not None:
             extract_roi_means(args.input, args.extract, args.ignore_background, args.output)
         elif args.extract_label is not None:

@@ -9,6 +9,10 @@ from nipype.interfaces.utility import IdentityInterface, Merge, Function
 from .sepia_qsm.sepia_qsm_nipype import SepiaQSM, QSMRegister
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
 from ..common.copy_to_rawdata import CopyToRawData
+from ..common.register import ModalityRegistration
+
+from ...bids_data.rename_bids_file import rename_bids_file
+from ...utils.python.basic_image_processor import extract_roi_means
 
 class SepiaQSMPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
@@ -25,6 +29,7 @@ class SepiaQSMPipeline:
                                                                          # It is likely that the toolbox is already in the path.
                                                                          # So, you don't need to specify this.
                                                                          # Otherwise, you need to specify the path to the SEPIA toolbox.
+        self.reverse_phase = kwargs.get('reverse_phase', 0) # 0=no need, 1=reverse phase image (For GE scans)
 
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         self.sepia_qsm_script = os.path.join(base_dir, 'matlab', 'sepia_qsm', 'sepia_process.m')
@@ -59,7 +64,8 @@ class SepiaQSMPipeline:
             raise FileNotFoundError("No specific 1st echo magnitude image found.")
         first_mag_file = mag_files[0]
 
-        sepia_qsm_wf = Workflow(name='sepia_qsm_wf', base_dir=self.output_path)
+        sepia_qsm_wf = Workflow(name='sepia_qsm_wf')
+        sepia_qsm_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
 
         inputnode = Node(IdentityInterface(fields=['t1w_file', 'first_mag_file', 'input_qsm_bids_dir', 'phase_image_correction', 'reverse_phase', 
                                                    'subject_output_folder', 'script_path', 'sepia_toolbox_path']), name='inputnode')
@@ -67,7 +73,7 @@ class SepiaQSMPipeline:
         inputnode.inputs.first_mag_file = first_mag_file
         inputnode.inputs.input_qsm_bids_dir = os.path.join(self.session.session_dir, 'qsm')
         inputnode.inputs.phase_image_correction = True
-        inputnode.inputs.reverse_phase = 1
+        inputnode.inputs.reverse_phase = self.reverse_phase
         inputnode.inputs.subject_output_folder = self.output_path
         inputnode.inputs.script_path = self.sepia_qsm_script
         inputnode.inputs.sepia_toolbox_path = self.sepia_toolbox_path
@@ -93,11 +99,29 @@ class SepiaQSMPipeline:
         copy_to_rawdata_node.inputs.extension = '.nii.gz'
 
         if self.normalize:
+            # transform QSM to T1w using 1st echo magnitude image
+            xfm_output_path = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
+            os.makedirs(xfm_output_path, exist_ok=True)
+
+            qsm_to_t1w_transform_node = Node(ModalityRegistration(), name='qsm_to_t1w_transform')
+            sepia_qsm_wf.connect([
+                (inputnode, qsm_to_t1w_transform_node, [("t1w_file", "image_target")]),
+                (inputnode, qsm_to_t1w_transform_node, [("first_mag_file", "image_source")]),
+            ])
+            qsm_to_t1w_transform_node.inputs.image_target_strip = 0
+            qsm_to_t1w_transform_node.inputs.image_source_strip = 0
+            qsm_to_t1w_transform_node.inputs.flirt_direction = 1
+            qsm_to_t1w_transform_node.inputs.output_dir = xfm_output_path
+            qsm_to_t1w_transform_node.inputs.registered_image_filename = rename_bids_file("", {'sub': self.subject.subject_id, 'ses': self.session.session_id, 'space': 'T1w'}, 'SWI', '.nii.gz')
+            qsm_to_t1w_transform_node.inputs.source_to_target_mat_filename = rename_bids_file("", {'sub': self.subject.subject_id, 'ses': self.session.session_id, 'from': 'SWI', 'to': 'SWI'}, 'xfm', '.mat')
+            qsm_to_t1w_transform_node.inputs.target_to_source_mat_filename = rename_bids_file("", {'sub': self.subject.subject_id, 'ses': self.session.session_id, 'from': 'SWI', 'to': 'T1w'}, 'xfm', '.mat')
+            qsm_to_t1w_transform_node.inputs.dof = 12
+
             fsl_anat_output_path = os.path.join(self.session.bids_dir, 'derivatives', 'fsl_anat', f"sub-{self.session.subject_id}", f"ses-{self.session.session_id}")
 
             qsm_normalize_node = Node(QSMRegister(), name='qsm_normalize_node')
             sepia_qsm_wf.connect(inputnode, 't1w_file', qsm_normalize_node, 't1w_image')
-            sepia_qsm_wf.connect(inputnode, 'first_mag_file', qsm_normalize_node, 'mag_image')
+            sepia_qsm_wf.connect(qsm_to_t1w_transform_node, 'source_to_target_mat', qsm_normalize_node, 'qsm2t1w_xfm')
             sepia_qsm_wf.connect(inputnode, 'subject_output_folder', qsm_normalize_node, 'output_dir')
             
             if not os.path.exists(fsl_anat_output_path):
@@ -109,7 +133,7 @@ class SepiaQSMPipeline:
 
                 sepia_qsm_wf.connect(fsl_anat_node, 'output_directory', qsm_normalize_node, 'fsl_anat_dir')
             else:
-                qsm_normalize_node.inputs.fsl_anat_dir = os.path.join(self.session.bids_dir, 'derivatives', 'fsl_anat', f"sub-{self.subject}", f"ses-{self.session}", "fsl.anat")
+                qsm_normalize_node.inputs.fsl_anat_dir = os.path.join(self.session.bids_dir, 'derivatives', 'fsl_anat', f"sub-{self.session.subject_id}", f"ses-{self.session.session_id}", "fsl.anat")
             
             susceptibility_map = os.path.join(self.output_path, 'Sepia_Chimap.nii.gz')
             s0_map = os.path.join(self.output_path, 'Sepia_S0map.nii.gz')
@@ -121,7 +145,6 @@ class SepiaQSMPipeline:
             qsm_images = [susceptibility_map, s0_map, r2star_map, t2star_map, swi, mip]
 
             qsm_normalize_node.inputs.qsm_images = qsm_images
-            qsm_normalize_node.inputs.qsm_register_script = self.qsm_register_script
         
         outputnode = Node(IdentityInterface(fields=['output_folder']), name='outputnode')
         sepia_qsm_wf.connect(sepia_qsm_node, 'output_folder', outputnode, 'output_folder')

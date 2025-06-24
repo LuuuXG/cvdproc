@@ -159,9 +159,11 @@ silent=false
 verbose=false
 debug=false
 basedir=$(pwd)
+outdir=""
 
 # Get command-line options
-while getopts ":d:p:b:r:f:m:s:e:l:ogtcqvh" opt; do
+#while getopts ":d:p:b:r:f:m:s:e:l:ogtcqvh" opt; do
+while getopts ":d:p:b:r:f:m:s:e:l:ogtcqvhw:" opt; do
   case $opt in
     d)
       rawdwi=${OPTARG}
@@ -214,6 +216,12 @@ while getopts ":d:p:b:r:f:m:s:e:l:ogtcqvh" opt; do
       ;;
     q)
       silent=true
+      ;;
+    w)
+      outdir=${OPTARG}
+      if [ ! -d "$outdir" ]; then
+        mkdir -p $outdir
+      fi
       ;;
     v)
       verbose=true
@@ -419,6 +427,19 @@ if [ ${hemispheres} == true ] && [ ${metric} == MSMD ];then
 fi
 
 cd "${basedir}" || exit 1
+
+if [ -n "${outdir:-}" ]; then
+  if [ -n "${psmdresult:-}" ]; then
+    echo "${psmdresult}" > "${outdir}/psmd_out.txt"
+  elif [ -n "${psmdL:-}" ] && [ -n "${psmdR:-}" ]; then
+    echo "${psmdL},${psmdR}" > "${outdir}/psmd_out.txt"
+  elif [ -n "${msmdresult:-}" ]; then
+    echo "${msmdresult}" > "${outdir}/psmd_out.txt"
+  elif [ -n "${msmdL:-}" ] && [ -n "${msmdR:-}" ]; then
+    echo "${msmdL},${msmdR}" > "${outdir}/psmd_out.txt"
+  fi
+fi
+
 [ ${debug} == false ] && rm -r psmdtemp
 
 exit 0

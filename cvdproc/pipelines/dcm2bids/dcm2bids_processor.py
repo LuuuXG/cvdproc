@@ -1,5 +1,6 @@
 import subprocess
 import os
+import shutil
 import nibabel as nib
 import numpy as np
 import json
@@ -25,14 +26,21 @@ class Dcm2BidsProcessor:
 
         subprocess.run(['dcm2bids_scaffold', '-o', self.BIDS_root_folder])
 
-        # Experimental: create a 'population' folder in derivatives folder
+        # Experimental: create 'population', 'workflows' folder in derivatives folder
         derivatives_folder = os.path.join(self.BIDS_root_folder, 'derivatives')
         population_folder = os.path.join(derivatives_folder, 'population')
+        workflows_folder = os.path.join(derivatives_folder, 'workflows')
         if not os.path.exists(population_folder):
             print('Creating population folder...')
             os.makedirs(population_folder)
         else:
             print('Population folder already exists.')
+        
+        if not os.path.exists(workflows_folder):
+            print('Creating workflows folder...')
+            os.makedirs(workflows_folder)
+        else:
+            print('Workflows folder already exists.')
 
         print('Initialization completed.')
 
@@ -111,21 +119,103 @@ class Dcm2BidsProcessor:
                     
         else:
             print('No temporary dcm2bids folder found, or it is not in the BIDS root folder.')
+        
+        # Fix 'IntendedFor' fields in JSON files
+        self.fix_intendedfor_for_subject_session(subject_id, session_id)
+    
+    def fix_intendedfor_for_subject_session(self, subject_id, session_id):
+        """
+        Fix 'IntendedFor' fields only under a specific subject/session.
+        """
+        target_dir = os.path.join(self.BIDS_root_folder, f"sub-{subject_id}", f"ses-{session_id}")
+        if not os.path.exists(target_dir):
+            print(f"[WARN] Target directory not found: {target_dir}")
+            return
+
+        fixed_count = 0
+        for root, _, files in os.walk(target_dir):
+            for file in files:
+                if file.endswith(".json"):
+                    json_path = os.path.join(root, file)
+                    try:
+                        with open(json_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+
+                        if "IntendedFor" in data:
+                            original = data["IntendedFor"]
+                            modified = None
+
+                            if isinstance(original, str):
+                                if not original.startswith("ses-") and "ses-" in original:
+                                    modified = "ses-" + original.split("ses-", 1)[1]
+                            elif isinstance(original, list):
+                                changed = False
+                                new_list = []
+                                for item in original:
+                                    if not item.startswith("ses-") and "ses-" in item:
+                                        new_list.append("ses-" + item.split("ses-", 1)[1])
+                                        changed = True
+                                    else:
+                                        new_list.append(item)
+                                if changed:
+                                    modified = new_list
+
+                            if modified is not None:
+                                data["IntendedFor"] = modified
+                                with open(json_path, "w", encoding="utf-8") as f:
+                                    json.dump(data, f, indent=4)
+                                fixed_count += 1
+                                print(f"[FIXED] IntendedFor: {json_path}")
+
+                    except Exception as e:
+                        print(f"[ERROR] Failed to process {json_path}: {e}")
+                        continue
+
+        if fixed_count > 0:
+            print(f"Fixed {fixed_count} JSON file(s) for sub-{subject_id} ses-{session_id}")
+    
+    def fix_dwi_bvec_bval(self, subject_id, session_id, fix_config):
+        dwi_dir = os.path.join(
+            self.BIDS_root_folder,
+            f"sub-{subject_id}",
+            f"ses-{session_id}",
+            "dwi"
+        )
+
+        if not os.path.exists(dwi_dir):
+            print(f"[WARN] No DWI directory found for sub-{subject_id}, ses-{session_id}. Skipping fix.")
+            return
+
+        for file in os.listdir(dwi_dir):
+            for fix_item in fix_config:
+                match_str = fix_item.get("match", "")
+                if match_str in file and file.endswith(".nii.gz"):
+                    base = file.replace(".nii.gz", "")
+                    bvec_path = os.path.join(dwi_dir, base + ".bvec")
+                    bval_path = os.path.join(dwi_dir, base + ".bval")
+
+                    if os.path.exists(bvec_path) and os.path.exists(fix_item["bvec"]):
+                        print(f"Replacing {bvec_path} with {fix_item['bvec']}")
+                        shutil.copyfile(fix_item["bvec"], bvec_path)
+
+                    if os.path.exists(bval_path) and os.path.exists(fix_item["bval"]):
+                        print(f"Replacing {bval_path} with {fix_item['bval']}")
+                        shutil.copyfile(fix_item["bval"], bval_path)
     
     def check_data(self, check_data_config):
-        """检查BIDS文件夹下的影像数据是否满足多个序列配置，并保存结果为check_data.xlsx"""
+        """Check if the BIDS data meets multiple sequence configurations and save the results to check_data.xlsx"""
         print("Generating the BIDS Layout...")
         layout = BIDSLayout(self.BIDS_root_folder)
         results = []
         column_titles = ["Subject_id", "Session_id"]
 
-        # 为每个序列配置添加列标题，同时增加 "_number" 列
+        # Add the titles for each sequence configuration
         for check in check_data_config:
             custom_name = check["custom_name"]
-            column_titles.append(custom_name)  # 原有列
-            column_titles.append(f"{custom_name}_number")  # 新增数量列
+            column_titles.append(custom_name)
+            column_titles.append(f"{custom_name}_number")
 
-        # 遍历每个配置，检查BIDS数据中的文件
+        # Loop through each check configuration
         for check in check_data_config:
             custom_name = check["custom_name"]
             suffix = check["suffix"]

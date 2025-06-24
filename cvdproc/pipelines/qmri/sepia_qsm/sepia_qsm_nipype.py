@@ -7,6 +7,10 @@ import shlex
 import subprocess
 from traits.api import Directory, Str, List, Bool, Enum, Int, Float, TraitError
 
+#############################################
+# SEPIA QSM processing interface for Nipype #
+#############################################
+
 class SepiaQSMInputSpec(BaseInterfaceInputSpec):
     input_qsm_bids_dir = Directory(exists=True, mandatory=True, desc='BIDS directory containing QSM data')
     phase_image_correction = Bool(False, usedefault=True, desc='Perform phase image correction')
@@ -52,19 +56,13 @@ class SepiaQSM(BaseInterface):
             
             script_file.write(new_script_content)
 
-        command = [
-            'matlab',
-            '-nodisplay',
-            '-nosplash',
-            '-nodesktop',
-            '-r',
-            f'run(\'{subject_matlab_script}\')'
-        ]
-        subprocess.run(command)
+        cmd_str = f"run('{subject_matlab_script}'); exit;"
+        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='stream')
+        result = mlab.run()
 
         self._output_folder = self.inputs.subject_output_folder
             
-        return runtime
+        return result.runtime
     
     def _list_outputs(self):
         outputs = self._outputs().get()
@@ -78,39 +76,27 @@ class SepiaQSM(BaseInterface):
 
         return outputs
 
+#########################################
+# QSM registration interface for Nipype #
+#########################################
 
-class QSMRegisterInputSpec(BaseInterfaceInputSpec):
-    t1w_image = File(mandatory=True, desc='T1w image')
-    mag_image = File(mandatory=True, desc='Magnitude image')
-    output_dir = Directory(desc='Output directory')
-    fsl_anat_dir = Directory(exists=True, desc='FSL ANAT directory')
-    qsm_images = traits.List(Str(), desc='List of QSM images')
-
-    qsm_register_script = File(exists=True, desc='Path to the QSM register script')
+class QSMRegisterInputSpec(CommandLineInputSpec):
+    t1w_image = File(mandatory=True, desc='T1w image', argstr='--t1w %s')
+    qsm2t1w_xfm = File(exists=True, desc='QSM to T1w transformation matrix', argstr='--qsm2t1w_xfm %s')
+    output_dir = Directory(desc='Output directory', argstr='--output %s', mandatory=True)
+    fsl_anat_dir = Directory(exists=True, desc='FSL ANAT directory', argstr='--anat %s', mandatory=True)
+    qsm_images = traits.List(Str(), desc='List of QSM images', argstr='--input %s', mandatory=True)
 
 class QSMRegisterOutputSpec(TraitedSpec):
     output_dir = Directory(desc='Output directory')
 
-class QSMRegister(BaseInterface):
+class QSMRegister(CommandLine):
     input_spec = QSMRegisterInputSpec
     output_spec = QSMRegisterOutputSpec
-
-    def _run_interface(self, runtime):
-        try:
-            subprocess.run([
-                'bash', self.inputs.qsm_register_script,
-                '--t1w', self.inputs.t1w_image,
-                '--mag', self.inputs.mag_image,
-                '--output', self.inputs.output_dir,
-                '--anat', self.inputs.fsl_anat_dir,
-                '--input', *self.inputs.qsm_images
-            ], check=True)
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"QSM registration script failed with error: {e}")
-
-        return runtime
+    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "qsm_register.sh"))
 
     def _list_outputs(self):
-        outputs = {}
-        outputs['output_dir'] = self.inputs.output_dir
+        outputs = self.output_spec().get()
+        outputs['output_dir'] = os.path.abspath(self.inputs.output_dir)
+
         return outputs

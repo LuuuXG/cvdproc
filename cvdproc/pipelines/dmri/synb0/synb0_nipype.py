@@ -10,85 +10,65 @@ from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, Traite
 from nipype.interfaces.utility import IdentityInterface
 from traits.api import Bool, Int, Str
 
-import logging
-logger = logging.getLogger(__name__)
+class Synb0InputSpec(CommandLineInputSpec):
+    # T1W_IMG=$1
+    # DWI_IMG=$2
+    # OUTPUT_DIR=$3
+    # DWI_JSON=$4
+    # FMAP_DIR=$5
 
-class Synb0InputSpec(BaseInterfaceInputSpec):
-    t1w_img = File(desc="Path to the T1-weighted image")
-    dwi_img = File(desc="Path to the DWI image. First volume is b0 image")
-    output_path_synb0 = Directory(desc="Output directory for the synb0 image")
-    phase_encoding_number = Str(desc="Phase encoding number")
-    total_readout_time = Str(desc="Total readout time")
+    # if [[ $# -ne 5 ]]; then
+    # echo "Usage: $0 <T1w.nii.gz> <DWI.nii.gz> <synb0_output_dir> <dwi.json> <fmap_output_dir>"
+    # exit 1
+    # fi
+    t1w_img = File(desc="Path to the T1-weighted image", exists=True, mandatory=True, argstr="%s", position=1)
+    dwi_img = File(desc="Path to the DWI image. First volume is b0 image", exists=True, mandatory=True, argstr="%s", position=2)
+    output_path_synb0 = Directory(desc="Output directory for the synb0 image", mandatory=True, argstr="%s", position=3)
+    dwi_json = File(desc="Path to the DWI JSON file", exists=True, mandatory=True, argstr="%s", position=4)
+    fmap_output_dir = Directory(desc="Output directory for the field map", mandatory=True, argstr="%s", position=5)
 
 class Synb0OutputSpec(TraitedSpec):
     acqparam = File(desc="Path to the acqparam.txt file")
     b0_all = File(desc="Path to the b0_all image")
+    b0_u = File(desc="Path to the b0_u image")
 
-class Synb0(BaseInterface):
+class Synb0(CommandLine):
+    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "run_synb0.sh"))
     input_spec = Synb0InputSpec
     output_spec = Synb0OutputSpec
 
     def _run_interface(self, runtime):
-        synb0_input_path = os.path.join(self.inputs.output_path_synb0, "INPUTS")
-        synb0_output_path = os.path.join(self.inputs.output_path_synb0, "OUTPUTS")
-        b0_all_path = os.path.join(synb0_output_path, "b0_all.nii.gz")
+        import re
+        # Run the command
+        runtime = super(Synb0, self)._run_interface(runtime)
 
-        if not os.path.exists(b0_all_path):
-            os.makedirs(synb0_input_path, exist_ok=True)
-            os.makedirs(synb0_output_path, exist_ok=True)
-
-            # mri_synthstrip t1w_img
-            subprocess.run(['mri_synthstrip', '-i', self.inputs.t1w_img, '-o', os.path.join(synb0_input_path, 'T1.nii.gz')], check=True)
-
-            # extract b0 image from dwi_img
-            subprocess.run(['fslroi', self.inputs.dwi_img, os.path.join(synb0_input_path, 'b0.nii.gz'), '0', '1'], check=True)
-
-            # Create a acqparam.txt file in INPUTS
-            with open(os.path.join(synb0_input_path, 'acqparam.txt'), 'w') as f:
-                f.write(self.inputs.phase_encoding_number + ' ' + str(self.inputs.total_readout_time) + '\n')
-                f.write(self.inputs.phase_encoding_number + ' 0')
-            
-            # synb0-disco
-            # first check the docker image is available
-            docker_image = "leonyichencai/synb0-disco:v3.1"
-            try:
-                subprocess.run(['docker', 'inspect', docker_image], check=True)
-            except subprocess.CalledProcessError:
-                logger.error(f"Docker image {docker_image} not found. Please pull the image first. \n docker pull {docker_image}")
-                return runtime
-            
-            fs_license = os.environ.get("FS_LICENSE")
-            if not fs_license:
-                raise ValueError("FS_LICENSE environment variable is not set.")
-            
-            subprocess.run([
-                "docker", "run", "--rm",
-                "-v", f"{synb0_input_path}:/INPUTS",
-                "-v", f"{synb0_output_path}:/OUTPUTS",
-                "-v", f"{fs_license}:/extra/freesurfer/license.txt",
-                "leonyichencai/synb0-disco:v3.1",
-                "--user", "1000:1000",
-                "--stripped",
-                "--notopup"
-            ], check=True)
+        # Parse output for fmap image path
+        fmap_expr = re.compile(r'Fmap image:\s+(.*\.nii\.gz)')
+        match = fmap_expr.search(runtime.stdout)
+        if match:
+            fmap_path = match.group(1).strip()
         else:
-            logger.info(f"b0_all.nii.gz already exists at {b0_all_path}. Skipping synb0-disco.")
-        
-        b0_u = os.path.join(synb0_output_path, 'b0_u.nii.gz')
-        b0_d_smooth = os.path.join(synb0_output_path, 'b0_d_smooth.nii.gz')
+            fmap_path = None
+            self.raise_exception("Cannot extract fmap path from output.")
 
-        # merge the synthetic b0 image with the original dwi image
-        subprocess.run(['fslmerge', '-t', os.path.join(self.inputs.output_path_synb0, 'b0_all.nii.gz'), b0_d_smooth, b0_u], check=True)
-
-        # output
-        self._acqparam = os.path.join(synb0_input_path, 'acqparam.txt')
-        self._b0_all = os.path.join(self.inputs.output_path_synb0, 'b0_all.nii.gz')
-
+        setattr(self, "_fmap_path", fmap_path)
         return runtime
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["acqparam"] = os.path.abspath(self._acqparam)
-        outputs["b0_all"] = os.path.abspath(self._b0_all)
-        
+        outputs["acqparam"] = os.path.join(self.inputs.output_path_synb0, "INPUTS", "acqparam.txt")
+        outputs["b0_all"] = os.path.join(self.inputs.output_path_synb0, "b0_all.nii.gz")
+        outputs["b0_u"] = getattr(self, "_fmap_path", None)
         return outputs
+
+if __name__ == "__main__":
+    # Example usage
+    synb0 = Synb0()
+    synb0.inputs.t1w_img = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/anat/sub-WZMCI001_ses-01_acq-highres_T1w.nii.gz"
+    synb0.inputs.dwi_img = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/dwi/sub-WZMCI001_ses-01_acq-DTIb1000_dwi.nii.gz"
+    synb0.inputs.output_path_synb0 = "/mnt/f/BIDS/WZdata/derivatives/synb0/sub-WZMCI001/ses-01"
+    synb0.inputs.dwi_json = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/dwi/sub-WZMCI001_ses-01_acq-DTIb1000_dwi.json"
+    synb0.inputs.fmap_output_dir = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/fmap"
+
+    result = synb0.run()  # This will execute the interface
+    print(result.outputs)

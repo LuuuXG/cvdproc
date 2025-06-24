@@ -6,6 +6,9 @@ from nipype.interfaces.freesurfer import ReconAll
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface
 from .freesurfer.recon_all_clinical import ReconAllClinical, CopySynthSR, PostProcess
+from .freesurfer.synthSR import SynthSR
+
+from ...bids_data.rename_bids_file import rename_bids_file
 
 class FreesurferPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
@@ -62,7 +65,7 @@ class FreesurferPipeline:
         fs_workflow.connect(inputnode, "fs_output_id", reconall_node, "subject_id")
         fs_workflow.connect(inputnode, "subjects_dir", reconall_node, "subjects_dir")
 
-        fs_workflow.base_dir = fs_output_path
+        fs_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
 
         return fs_workflow
 
@@ -151,3 +154,51 @@ class FreesurferClinicalPipeline:
         fs_clinical_workflow.base_dir = fs_output_path
 
         return fs_clinical_workflow
+
+class SynthSRPipeline:
+    def __init__(self, subject, session, output_path, **kwargs):
+        """
+        SynthSR pipeline
+        """
+        self.subject = subject
+        self.session = session
+        self.output_path = os.path.abspath(output_path)
+
+        self.use_which_t1w = kwargs.get('use_which_t1w', None)
+
+    def check_data_requirements(self):
+        """
+        检查数据需求
+        :return: bool
+        """
+        return self.session.get_t1w_files() is not None
+
+    def create_workflow(self):
+        t1w_files = self.session.get_t1w_files()
+
+        if self.use_which_t1w:
+            t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
+            if len(t1w_files) != 1:
+                raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
+        
+        if len(t1w_files) != 1:
+            raise FileNotFoundError("SynthSR requires exactly one T1w file.")
+        
+        t1w_file = t1w_files[0]
+                
+        synthsr_workflow = Workflow(name='synthsr_workflow')
+
+        inputnode = Node(IdentityInterface(fields=["t1w_file", "output_path"]), name="inputnode")
+        inputnode.inputs.t1w_file = t1w_file
+        
+        synthsr_img_name = os.path.join(os.path.dirname(t1w_file), rename_bids_file(t1w_file, {'desc': 'SynthSRraw'}, 'T1w', '.nii.gz'))
+        inputnode.inputs.output_path = synthsr_img_name
+
+        synthsr_node = Node(SynthSR(), name="synthsr")
+        synthsr_workflow.connect(inputnode, "t1w_file", synthsr_node, "input")
+        synthsr_workflow.connect(inputnode, "output_path", synthsr_node, "output")
+
+        # set base directory
+        synthsr_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
+
+        return synthsr_workflow

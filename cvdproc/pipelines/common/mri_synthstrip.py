@@ -28,6 +28,20 @@ class MRISynthstripCommandLine(CommandLine):
     input_spec = MRISynthstripInputSpec
     output_spec = MRISynthstripOutputSpec
 
+    def _run_interface(self, runtime):
+        # Check if output already exists
+        skip_output = self.inputs.output_file and os.path.exists(self.inputs.output_file)
+        skip_mask = self.inputs.mask_file and os.path.exists(self.inputs.mask_file)
+
+        # If both requested outputs exist, skip running
+        if (self.inputs.output_file and self.inputs.mask_file and skip_output and skip_mask) or \
+           (self.inputs.output_file and not self.inputs.mask_file and skip_output) or \
+           (self.inputs.mask_file and not self.inputs.output_file and skip_mask):
+            self._status = 0  # mimic successful run
+            return runtime
+
+        return super()._run_interface(runtime)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         

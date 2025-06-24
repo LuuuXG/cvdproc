@@ -1,14 +1,4 @@
 import os
-from ..pipelines.smri.csvd_quantification.wmh_pipeline import WMHSegmentationPipeline
-from ..pipelines.smri.csvd_quantification.pvs_pipeline import PVSSegmentationPipeline
-from ..pipelines.smri.csvd_quantification.cmb_pipeline import CMBSegmentationPipeline
-from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline, FreesurferClinicalPipeline
-from ..pipelines.smri.cat12_pipeline import CAT12Pipeline
-from ..pipelines.smri.fsl_anat_pipeline import FSLANATPipeline
-from ..pipelines.dmri.fdt_pipeline import FDTPipeline
-from ..pipelines.dmri.dwi_pipeline import DWIPipeline
-from ..pipelines.nipype_test.test import TestPipeline
-from ..pipelines.qmri.sepia_qsm_pipeline import SepiaQSMPipeline
 
 class PipelineManager:
     def get_pipeline(self, pipeline_name, subject, session=None, output_path=None, **kwargs):
@@ -30,37 +20,54 @@ class PipelineManager:
 
         #### CSVD marker ####
         if pipeline_name.lower() == "wmh_quantification":
+            from ..pipelines.smri.csvd_quantification.wmh_pipeline import WMHSegmentationPipeline
             return WMHSegmentationPipeline(subject, session, output_path=output_path, matlab_path=matlab_path, spm_path=spm_path, **kwargs)
         elif pipeline_name.lower() == "pvs_quantification":
+            from ..pipelines.smri.csvd_quantification.pvs_pipeline import PVSSegmentationPipeline
             return PVSSegmentationPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "cmb_quantification":
+            from ..pipelines.smri.csvd_quantification.cmb_pipeline import CMBSegmentationPipeline
             return CMBSegmentationPipeline(subject, session, output_path=output_path, **kwargs)
         #####################
 
         #### Structural MRI ####
         elif pipeline_name.lower() == "freesurfer":
+            from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline
             return FreesurferPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "freesurfer_clinical":
+            from ..pipelines.smri.freesurfer_pipeline import FreesurferClinicalPipeline
             return FreesurferClinicalPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "synthsr":
+            from ..pipelines.smri.freesurfer_pipeline import SynthSRPipeline
+            return SynthSRPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "cat12":
+            from ..pipelines.smri.cat12_pipeline import CAT12Pipeline
             return CAT12Pipeline(subject, session, output_path=output_path, matlab_path=matlab_path, **kwargs)
         elif pipeline_name.lower() == "fsl_anat":
+            from ..pipelines.smri.fsl_anat_pipeline import FSLANATPipeline
             return FSLANATPipeline(subject, session, output_path=output_path, **kwargs)
         ########################
 
         #### Diffusion MRI ####
-        elif pipeline_name.lower() == "fdt":
-            return FDTPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "dwi_pipeline":
+            from ..pipelines.dmri.dwi_pipeline import DWIPipeline
             return DWIPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "nemo_postprocess":
+            from ..pipelines.dmri.nemo_postprocess_pipeline import NemoPostprocessPipeline
+            return NemoPostprocessPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Quantiative MRI ####
         elif pipeline_name.lower() == "sepia_qsm":
+            from ..pipelines.qmri.sepia_qsm_pipeline import SepiaQSMPipeline
             return SepiaQSMPipeline(subject, session, output_path=output_path, **kwargs)
     
         #### TEST ####
         elif pipeline_name.lower() == "test":
+            from ..pipelines.nipype_test.test import TestPipeline
             return TestPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "test_matlab":
+            from ..pipelines.nipype_test.test_matlab import TestMatlabPipeline
+            return TestMatlabPipeline(subject, session, output_path=output_path, matlab_path=matlab_path, **kwargs)
         #####################
 
         raise ValueError(f"Unknown pipeline: {pipeline_name}")

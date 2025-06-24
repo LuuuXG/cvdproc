@@ -12,7 +12,7 @@ class FreeWaterTensorInputSpec(BaseInterfaceInputSpec):
     bval_file = File(exists=True, mandatory=True, desc="Path to the bval file")
     bvec_file = File(exists=True, mandatory=True, desc="Path to the bvec file")
     mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask file")
-    output_dir = Directory(exists=True, mandatory=True, desc="Output directory for the free water map")
+    output_dir = Directory(mandatory=True, desc="Output directory for the free water map")
 
 class FreeWaterTensorOutputSpec(TraitedSpec):
     freewater_file = File(desc="Path to the output free water map")
@@ -24,6 +24,8 @@ class FreeWaterTensor(BaseInterface):
     output_spec = FreeWaterTensorOutputSpec
 
     def _run_interface(self, runtime):
+        os.makedirs(self.inputs.output_dir, exist_ok=True)
+        
         # Load the DWI data
         img = nib.load(self.inputs.dwi_file)
         data = np.asarray(img.dataobj)
@@ -46,24 +48,24 @@ class FreeWaterTensor(BaseInterface):
 
         # Save the free water map
         freewater_img = nib.Nifti1Image(freewater, img.affine, img.header)
-        freewater_path = os.path.join(self.inputs.output_dir, "freewater.nii.gz")
+        freewater_path = os.path.join(self.inputs.output_dir, "dti_freewater.nii.gz")
         freewater_img.to_filename(freewater_path)
 
         # Save the free water fraction map
         fwfa_img = nib.Nifti1Image(fwfa, img.affine, img.header)
-        fwfa_path = os.path.join(self.inputs.output_dir, "freewater_fa.nii.gz")
+        fwfa_path = os.path.join(self.inputs.output_dir, "dti_freewater_fa.nii.gz")
         fwfa_img.to_filename(fwfa_path)
 
         # Save the free water mean diffusivity map
         fwmd_img = nib.Nifti1Image(fwmd, img.affine, img.header)
-        fwmd_path = os.path.join(self.inputs.output_dir, "freewater_md.nii.gz")
+        fwmd_path = os.path.join(self.inputs.output_dir, "dti_freewater_md.nii.gz")
         fwmd_img.to_filename(fwmd_path)
 
         return runtime
     
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["freewater_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "freewater.nii.gz"))
-        outputs["fwfa_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "freewater_fa.nii.gz"))
-        outputs["fwmd_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "freewater_md.nii.gz"))
+        outputs["freewater_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "dti_freewater.nii.gz"))
+        outputs["fwfa_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "dti_freewater_fa.nii.gz"))
+        outputs["fwmd_file"] = os.path.abspath(os.path.join(self.inputs.output_dir, "dti_freewater_md.nii.gz"))
         return outputs

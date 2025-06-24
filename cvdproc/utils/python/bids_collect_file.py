@@ -39,7 +39,7 @@ def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, o
 
 if __name__ == '__main__':
     collect_files_by_pattern(
-        bids_deriv_root="/mnt/f/BIDS/SVD_BIDS/derivatives/fdt",
+        bids_deriv_root="/mnt/f/BIDS/SVD_BIDS/derivatives/dwi_pipeline",
         subfolder_path="fs_processing",
         target_filename="seed_mask_in_mni.nii.gz",
         output_dir="/mnt/f/BIDS/SVD_BIDS/derivatives/lesion_mask_mni"

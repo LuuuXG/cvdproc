@@ -10,9 +10,6 @@ from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, Traite
 from nipype.interfaces.utility import IdentityInterface, Merge
 from traits.api import Bool, Int, Str, Either
 
-import logging
-logger = logging.getLogger(__name__)
-
 ######################
 # WM mask generation #
 ######################

@@ -42,6 +42,14 @@ mkdir -p $OUTPUT_DIR
 
 # Step 1: Convert aseg to NIfTI
 mri_convert $FS_OUTPUT/mri/aseg.mgz $OUTPUT_DIR/aseg.nii.gz
+mri_convert $FS_OUTPUT/mri/orig.mgz $OUTPUT_DIR/orig.nii.gz
+
+flirt -in $OUTPUT_DIR/aseg.nii.gz \
+    -ref $OUTPUT_DIR/orig.nii.gz \
+    -out $OUTPUT_DIR/aseg.nii.gz \
+    -applyxfm -usesqform -interp nearestneighbour
+
+rm -f $OUTPUT_DIR/orig.nii.gz
 
 # Step 2: Initialize empty mask
 fslmaths $OUTPUT_DIR/aseg.nii.gz -mul 0 $OUTPUT_DIR/temp_wm.nii.gz

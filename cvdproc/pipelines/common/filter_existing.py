@@ -1,9 +1,6 @@
 import os
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, traits, TraitedSpec
 
-import logging
-logger = logging.getLogger(__name__)
-
 class FilterExistingInputSpec(BaseInterfaceInputSpec):
     input_file_list = traits.List(
         desc="List of input files to filter",
@@ -42,7 +39,7 @@ class FilterExisting(BaseInterface):
                 filtered_filename_list.append(filename)
 
             else:
-                logger.warning(f"File {file} does not exist and will be excluded.")
+                print(f"File {file} does not exist and will be excluded.")
 
         self._filtered_file_list = filtered_file_list
         self._filtered_filename_list = filtered_filename_list

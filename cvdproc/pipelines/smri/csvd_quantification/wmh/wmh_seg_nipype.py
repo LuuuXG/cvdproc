@@ -169,28 +169,6 @@ class WMHSynthSeg(BaseInterface):
         # Avoid possible CUDA imcompability issues
         # Here we use the CPU for the segmentation
 
-        cmd = [
-            'mri_WMHsynthseg',
-            '--i', input_dir,
-            '--o', self.inputs.output_dir,
-            '--csv_vols', vol_csv,
-            '--device', 'cuda',
-            '--crop',
-            '--save_lesion_probabilities'
-        ]
-
-        # cmd = [
-        #     'mri_WMHsynthseg',
-        #     '--i', input_dir,
-        #     '--o', self.inputs.output_dir,
-        #     '--csv_vols', vol_csv,
-        #     '--device', 'cpu',
-        #     '--threads', '8',
-        #     '--save_lesion_probabilities'
-        # ]
-
-        subprocess.run(cmd, check=True)
-
         flair_filename = os.path.basename(self.inputs.flair_img).split(".")[0]
         probmap_file_old = os.path.join(self.inputs.output_dir, f'{flair_filename}_seg.lesion_probs.nii.gz')
         seg_file_old = os.path.join(self.inputs.output_dir, f'{flair_filename}_seg.nii.gz')
@@ -198,9 +176,35 @@ class WMHSynthSeg(BaseInterface):
         seg_file = os.path.join(self.inputs.output_dir, self.inputs.seg_name)
         probmap_file = os.path.join(self.inputs.output_dir, self.inputs.output_prob_map_name)
 
-        os.rename(probmap_file_old, probmap_file)
-        os.rename(seg_file_old, seg_file)
-        wmh_mask = extract_roi_from_image(seg_file, [77], binarize=True, output_path=os.path.join(self.inputs.output_dir, self.inputs.output_mask_name))
+        if os.path.exists(seg_file) and os.path.exists(probmap_file):
+            print(f"Output files already exist: {seg_file}, {probmap_file}. Skipping segmentation.")
+            wmh_mask = os.path.join(self.inputs.output_dir, self.inputs.output_mask_name)
+        else:
+            cmd = [
+                'mri_WMHsynthseg',
+                '--i', input_dir,
+                '--o', self.inputs.output_dir,
+                '--csv_vols', vol_csv,
+                '--device', 'cuda',
+                '--crop',
+                '--save_lesion_probabilities'
+            ]
+
+            # cmd = [
+            #     'mri_WMHsynthseg',
+            #     '--i', input_dir,
+            #     '--o', self.inputs.output_dir,
+            #     '--csv_vols', vol_csv,
+            #     '--device', 'cpu',
+            #     '--threads', '8',
+            #     '--save_lesion_probabilities'
+            # ]
+
+            subprocess.run(cmd, check=True)
+            
+            os.rename(probmap_file_old, probmap_file)
+            os.rename(seg_file_old, seg_file)
+            wmh_mask = extract_roi_from_image(seg_file, [77], binarize=True, output_path=os.path.join(self.inputs.output_dir, self.inputs.output_mask_name))
 
         # Set the output files
         self._wmh_mask = wmh_mask
@@ -217,13 +221,65 @@ class WMHSynthSeg(BaseInterface):
         
         return outputs
 
+# WMHsynthseg for a single image (command line interface)
+
+# usage: inference.py [-h] --i I --o O [--csv_vols CSV_VOLS] [--device DEVICE]
+#                     [--threads THREADS] [--save_lesion_probabilities] [--crop]
+
+# WMH-SynthSeg: joint segmentation of anatomy and white matter hyperintensities
+
+# optional arguments:
+#   -h, --help            show this help message and exit
+#   --i I                 Input image or directory.
+#   --o O                 Output segmentation (or directory, if the input is a
+#                         directory)
+#   --csv_vols CSV_VOLS   (optional) CSV file with volumes of ROIs
+#   --device DEVICE       device (cpu or cuda; optional)
+#   --threads THREADS     (optional) Number of CPU cores to be used. Default is
+#                         1. You can use -1 to use all available cores
+#   --save_lesion_probabilities
+#                         (optional) Saves lesion probability maps
+#   --crop                (optional) Does two passes, to limit size to
+#                         192x224x192 cuboid (needed for GPU processing)
+
+class WMHSynthSegSingleInputSpec(CommandLineInputSpec):
+    input = Str(mandatory=True, desc="Input image or directory", argstr='--i %s')
+    output = Str(mandatory=True, desc="Output segmentation (or directory, if the input is a directory)", argstr='--o %s')
+    csv_vols = File(desc="CSV file with volumes of ROIs", argstr='--csv_vols %s', mandatory=False)
+    device = Either('cpu', 'cuda', Int, desc="Device to use for processing", argstr='--device %s', default='cuda')
+    threads = Int(desc="Number of CPU cores to be used", argstr='--threads %d', default=1)
+    save_lesion_probabilities = Bool(desc="Saves lesion probability maps", argstr='--save_lesion_probabilities', default=False)
+    crop = Bool(desc="Does two passes, to limit size to 192x224x192 cuboid (needed for GPU processing)", argstr='--crop', default=False)
+
+    prob_filepath = File(desc="Path to the probability map file", argstr='--prob_filepath %s', mandatory=False)
+    wmh_filepath = File(desc="Path to the WMH mask file", argstr='--wmh_filepath %s', mandatory=False)
+
+class WMHSynthSegSingleOutputSpec(TraitedSpec):
+    prob_filepath = File(desc="Path to the probability map file")
+    wmh_filepath = File(desc="Path to the WMH mask file")
+    seg_filepath = File(desc="Path to the segmentation file")
+
+class WMHSynthSegSingle(CommandLine):
+    input_spec = WMHSynthSegSingleInputSpec
+    output_spec = WMHSynthSegSingleOutputSpec
+    
+    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "bash", "mri_WMHsynthseg_single.sh"))
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['prob_filepath'] = self.inputs.prob_filepath
+        outputs['wmh_filepath'] = self.inputs.wmh_filepath
+        outputs['seg_filepath'] = self.inputs.output
+
+        return outputs
+
 ########################
 # truenet segmentation #
 ########################
 
 class PrepareTrueNetDataInputSpec(CommandLineInputSpec):
-    FLAIR = File(desc="FLAIR image path", mandatory=True, argstr='--FLAIR=%s')
-    T1 = File(desc="T1 image path", mandatory=True, argstr='--T1=%s')
+    FLAIR = File(desc="FLAIR image path", argstr='--FLAIR=%s')
+    T1 = File(desc="T1 image path", argstr='--T1=%s')
     outname = Str(desc="Output basename", mandatory=True, argstr='--outname=%s')
     manualmask = File(desc="Manual mask image path", optional=True, argstr='--manualmask=%s')
     nodistmaps = Bool(desc="Skip adding distance maps", default=False, argstr='--nodistmaps')

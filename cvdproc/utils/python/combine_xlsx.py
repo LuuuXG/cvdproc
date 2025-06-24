@@ -102,13 +102,12 @@ def merge_and_save_excel(
 # Example usage
 if __name__ == "__main__":
     merge_and_save_excel(
-        base_file_path=r"D:\wyj\research_group\paper\lesion_connection\data\rawdata.xlsx",
-        additional_file_path=r"D:\wyj\research_group\paper\lesion_connection\data\SVD_followup_F_from_sheet1.xlsx",
+        base_file_path=r"F:\BIDS\SVD_BIDS\derivatives\population\rawdata.xlsx",
+        additional_file_path=r"F:\BIDS\SVD_BIDS\derivatives\population\dwi_pipeline\track_dwi_metrics_results.xlsx",
         match_column_base=["Subject_id", "Session_id"],
-        match_column_additional=["Subject_id", "Session_id"],
-        #selected_columns="ALL_EXCEPT_MATCH",
-        selected_columns=["F1-梗死演变FLAIR", "F1-梗死演变FLAIR-腔隙二分类", "F1-梗死演变FLAIR-腔隙三分类",
-                          "1=WMH cap；2=WMH tract；3=cap+tract；0= no change", "轨道正二分类"],
+        match_column_additional=["Subject", "Session"],
+        selected_columns="ALL_EXCEPT_MATCH",
+        #selected_columns=["PSMD"],
         prefix="",  
-        zfill_columns={"Session_id": 2, "Session": 2, "session": 2}
+        zfill_columns={}
     )

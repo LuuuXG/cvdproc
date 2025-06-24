@@ -31,7 +31,7 @@ process_subject() {
         MASK_PATH="${OUTPUT_DIR}/${IMAGE_TARGET_NAME}_mask.nii.gz"
         IMAGE_TARGET_STRIPPED="${OUTPUT_DIR}/${IMAGE_TARGET_NAME}_brain.nii.gz"
         #mri_synthstrip -i $IMAGE_TARGET -o $IMAGE_TARGET_STRIPPED -m $MASK_PATH
-        mri_synthstrip -i $IMAGE_TARGET -o $IMAGE_TARGET_STRIPPED
+        mri_synthstrip -i $IMAGE_TARGET -o $IMAGE_TARGET_STRIPPED --no-csf
     else
         echo "Target image already stripped"
         IMAGE_TARGET_STRIPPED=$IMAGE_TARGET
@@ -42,7 +42,7 @@ process_subject() {
         MASK_PATH="${OUTPUT_DIR}/${IMAGE_SOURCE_NAME}_mask.nii.gz"
         IMAGE_SOURCE_STRIPPED="${OUTPUT_DIR}/${IMAGE_SOURCE_NAME}_brain.nii.gz"
         #mri_synthstrip -i $IMAGE_SOURCE -o $IMAGE_SOURCE_STRIPPED -m $MASK_PATH
-        mri_synthstrip -i $IMAGE_SOURCE -o $IMAGE_SOURCE_STRIPPED
+        mri_synthstrip -i $IMAGE_SOURCE -o $IMAGE_SOURCE_STRIPPED --no-csf
     else
         echo "Source image already stripped"
         IMAGE_SOURCE_STRIPPED=$IMAGE_SOURCE

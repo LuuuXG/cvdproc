@@ -1,9 +1,6 @@
 import os
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, traits, TraitedSpec
 
-import logging
-logger = logging.getLogger(__name__)
-
 class MergeFilenameInputSpec(BaseInterfaceInputSpec):
     filename_list = traits.List(
         desc="List of filenames to merge",

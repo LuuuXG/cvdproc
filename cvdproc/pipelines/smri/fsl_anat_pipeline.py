@@ -19,7 +19,7 @@ class FSLANATPipeline:
 
     def check_data_requirements(self):
         """
-        检查数据需求
+        check if the required data is available
         :return: bool
         """
         return self.session.get_t1w_files() is not None
@@ -29,7 +29,7 @@ class FSLANATPipeline:
 
         if self.use_which_t1w:
             t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
-            # 确保最终只有1个合适的文件
+            # ensure that there is only 1 suitable file
             if len(t1w_files) != 1:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
@@ -48,7 +48,8 @@ class FSLANATPipeline:
         # copy t1w file to output directory
         t1w_file = os.path.abspath(t1w_file)
 
-        fsl_anat_wf = Workflow(name='fsl_anat_wf', base_dir=self.output_path)
+        fsl_anat_wf = Workflow(name='fsl_anat_wf')
+        fsl_anat_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
 
         inputnode = Node(IdentityInterface(fields=['input_image', 'output_directory']),
                          name='inputnode')

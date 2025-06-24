@@ -55,6 +55,8 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         'label': r"label-([^_]+)",
         'from': r"from-([^_]+)",
         'to': r"to-([^_]+)",
+        'model': r"model-([^_]+)",
+        'param': r"param-([^_]+)",
         'desc': r"desc-([^_]+)"
     }
 
@@ -100,6 +102,8 @@ def rename_bids_file(original_filename, entities, suffix, extension):
     label_id = entities.get('label', extracted_entities.get('label', None))
     from_id = entities.get('from', extracted_entities.get('from', None))
     to_id = entities.get('to', extracted_entities.get('to', None))
+    model_id = entities.get('model', extracted_entities.get('model', None))
+    param_id = entities.get('param', extracted_entities.get('param', None))
     desc_id = entities.get('desc', extracted_entities.get('desc', None))
 
     # 生成新的文件名
@@ -170,6 +174,10 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         new_filename_parts.append(f"from-{from_id}")
     if to_id:
         new_filename_parts.append(f"to-{to_id}")
+    if model_id:
+        new_filename_parts.append(f"model-{model_id}")
+    if param_id:
+        new_filename_parts.append(f"param-{param_id}")
     if desc_id:
         new_filename_parts.append(f"desc-{desc_id}")
 

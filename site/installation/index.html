@@ -494,28 +494,32 @@
 
 <h1 id="installation">Installation</h1>
 <h2 id="download">Download</h2>
-<p>You can download the source code by cloning the GitHub repository:</p>
-<pre><code class="language-bash">git clone https://github.com/LuuuXG/cvdproc.git
-</code></pre>
-<p>Or download it manually from the <a href="https://github.com/LuuuXG/cvdproc">GitHub homepage</a>.</p>
+<p>You can download the source code by cloning the GitHub repository:
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/LuuuXG/cvdproc.git
+</code></pre></div>
+Or download it manually from the <a href="https://github.com/LuuuXG/cvdproc">GitHub homepage</a>.</p>
 <h2 id="installation_1">Installation</h2>
 <p>Please create a new conda environment, which is more suitable for this package.</p>
-<pre><code class="language-bash"># Please replace &lt;env_name&gt; with the name you want for the environment
-conda create -n &lt;env_name&gt; python=3.7 openssl=1.1.1
-conda activate &lt;env_name&gt;
-</code></pre>
-<p>!!! note "Python Version"
-    Due to the features of the early version of  <a href="https://github.com/pboutinaud/SHIVA_PVS">SHIVA model</a>, python 3.7 is used for tensorflow compatibility. We are working on updating the code to support higher versions of Python by using <a href="https://github.com/pboutinaud/SHiVAi">SHIVAi</a>. For example, <a href="https://github.com/CompImg/LST-AI">LST-AI</a> for WMH segmentation needs python 3.8 or higher. Currently, the solution is to use a different environment for different pipelines if necessary.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Please replace &lt;env_name&gt; with the name you want for the environment</span>
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>&lt;env_name&gt;<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.7<span class="w"> </span><span class="nv">openssl</span><span class="o">=</span><span class="m">1</span>.1.1
+conda<span class="w"> </span>activate<span class="w"> </span>&lt;env_name&gt;
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Python Version</p>
+<p>Due to the features of the early version of  <a href="https://github.com/pboutinaud/SHIVA_PVS">SHIVA model</a>, python 3.7 is used for tensorflow compatibility. We are working on updating the code to support higher versions of Python by using <a href="https://github.com/pboutinaud/SHiVAi">SHiVAi</a>. For example, <a href="https://github.com/CompImg/LST-AI">LST-AI</a> for WMH segmentation needs python 3.8 or higher. Currently, the solution is to use a different environment for different pipelines if necessary.</p>
+</div>
 <p>Then, navigate to the directory where you downloaded the code (the folder containing <code>setup.py</code>), and run the following command:</p>
-<pre><code># Use -e to allow modification of the code without needing to reinstall.
+<div class="highlight"><pre><span></span><code># Use -e to allow modification of the code without needing to reinstall.
 # Here &lt;/path/to/cvdproc&gt; is the folder containing `setup.py`
 pip install -e /path/to/cvdproc
 
 # If it is necessary to use mirror
 pip install -e /path/to/cvdproc -i https://pypi.tuna.tsinghua.edu.cn/simple
-</code></pre>
-<p>!!! note "tensorflow and torch"
-    Because these two packages are large, we do not specify them in <code>setup.py</code>. However, they will be used in the subsequent code. Please install them as needed.</p>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">tensorflow and torch</p>
+<p>Because these two packages are large, we do not specify them in <code>setup.py</code>. However, they will be used in the subsequent code. Please install them as needed.</p>
+</div>
 
 
 
