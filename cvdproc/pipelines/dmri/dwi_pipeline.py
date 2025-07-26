@@ -10,22 +10,17 @@ from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, Padding, EddyCuda
 from .synb0.synb0_nipype import Synb0
 from .freewater.single_shell_freewater import SingleShellFW
 from ..smri.mirror.mirror_nipype import MirrorMask
-from nipype.interfaces.fsl import FLIRT, TOPUP, Eddy, ExtractROI, ConvertXFM
-from nipype.interfaces.dipy import Denoise
+from nipype.interfaces.fsl import FLIRT, ExtractROI, ConvertXFM
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
-from nipype.interfaces.mrtrix3 import Tractography, MRConvert, DWIDenoise, MRDeGibbs, DWIPreproc
+from nipype.interfaces.mrtrix3 import Tractography, MRConvert, DWIPreproc
 from cvdproc.pipelines.dmri.mrtrix3.tcksample_nipype import TckSampleCommand, CalculateMeanTckSample
-from cvdproc.pipelines.dmri.mrtrix3.denoise_degibbs_nipype import DenoiseDegibbs, MrtrixDenoise, MrtrixDegibbs
+from cvdproc.pipelines.dmri.mrtrix3.denoise_degibbs_nipype import MrtrixDenoise, MrtrixDegibbs
 from cvdproc.pipelines.dmri.stats.dti_scalar_maps import GenerateWMMaskCommandLine, CalculateScalarMaps
 from cvdproc.pipelines.dmri.dipy.dipy_freewater_dti import FreeWaterTensor
-from ..common.unzip import GunzipInterface
-from ..common.move_file import MoveFileCommandLine
-from ..common.copy_file import CopyFileCommandLine
-from ..common.delete_file import DeleteFileCommandLine
 from ..common.mri_synthstrip import MRISynthstripCommandLine
 from cvdproc.pipelines.common.filter_existing import FilterExisting
 from cvdproc.pipelines.common.merge_filename import MergeFilename
-from .psmd.psmd_nipype import PSMDCommandLine, SavePSMDOutputCommandLine
+from .psmd.psmd_nipype import PSMDCommandLine
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
@@ -81,7 +76,7 @@ class DWIPipeline:
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
         self.script_path2 = os.path.join(base_dir, 'bash', 'fdt_fs_processing.sh') # FreeSurfer processing
-        self.alps_script_path = os.path.join(base_dir, 'external', 'alps', 'alps.sh') # DTI-ALPS
+        self.alps_script_path = os.path.join(base_dir, 'external', 'alps', 'alps_custom.sh') # DTI-ALPS
         self.psmd_skeleton_mask = os.path.join(base_dir, 'external', 'psmd', 'skeleton_mask_2019.nii.gz')
 
     def check_data_requirements(self):
@@ -647,6 +642,7 @@ class DWIPipeline:
             dwi_workflow.connect(dti_fit_output_node, 'fa_img', dtialps_node, 'fa_file')
             dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dtialps_node, 'tensor_file')
             dwi_workflow.connect(dti_fit_output_node, 'md_img', dtialps_node, 'md_file')
+            dwi_workflow.connect(inputnode, 't1w_file', dtialps_node, 't1w_file')
             dtialps_node.inputs.alps_input_dir = dtialps_output_dir
             dtialps_node.inputs.skip_preprocessing = '1'
             dtialps_node.inputs.alps_script_path = self.alps_script_path

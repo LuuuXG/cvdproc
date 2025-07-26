@@ -102,11 +102,11 @@ def merge_and_save_excel(
 # Example usage
 if __name__ == "__main__":
     merge_and_save_excel(
-        base_file_path=r"F:\BIDS\SVD_BIDS\derivatives\population\rawdata.xlsx",
-        additional_file_path=r"F:\BIDS\SVD_BIDS\derivatives\population\dwi_pipeline\track_dwi_metrics_results.xlsx",
+        base_file_path=r"E:\WPS_Cloud\1136007837\WPS云盘\paper\lesion_connection\data\rawdata.xlsx",
+        additional_file_path=r"F:\BIDS\SVD_BIDS\derivatives\population\wmh_quantification\wmh_quantification_results.xlsx",
         match_column_base=["Subject_id", "Session_id"],
         match_column_additional=["Subject", "Session"],
-        selected_columns="ALL_EXCEPT_MATCH",
+        selected_columns=["ICV(ml)", "Total_WMH_percentICV(%)", "PWMH_percentICV(%)", "DWMH_percentICV(%)"],
         #selected_columns=["PSMD"],
         prefix="",  
         zfill_columns={}

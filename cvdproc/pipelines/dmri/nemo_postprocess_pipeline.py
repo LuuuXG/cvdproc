@@ -51,7 +51,7 @@ class NemoPostprocessPipeline:
         # Main Workflow #
         #################
         nemo_postprocess_wf = Workflow(name='nemo_postprocess_wf')
-        nemo_postprocess_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
+        nemo_postprocess_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}")
 
         # Input node
         input_node = Node(IdentityInterface(fields=['nemo_output_dir', 'nemo_postprocessed_dir', 'freesurfer_output_dirs', 'csv_output']),
@@ -106,7 +106,7 @@ class NemoPostprocessPipeline:
                     if not file.endswith('.csv'):
                         continue
 
-                    match = re.search(r'(nemo_output_.*)_cortical_metrics\\.csv', file)
+                    match = re.search(r'(nemo_output_.*)_cortical_metrics\.csv', file)
                     if not match:
                         continue  # not a valid chacovol file
 

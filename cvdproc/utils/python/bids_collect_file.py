@@ -1,7 +1,7 @@
 import os
 import shutil
 
-def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, output_dir):
+def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, have_id, output_dir):
     """
     Traverse BIDS derivatives to collect specified files across all subjects and sessions.
 
@@ -27,7 +27,11 @@ def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, o
                 continue
             session_id = session_folder.split('-')[1]
             session_path = os.path.join(subject_path, session_folder)
-            full_file_path = os.path.join(session_path, subfolder_path.strip('/'), target_filename)
+
+            if have_id is False:
+                full_file_path = os.path.join(session_path, subfolder_path.strip('/'), target_filename)
+            elif have_id is True:
+                full_file_path = os.path.join(session_path, subfolder_path.strip('/'), f"sub-{subject_id}_ses-{session_id}_{target_filename}")
 
             if os.path.exists(full_file_path):
                 new_filename = f"sub-{subject_id}_ses-{session_id}_{target_filename}"
@@ -39,8 +43,9 @@ def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, o
 
 if __name__ == '__main__':
     collect_files_by_pattern(
-        bids_deriv_root="/mnt/f/BIDS/SVD_BIDS/derivatives/dwi_pipeline",
-        subfolder_path="fs_processing",
-        target_filename="seed_mask_in_mni.nii.gz",
-        output_dir="/mnt/f/BIDS/SVD_BIDS/derivatives/lesion_mask_mni"
+        bids_deriv_root="/mnt/f/BIDS/SVD_BIDS/derivatives/nemo",
+        subfolder_path="",
+        target_filename="seed_mask_in_mni_nemo_output_ifod2act_chacovol_res1mm_smooth6mm_mean.nii.gz",
+        have_id=True,
+        output_dir="/mnt/f/BIDS/SVD_BIDS/derivatives/nemo_mean_mni"
     )

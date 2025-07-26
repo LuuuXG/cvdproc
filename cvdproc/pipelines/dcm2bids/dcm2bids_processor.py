@@ -5,6 +5,7 @@ import nibabel as nib
 import numpy as np
 import json
 import pandas as pd
+import glob
 from bids.cli import layout
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -203,114 +204,104 @@ class Dcm2BidsProcessor:
                         shutil.copyfile(fix_item["bval"], bval_path)
     
     def check_data(self, check_data_config):
-        """Check if the BIDS data meets multiple sequence configurations and save the results to check_data.xlsx"""
-        print("Generating the BIDS Layout...")
-        layout = BIDSLayout(self.BIDS_root_folder)
+        """Check BIDS rawdata and/or derivatives files based on filename or json criteria, and save results to check_data.xlsx"""
+
+        print("Generating the BIDS Layout for rawdata...")
+        layout = BIDSLayout(self.BIDS_root_folder, validate=False)
         results = []
         column_titles = ["Subject_id", "Session_id"]
 
-        # Add the titles for each sequence configuration
         for check in check_data_config:
             custom_name = check["custom_name"]
             column_titles.append(custom_name)
             column_titles.append(f"{custom_name}_number")
 
-        # Loop through each check configuration
-        for check in check_data_config:
-            custom_name = check["custom_name"]
-            suffix = check["suffix"]
-            criteria = check["criteria"]
-            method = check["method"]
+        for subject in layout.get_subjects():
+            sessions = layout.get_sessions(subject=subject)
+            for session in sessions:
+                row = [subject, session] + [0] * (len(check_data_config) * 2)
 
-            print(f"Checking for {custom_name} in suffix {suffix} with criteria {criteria}...")
+                for check_idx, check in enumerate(check_data_config):
+                    custom_name = check["custom_name"]
+                    criteria = check["criteria"]
+                    method = check["method"]
+                    derivatives_name = check.get("derivatives_name", None)
+                    suffix = check.get("suffix", None)
 
-            # 查找所有被试
-            for subject in layout.get_subjects():
-                sessions = layout.get_sessions(subject=subject)
-                for session in sessions:
                     match_found = False
-                    match_count = 0  # 用于记录符合条件的文件数量
+                    match_count = 0
 
-                    # 使用BIDSLayout获取符合标准的文件，或使用os.listdir()获取非标准文件
-                    if suffix in ['T1w', 'T2w', 'dwi', 'bold', 'FLAIR', 'asl', 'epi']: 
-                        files = layout.get(subject=subject, session=session, suffix=suffix, extension=["nii.gz"])
+                    # ---------- rawdata 逻辑 ----------
+                    if derivatives_name is None:
+                        if suffix in ['T1w', 'T2w', 'dwi', 'bold', 'FLAIR', 'asl', 'epi']:
+                            try:
+                                files = layout.get(subject=subject, session=session, suffix=suffix, extension=["nii.gz"])
+                                filepaths = [f.path for f in files]
+                            except:
+                                filepaths = []
+                        else:
+                            session_dir = os.path.join(self.BIDS_root_folder, f"sub-{subject}", f"ses-{session}")
+                            filepaths = []
+                            if os.path.exists(session_dir):
+                                for root, _, files in os.walk(session_dir):
+                                    for f in files:
+                                        if f.endswith(".nii.gz") and suffix in f:
+                                            filepaths.append(os.path.join(root, f))
+
+                    # ---------- derivatives 逻辑 ----------
                     else:
-                        session_dir = os.path.join(self.BIDS_root_folder, f"sub-{subject}", f"ses-{session}")
-                        modality_folders = [f for f in os.listdir(session_dir) if os.path.isdir(os.path.join(session_dir, f))]
+                        derivatives_dir = os.path.join(self.BIDS_root_folder, "derivatives", derivatives_name,
+                                                    f"sub-{subject}", f"ses-{session}")
+                        filepaths = []
+                        if os.path.exists(derivatives_dir):
+                            pattern = os.path.join(derivatives_dir, criteria)
+                            filepaths = glob.glob(pattern, recursive=True)
 
-                        files = []
-                        for folder in modality_folders:
-                            modality_folder_path = os.path.join(session_dir, folder)
-                            # 对于每个文件夹，我们遍历其中的所有文件，检查是否符合后缀
-                            for file in os.listdir(modality_folder_path):
-                                if file.endswith(".nii.gz") and (suffix in file):
-                                    files.append(os.path.join(modality_folder_path, file))
+                    # ---------- 匹配逻辑 ----------
+                    for file in filepaths:
+                        if method == "filename":
+                            match_found = True
+                            match_count += 1
 
-                    # 遍历文件，匹配指定的criteria
-                    for file in files:
-                        if method == "json":
-                            # 使用json文件中的字段匹配
+                        elif method == "json" and derivatives_name is None:
                             json_file_path = file.replace(".nii.gz", ".json")
                             if os.path.exists(json_file_path):
                                 with open(json_file_path, "r") as json_file:
                                     json_data = json.load(json_file)
-
-                                    # 如果 criteria 是字典，表示可能有多个字段需要匹配
                                     for key, value in criteria.items():
-                                        if key in json_data:
-                                            if json_data[key] == value:
-                                                match_found = True
-                                                match_count += 1  # 增加符合条件的文件计数
+                                        if key in json_data and json_data[key] == value:
+                                            match_found = True
+                                            match_count += 1
                                         else:
-                                            print(f"Warning: Key '{key}' not found in JSON for {file}.")
                                             match_found = False
                                             break
-                                    
-                                    if match_found:
-                                        break
-                        elif method == "filename":
-                            # 使用文件名匹配
-                            if criteria in os.path.basename(file):
-                                match_found = True
-                                match_count += 1  # 增加符合条件的文件计数
+                            if match_found:
+                                break  # stop after first match
 
-                    # 将结果添加到列表
-                    if not any(d[0] == subject and d[1] == session for d in results):
-                        # 如果是新的一行（新被试/新会话），添加
-                        results.append([subject, session] + [0] * (len(check_data_config) * 2))  # 为每个序列添加两个列
-                        row_idx = len(results) - 1
-                    else:
-                        # 如果已经有这行（同一个被试/会话），找到该行
-                        row_idx = next(idx for idx, row in enumerate(results) if row[0] == subject and row[1] == session)
+                    # 更新该项结果
+                    custom_name_idx = 2 + check_idx * 2
+                    custom_name_number_idx = custom_name_idx + 1
+                    row[custom_name_idx] = 1 if match_found else 0
+                    row[custom_name_number_idx] = match_count
 
-                    # 更新对应的列值
-                    custom_name_idx = column_titles.index(custom_name)
-                    custom_name_number_idx = column_titles.index(f"{custom_name}_number")
+                results.append(row)
 
-                    results[row_idx][custom_name_idx] = 1 if match_found else 0  # 更新是否符合的列
-                    results[row_idx][custom_name_number_idx] = match_count  # 更新文件数量列
-
-        # 保存结果为Excel文件
+        # 保存为 Excel
         output_dir = os.path.join(self.BIDS_root_folder, "derivatives", "population")
         os.makedirs(output_dir, exist_ok=True)
-        
         output_file = os.path.join(output_dir, "check_data.xlsx")
-        
+
         df = pd.DataFrame(results, columns=column_titles)
-        
-        # 创建Excel文件并设置字体为Calibri
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name="Check Data")
-            workbook = writer.book
-            sheet = workbook["Check Data"]
-            
-            # 设置所有单元格的字体为 Calibri
+            sheet = writer.book["Check Data"]
             calibri_font = Font(name="Calibri")
             for row in sheet.iter_rows():
                 for cell in row:
                     cell.font = calibri_font
 
         print(f"Results saved to {output_file}")
+
     
 
 if __name__ == 'main':
@@ -321,11 +312,12 @@ if __name__ == 'main':
         with open(config_file, 'r') as f:
             return yaml.safe_load(f)
 
-    config_path = '/mnt/f/BIDS/SVD_BIDS/code/config.yml'
+    config_path = '/mnt/f/BIDS/UKB_AFproject/code/config.yml'
     config = load_config(config_path)
     check_data_config = config.get("check_data", [])
 
-    layout = BIDSLayout(config["bids_dir"])
+    layout = BIDSLayout(config["bids_dir"], validate=False)
+
     subjects = layout.get_subjects()
     session = layout.get_sessions(subject="SVD0050")
     files = layout.get(subject="SVD0077", extension=["nii.gz"], session='02')

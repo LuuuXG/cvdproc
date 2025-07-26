@@ -1,20 +1,16 @@
 import argparse
 import os
 import yaml
+from rich import print
+from rich.console import Console
+from rich.panel import Panel
+import logging
 
-# import logging
-
-# # --- Clean and reset logging before importing nipype ---
-# root_logger = logging.getLogger()
-# if root_logger.hasHandlers():
-#     for handler in root_logger.handlers[:]:
-#         root_logger.removeHandler(handler)
-
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(levelname)s - %(message)s"
-# )
-# logger = logging.getLogger(__name__)
+# Clean up root logger handlers (to prevent duplicated log lines)
+root_logger = logging.getLogger()
+if root_logger.hasHandlers():
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface, Function
@@ -71,12 +67,6 @@ def main():
         # Load main configuration
         config = load_config(args.config_file)
 
-        if not all([args.subject_id, args.session_id, args.dicom_subdir]):
-            parser.error("To run dcm2bids, please provide --subject_id, --session_id, and --dicom_subdir.")
-
-        if not (len(args.subject_id) == len(args.session_id) == len(args.dicom_subdir)):
-            parser.error("The number of --subject_id, --session_id, and --dicom_subdir must match.")
-
         dcm2bids_config = config.get("dcm2bids", {})
         bids_dir = config["bids_dir"]
 
@@ -112,7 +102,7 @@ def main():
                 processor.fix_dwi_bvec_bval(subject_id, session_id, fix_config)
 
             # Optional: fix IntendedFor
-            processor.fix_intendedfor_for_subject_session(subject_id, session_id)
+            #processor.fix_intendedfor_for_subject_session(subject_id, session_id)
 
         print("DICOM to BIDS conversion completed.") 
     
@@ -130,6 +120,8 @@ def main():
 
     # === BIDS Pipelines ===
     if args.run_pipeline:
+        print_boxed_message_rich(f"Checking whether the arguments are correct...", color="bold cyan")
+
         config = load_config(args.config_file)
         global_matlab_path = config.get("matlab_path", None)
         global_spm_path = config.get("spm_path", None)
@@ -148,12 +140,24 @@ def main():
         session_ids = args.session_id
         bids_dir = config["bids_dir"]
         output_base = config.get("output_dir", "./output")
+        numbers = len(args.subject_id)
 
+        print(f"[green]Arguements seem correct[/green]")
+
+        if numbers == 1:
+            print_boxed_message_rich(f"Running '{args.pipeline}' for {numbers} visit...", color="bold cyan")
+        else:
+            print_boxed_message_rich(f"Running '{args.pipeline}' for {numbers} visits...", color="bold cyan")
         for i in range(len(subject_ids)):
             sub_id = subject_ids[i]
             ses_id = session_ids[i] if session_ids else None
 
-            print_boxed_message(f"Running {args.pipeline} for sub-{sub_id}, ses-{ses_id}", color_code="\033[96m")
+            if session_ids is not None:
+                print(f"[green]Currently processing: sub-{subject_ids[i]} ses-{session_ids[i]}[/green]")
+            else:
+                print(f"[green]Currently processing: sub-{subject_ids[i]}[/green]")
+            
+            print(f"[green]Stage 1: Create nipype workflow for {args.pipeline}[/green]")
 
             # Create BIDSSubject and BIDSSession instances
             subject = BIDSSubject(sub_id, bids_dir)
@@ -180,7 +184,16 @@ def main():
             )
 
             wf = pipeline.create_workflow()
+
+            print(f"[green]Stage 2: Running nipype workflow for {args.pipeline}[/green]")
             wf.run()
+
+            print(f"[green]Finished processing sub-{sub_id} ses-{ses_id if ses_id else 'N/A'}[/green]")
+        
+        if numbers == 1:
+            print_boxed_message_rich(f"Finished!", color="bold cyan")
+        else:
+            print_boxed_message_rich(f"All {numbers} visits finished!", color="bold cyan")
 
     # === 提取结果 ===
     if args.extract_results:
@@ -215,22 +228,10 @@ def main():
     if not args.run_dcm2bids and not args.run_pipeline and not args.run_initialization and not args.extract_results and not args.check_data:
         print("No action specified. Use --run_dcm2bids, --run_pipeline, --extract_results or --run_initialization.")
 
-def print_boxed_message(message, color_code="\033[94m"):
-    """
-    Print a colored message box with a border.
-    :param message: String message to display
-    :param color_code: ANSI color code (e.g., "\033[91m" for red, "\033[92m" for green, "\033[94m" for blue)
-    """
-    reset = "\033[0m"
-    padding = 2
-    total_length = len(message) + padding * 2
-    border = f"{color_code}{'=' * (total_length + 2)}{reset}"
-    content = f"{color_code}|{' ' * padding}{message}{' ' * padding}|{reset}"
-    print()
-    print(border)
-    print(content)
-    print(border)
-    print()
+
+def print_boxed_message_rich(message, color="cyan"):
+    console = Console()
+    console.print(Panel(message, style=color, expand=False))
 
 if __name__ == "__main__":
     main_entry()

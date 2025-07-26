@@ -27,6 +27,7 @@ class BIDSSession:
         #### Non-standard ####
         self.swi_files = self._find_files('swi')
         self.qsm_files = self._find_files('qsm')
+        self.pwi_files = self._find_files('pwi')
 
         # Derivatives: derivatives/<output_name>/sub-<subject_id>/ses-<session_id>/<pipeline>
         self.freesurfer_dir = self._find_output('freesurfer')
@@ -133,3 +134,10 @@ class BIDSSession:
         :return: list, QSM 文件路径列表
         """
         return self.qsm_files
+    
+    def get_pwi_files(self):
+        """
+        返回 PWI 文件路径
+        :return: list, PWI 文件路径列表
+        """
+        return self.pwi_files

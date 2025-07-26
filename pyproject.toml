@@ -32,4 +32,4 @@ dependencies = [
 
 [project.scripts]
 cvdproc = "cvdproc.main:main_entry"
-cvdproc_tool = "cvdproc.utils.python.tool_manager:main"
+cvdproc_tool = "cvdproc.utils.tool_manager:main"

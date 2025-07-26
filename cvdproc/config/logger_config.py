@@ -14,6 +14,9 @@ def setup_logger(name="cvdproc", log_file=None, level=logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    # Prevent messages from reaching the root logger (avoids duplicates)
+    logger.propagate = False
+
     # 定义日志格式
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     formatter = logging.Formatter(log_format)

@@ -12,6 +12,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        "rich",
         "numpy>=1.21.0",
         "pandas",
         "scipy>=1.7.0",

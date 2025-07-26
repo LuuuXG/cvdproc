@@ -543,21 +543,27 @@ class WMHSegmentationPipeline:
         return wmh_workflow
 
     """
-    提取结果
+    Extract results from WMH segmentation and shape analysis
     """
     def _process_wmh_data(self, subject_id, session_id, base_path):
         """
-        提取 WMH 和形态特征数据，并返回一个 DataFrame
+        Extract WMH and shape features data, and return a DataFrame
         """
-        # 文件路径
-        txt_path = os.path.join(base_path, 'WMH_PWMH&DWMH_volume_thr5voxels.txt')
+        # File names
+        synthseg_volume_path = os.path.join(base_path, "SynthSegVols.csv")
+        total_volume_path = os.path.join(base_path, f"sub-{subject_id}_ses-{session_id}_TotalWMHVolume.csv")
+        pwmh_volume_path = os.path.join(base_path, f"sub-{subject_id}_ses-{session_id}_PWMHVolume.csv")
+        dwmh_volume_path = os.path.join(base_path, f"sub-{subject_id}_ses-{session_id}_DWMHVolume.csv")
         PWMH_shape_features_path = os.path.join(base_path, 'shape_features', 'average_PWMH_shape_features_10voxels.xlsx')
         DWMH_shape_features_path = os.path.join(base_path, 'shape_features', 'average_DWMH_shape_features_10voxels.xlsx')
 
-        # 初始化变量为 None
         total_wmh_volume = None
         pwmh_volume = None
         dwmh_volume = None
+        icv = None
+        total_wmh_percenticv = None
+        pwmh_percenticv = None
+        dwmh_percenticv = None
 
         pwmh_convexity = None
         pwmh_solidity = None
@@ -573,23 +579,31 @@ class WMHSegmentationPipeline:
         dwmh_eccentricity = None
         dwmh_fractal_dimension = None
 
-        # 提取 WMH 体积数据
-        if os.path.exists(txt_path):
-            with open(txt_path, 'r') as f:
-                content = f.read()
+        # Extract volume from CSV files
+        def extract_volume_from_csv(path, lookup_row=2, lookup_col=3):
+            if os.path.exists(path):
+                try:
+                    df = pd.read_csv(path, header=None)
+                    return df.iloc[lookup_row, lookup_col]  # Row 3, Column 4
+                except Exception:
+                    return None
+            else:
+                return None
 
-            total_wmh_match = re.search(r'TWMH[\s\S]+?total volume for .+? is (\d+\.\d+)', content)
-            pwmh_match = re.search(r'PWMH[\s\S]+?total volume for .+? is (\d+\.\d+)', content)
-            dwmh_match = re.search(r'DWMH[\s\S]+?total volume for .+? is (\d+\.\d+)', content)
+        # Convert to cm^3
+        total_wmh_volume = float(extract_volume_from_csv(total_volume_path, lookup_row=2, lookup_col=3)) / 1000 
+        pwmh_volume = float(extract_volume_from_csv(pwmh_volume_path, lookup_row=2, lookup_col=3)) / 1000
+        dwmh_volume = float(extract_volume_from_csv(dwmh_volume_path, lookup_row=2, lookup_col=3)) / 1000
+        icv = float(extract_volume_from_csv(synthseg_volume_path, lookup_row=1, lookup_col=1)) / 1000
 
-            if total_wmh_match:
-                total_wmh_volume = total_wmh_match.group(1)
-            if pwmh_match:
-                pwmh_volume = pwmh_match.group(1)
-            if dwmh_match:
-                dwmh_volume = dwmh_match.group(1)
+        if icv is not None and total_wmh_volume is not None:
+            total_wmh_percenticv = (total_wmh_volume / icv) * 100
+        if icv is not None and pwmh_volume is not None:
+            pwmh_percenticv = (pwmh_volume / icv) * 100
+        if icv is not None and dwmh_volume is not None:
+            dwmh_percenticv = (dwmh_volume / icv) * 100
 
-        # 提取 PWMH 形态特征
+        # Extract shape features from Excel files
         if os.path.exists(PWMH_shape_features_path):
             pwmh_shape_features_df = pd.read_excel(PWMH_shape_features_path)
             pwmh_convexity = pwmh_shape_features_df.get('Convexity', [None])[0]
@@ -598,8 +612,7 @@ class WMHSegmentationPipeline:
             pwmh_inverse_sphericity_index = pwmh_shape_features_df.get('Inverse Sphericity Index', [None])[0]
             pwmh_eccentricity = pwmh_shape_features_df.get('Eccentricity', [None])[0]
             pwmh_fractal_dimension = pwmh_shape_features_df.get('Fractal Dimension', [None])[0]
-
-        # 提取 DWMH 形态特征
+        
         if os.path.exists(DWMH_shape_features_path):
             dwmh_shape_features_df = pd.read_excel(DWMH_shape_features_path)
             dwmh_convexity = dwmh_shape_features_df.get('Convexity', [None])[0]
@@ -609,13 +622,17 @@ class WMHSegmentationPipeline:
             dwmh_eccentricity = dwmh_shape_features_df.get('Eccentricity', [None])[0]
             dwmh_fractal_dimension = dwmh_shape_features_df.get('Fractal Dimension', [None])[0]
 
-        # 返回结果 DataFrame
+        # Return results DataFrame
         return pd.DataFrame([{
             'Subject': subject_id,
             'Session': session_id,
-            'Total_WMH_volume': total_wmh_volume,
-            'PWMH_volume': pwmh_volume,
-            'DWMH_volume': dwmh_volume,
+            'Total_WMH_volume(ml)': total_wmh_volume,
+            'PWMH_volume(ml)': pwmh_volume,
+            'DWMH_volume(ml)': dwmh_volume,
+            'ICV(ml)': icv,
+            'Total_WMH_percentICV(%)': total_wmh_percenticv,
+            'PWMH_percentICV(%)': pwmh_percenticv,
+            'DWMH_percentICV(%)': dwmh_percenticv,
             'PWMH_Convexity': pwmh_convexity,
             'PWMH_Solidity': pwmh_solidity,
             'PWMH_Concavity_Index': pwmh_concavity_index,
@@ -635,33 +652,34 @@ class WMHSegmentationPipeline:
 
         wmh_output_path = self.extract_from
 
-        # 创建一个空的DataFrame来保存结果
-        columns = ['Subject', 'Session', 'Total_WMH_volume', 'PWMH_volume', 'DWMH_volume', 
+        # Create an empty DataFrame to store results
+        columns = ['Subject', 'Session', 'Total_WMH_volume(ml)', 'PWMH_volume(ml)', 'DWMH_volume(ml)', 'ICV(ml)',
+                   'Total_WMH_percentICV(%)', 'PWMH_percentICV(%)', 'DWMH_percentICV(%)',
                 'PWMH_Convexity', 'PWMH_Solidity', 'PWMH_Concavity_Index', 'PWMH_Inverse_Sphericity_Index', 
                 'PWMH_Eccentricity', 'PWMH_Fractal_Dimension', 'DWMH_Convexity', 'DWMH_Solidity', 
                 'DWMH_Concavity_Index', 'DWMH_Inverse_Sphericity_Index', 'DWMH_Eccentricity', 
                 'DWMH_Fractal_Dimension']
         results_df = pd.DataFrame(columns=columns)
 
-        # 遍历所有 sub-* 文件夹
+        # Iterate through all sub-* folders
         for subject_folder in os.listdir(wmh_output_path):
             subject_id = subject_folder.split('-')[1]
             subject_folder_path = os.path.join(wmh_output_path, subject_folder)
 
             if os.path.isdir(subject_folder_path):
-                # 检查是否有 ses-* 文件夹
+                # Check for ses-* folders
                 session_folders = [f for f in os.listdir(subject_folder_path) if 'ses-' in f]
 
-                if session_folders:  # 如果有 ses-* 文件夹
+                if session_folders:  # If there are ses-* folders
                     for session_folder in session_folders:
                         session_path = os.path.join(subject_folder_path, session_folder)
                         new_data = self._process_wmh_data(subject_id, session_folder.split('-')[1], session_path)
                         results_df = pd.concat([results_df, new_data], ignore_index=True)
-                else:  # 如果没有 ses-* 文件夹
+                else:  # If there are no ses-* folders
                     new_data = self._process_wmh_data(subject_id, 'N/A', subject_folder_path)
                     results_df = pd.concat([results_df, new_data], ignore_index=True)
 
-        # 保存结果到 Excel 文件
+        # Save results to Excel file
         output_excel_path = os.path.join(self.output_path, 'wmh_quantification_results.xlsx')
         results_df.to_excel(output_excel_path, header=True, index=False)
         print(f"Quantification results saved to {output_excel_path}")

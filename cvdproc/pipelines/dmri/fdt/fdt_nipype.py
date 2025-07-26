@@ -1144,6 +1144,7 @@ def delete_alps_inputs(input_dir):
 class DTIALPSsimpleInputSpec(BaseInterfaceInputSpec):
     perform_roi_analysis = Str(desc='Perform ROI analysis', default_value='1')
     use_templete = Str(desc='Use template', default_value='1')
+    t1w_file = File(exists=True, desc='Path to the T1-weighted image')
     fa_file = File(exists=True, desc='Path to the FA image')
     md_file = File(exists=True, desc='Path to the MD image')
     tensor_file = File(exists=True, desc='Path to the tensor image')
@@ -1176,7 +1177,8 @@ class DTIALPSsimple(BaseInterface):
             '-s', skip_preprocessing,
             '-r', perform_roi_analysis,
             '-t', use_templete,
-            '-o', alps_input_dir
+            '-o', alps_input_dir,
+            '-v', self.inputs.t1w_file
         ])
 
         # delete the input files

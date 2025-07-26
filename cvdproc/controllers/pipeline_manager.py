@@ -60,6 +60,11 @@ class PipelineManager:
         elif pipeline_name.lower() == "sepia_qsm":
             from ..pipelines.qmri.sepia_qsm_pipeline import SepiaQSMPipeline
             return SepiaQSMPipeline(subject, session, output_path=output_path, **kwargs)
+        
+        #### PWI (DSC-MRI) ####
+        elif pipeline_name.lower() == "pwi_pipeline":
+            from ..pipelines.pwi.pwi_pipeline import PWIPipeline
+            return PWIPipeline(subject, session, output_path=output_path, **kwargs)
     
         #### TEST ####
         elif pipeline_name.lower() == "test":
