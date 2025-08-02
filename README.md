@@ -52,7 +52,7 @@ pip install -e /path/to/cvdproc -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ### 3. Data Files
 
-The `cvdproc/data/` directory is excluded from the repository due to its size. Please download the required data files from the following link: [Download data.zip](https://drive.google.com/file/d/1sOWusT4kSRncLcDwXjaLEnMTnhZncF9V/view?usp=drive_link)
+The `cvdproc/data/` directory is excluded from the repository due to its size. Please download the required data files from the following link: [Download data.zip](https://drive.google.com/file/d/1VkCxPL4eNn8vWRegL4IaBbfHsNymNF-7/view?usp=sharing)
 
 After downloading, unzip and place the contents into `./cvdproc/data/` (the same level with `pipelines`)
 
