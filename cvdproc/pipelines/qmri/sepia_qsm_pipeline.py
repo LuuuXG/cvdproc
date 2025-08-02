@@ -15,9 +15,29 @@ from ...bids_data.rename_bids_file import rename_bids_file
 from ...utils.python.basic_image_processor import extract_roi_means
 
 class SepiaQSMPipeline:
-    def __init__(self, subject, session, output_path, **kwargs):
+    """
+    Pipeline for processing Quantitative Susceptibility Mapping (QSM) data using the SEPIA toolbox.
+    """
+    def __init__(self, 
+                 subject, 
+                 session, 
+                 output_path, 
+                 use_which_t1w: str = None, 
+                 normalize: bool = False,
+                 sepia_toolbox_path: str = None,
+                 reverse_phase: int = 0,  # 0=no need, 1=reverse phase image (For GE scans)
+                 **kwargs):
         """
         Sepia QSM processing pipeline
+
+        Args:
+            subject (BIDSSubject): A BIDS subject object.
+            session (BIDSSession): A BIDS session object.
+            output_path (str): Output directory to save results.
+            use_which_t1w (str, optional): Keyword to select the desired T1w image.
+            normalize (bool, optional): If True, normalize QSM (and other scalar maps) to MNI space via T1w.
+            sepia_toolbox_path (str, optional): Path to the SEPIA toolbox. If None, assumes SEPIA is in MATLAB path.
+            reverse_phase (int, optional): Set to 1 to reverse phase polarity (for GE scanners).
         """
         self.subject = subject
         self.session = session
@@ -40,8 +60,6 @@ class SepiaQSMPipeline:
         return self.session.get_t1w_files() is not None and self.session.qsm_files is not None
     
     def create_workflow(self):
-        os.makedirs(self.output_path, exist_ok=True)
-
         # get T1w image
         t1w_files = self.session.get_t1w_files()
         if self.use_which_t1w:

@@ -1,0 +1,13 @@
+Package: LQT
+Type: Package
+Title: Lesion Quantification Toolkit
+Version: 0.1.0
+Authors@R: person(given = "Jordan D.", family = "Dworkin",  
+  email = "jdwor@pennmedicine.upenn.edu", role = c("aut", "cre"))
+Maintainer: Jordan D. Dworkin <jordan.dworkin@nyspi.columbia.edu>
+Description: LQT is an R implementation of the lesion quantification toolkit, based on the paper “Lesion Quantification Toolkit: A MATLAB software tool for estimating grey matter damage and white matter disconnections in patients with focal brain lesions” by Griffis et al. This package creates data structures necessary for applying the method to imaging data, then allows the user to perform the analyses, summarize the results, and create figures for visualization.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Imports: stats, utils, neurobase, R.matlab, igraph, aws, ggplot2, network, patchwork, reshape2, pbmcapply, purrr, dplyr, parallel, RNiftyReg

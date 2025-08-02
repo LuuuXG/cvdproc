@@ -107,3 +107,18 @@ if __name__ == "__main__":
 
     print("LH Medial Wall:", lh_medial_wall)
     print("RH Medial Wall:", rh_medial_wall)
+
+    mni_image_path = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt_paths_mni/mean.nii.gz'
+    fsaverage_lh, fsaverage_rh = transforms.mni152_to_fsaverage(mni_image_path, '164k')
+
+    lh_data = fsaverage_lh.darrays[0].data
+    rh_data = fsaverage_rh.darrays[0].data
+    lh_data[lh_medial_wall] = None
+    rh_data[rh_medial_wall] = None
+    fsaverage_lh.darrays[0].data[:] = lh_data
+    fsaverage_rh.darrays[0].data[:] = rh_data
+
+    lh_filename = mni_image_path.replace('.nii.gz', '_lh_fsaverage.func.gii')
+    rh_filename = mni_image_path.replace('.nii.gz', '_rh_fsaverage.func.gii')
+    fsaverage_lh.to_filename(lh_filename)
+    fsaverage_rh.to_filename(rh_filename)

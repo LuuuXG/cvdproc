@@ -14,23 +14,42 @@ from cvdproc.pipelines.pwi.aif.auto_aif_nipype import AutoAIFFromPWI
 from cvdproc.pipelines.pwi.dsc_mri_toolbox.dsc_mri_nipype import DSCMRI, Conc
 
 class PWIPipeline:
-    def __init__(self, subject, session, output_path, **kwargs):
+    """
+    Postprocessing pipeline for Dynamic Susceptibility Contrast MRI (DSC-MRI) perfusion data (PWI).
+
+    This pipeline is to: Calculate PWI maps from DSC-MRI data (rCBF, rCBV, MTT, TTP, K2)
+
+    Last updated: 2025-07-27, WYJ
+    """
+        
+    def __init__(self, 
+                 subject, 
+                 session, 
+                 output_path, 
+                 use_which_pwi: str = "pwi", 
+                 dsc_mri_toolbox_path: str = None,
+                 extract_from: str = None,
+                 **kwargs):
         """
-        PWI postprocessing pipeline
+        Postprocessing pipeline for DSC-MRI perfusion data (PWI).
+
+        Args:
+            subject (BIDSSubject): A BIDS subject object.
+            session (BIDSSession): A BIDS session object.
+            output_path (str): Directory to save outputs.
+            use_which_pwi (str, optional): Keyword to select the desired PWI file.
+            dsc_mri_toolbox_path (str, optional): Path to the MATLAB dsc-mri-toolbox.
+            extract_from (str, optional): If extracting results, please provide it.
+
         """
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
-
-        self.use_which_pwi = kwargs.get('use_which_pwi', 'pwi')
-        self.dsc_mri_toolbox_path = kwargs.get('dsc_mri_toolbox_path', None)
-
-        self.extract_from = kwargs.get('extract_from', None)
+        self.use_which_pwi = use_which_pwi
+        self.dsc_mri_toolbox_path = dsc_mri_toolbox_path
+        self.extract_from = extract_from
 
     def check_data_requirements(self):
-        """
-        :return: bool
-        """
         return self.session.get_pwi_files() is not None
     
     def create_workflow(self):

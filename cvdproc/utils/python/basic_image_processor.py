@@ -209,42 +209,74 @@ def extract_roi_from_image(input_image, roi_list, binarize, output_path):
     img = load_image(input_image)
     img_data = img.get_fdata()
 
-    roi_mask = np.isin(img_data, roi_list)
+    # Initialize an array to store the new data
     new_data = np.zeros(img_data.shape, dtype=img_data.dtype)
 
-    if binarize:
-        new_data[roi_mask] = 1
-    else:
-        new_data[roi_mask] = img_data[roi_mask]
-    
+    # Loop through each ROI in the list and create a mask for each label
+    for roi in roi_list:
+        # Create a mask for the current roi (using np.isclose for floating point comparison)
+        roi_mask = np.isclose(img_data, roi)
+
+        # Apply binarization or retain original values
+        if binarize:
+            new_data[roi_mask] = 1
+        else:
+            new_data[roi_mask] = img_data[roi_mask]
+
+    # Determine the output file path if not provided
     if output_path is None:
         base_name, ext = os.path.splitext(os.path.basename(input_image))
         folder = os.path.dirname(input_image) or "."
         output_filename = f"roi_{base_name}{ext}"
         output_path = os.path.join(folder, output_filename)
     
+    # Save the new ROI image
     save_image(new_data, img.affine, img.header, output_path)
     print(f"Extracted ROI saved to {output_path}")
 
     return output_path
 
 def extract_roi_means(input_image, roi_image, ignore_background, output_path):
-    img = load_image(input_image)
-    roi = load_image(roi_image)
+    input_ext = os.path.splitext(input_image)[-1].lower()
+    roi_ext = os.path.splitext(roi_image)[-1].lower()
 
-    if img.shape != roi.shape:
-        raise ValueError("Input image and ROI mask must have the same dimensions.")
+    if input_ext == '.gii':
+        input_dict = load_image2(input_image)
+        input_data = input_dict['value']
+        if isinstance(input_data, list):
+            input_data = input_data[0]
+        input_data = np.squeeze(input_data)
+    else:
+        img = load_image(input_image)
+        input_data = np.squeeze(img.get_fdata())
 
-    img_data = img.get_fdata()
-    roi_data = roi.get_fdata().astype(int)
+    if roi_ext == '.gii':
+        roi_dict = load_image2(roi_image)
+        if 'label' in roi_dict:
+            roi_data = roi_dict['label']
+        else:
+            roi_data = roi_dict['value']
+        if isinstance(roi_data, list):
+            roi_data = roi_data[0]
+        roi_data = np.squeeze(roi_data)
+    elif roi_ext == '.txt':
+        indices = np.loadtxt(roi_image, dtype=int)
+        roi_data = np.zeros(input_data.shape, dtype=int)
+        roi_data[indices] = 1
+    else:
+        roi_img = load_image(roi_image)
+        roi_data = np.squeeze(roi_img.get_fdata()).astype(int)
+
+    if input_data.shape != roi_data.shape:
+        raise ValueError(f"Input and ROI shapes do not match: {input_data.shape} vs {roi_data.shape}")
+
     roi_labels = np.unique(roi_data)
-
     roi_means = []
     for label in roi_labels:
         mask = roi_data == label
         if ignore_background:
-            mask &= img_data != 0
-        mean_val = img_data[mask].mean() if np.any(mask) else np.nan
+            mask &= input_data != 0
+        mean_val = input_data[mask].mean() if np.any(mask) else np.nan
         roi_means.append([label, mean_val])
 
     if output_path is None:
@@ -256,11 +288,9 @@ def extract_roi_means(input_image, roi_image, ignore_background, output_path):
     with open(output_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['ROI', 'MeanValue'])
-        for label, mean_val in roi_means:
-            writer.writerow([label, mean_val])
+        writer.writerows(roi_means)
 
     print(f"ROI means saved to {output_path}")
-
     return output_path
 
 def change_dtype(input_image, target_dtype, output_path):
@@ -540,25 +570,28 @@ def main():
 
     args = parser.parse_args()
 
+    # Debugging: Check parsed arguments
+    print("Parsed arguments:", args)
+
     if args.input:
         if args.threshold is not None:
             threshold_binarize_image(args.input[0], args.threshold, args.output[0])
         elif args.mask is not None:
             mask_image(args.input[0], args.mask, args.binarize, args.output[0], args.to_nan)
         elif args.dtype is not None:
-            change_dtype(args.input, args.dtype, args.output)
+            change_dtype(args.input[0], args.dtype, args.output[0])
         elif args.affine is not None:
             #change_affine(args.affine, args.input, args.output, args.axis)
             # use fix_affine instead
-            fix_affine(args.input, args.affine, args.output)
-        elif args.volume is not None:
-            calculate_volume(args.input, args.output)
-        elif args.roi_vol is not None:
-            calculate_roi_volume(args.input, args.extract, args.output)
+            fix_affine(args.input[0], args.affine, args.output[0])
+        elif args.volume:
+            calculate_volume(args.input[0], args.output[0])
+        elif args.roi_vol:
+            calculate_roi_volume(args.input[0], args.extract, args.output[0])
         elif args.extract is not None:
-            extract_roi_means(args.input, args.extract, args.ignore_background, args.output)
+            extract_roi_means(args.input[0], args.extract, args.ignore_background, args.output[0])
         elif args.extract_label is not None:
-            extract_roi_from_image(args.input, args.extract_label, args.binarize, args.output)
+            extract_roi_from_image(args.input[0], args.extract_label, args.binarize, args.output[0])
         else:
             raise ValueError("For single input file, either --threshold, --mask, or --dtype must be specified.")
     elif args.input_folder and (args.mean or args.median):
@@ -570,50 +603,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# TEST
-if False:
-    #image_path = '/mnt/f/BIDS/SVD_BIDS/derivatives/dwi_pipeline/sub-SVD0003/ses-01/mirror_probtrackx_output/lh.LowConn_fsaverage.mgh'
-    #image_path = '/mnt/f/BIDS/SVD_BIDS/derivatives/nemo_mean_fsaverage/lh_smooth6mm_mean_masked.mgh'
-    mgh_path = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt_paths_fsaverage/rh_lowconn_mean.mgh'
-    mask_txt_path = '/mnt/e/Codes/cvdproc/cvdproc/data/standard/fsaverage/rh.aparc.label_medial_wall.txt'
-    output_path  = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt_paths_fsaverage/rh_lowconn_mean.mgh'
-
-    img = nib.load(mgh_path)
-    data = img.get_fdata().squeeze()  # (n_vertices,)
-
-    # 加载要屏蔽的 index
-    indices_to_zero = np.loadtxt(mask_txt_path, dtype=int)
-    data[indices_to_zero] = -1  # or 0.0 if NaN not supported
-
-    # 转换为 MGH 需要的形状
-    data = data.astype(np.float32)
-    data = data[:, np.newaxis, np.newaxis]  # ✅ FIX HERE
-
-    # Create new MGH header
-    from nibabel.freesurfer.mghformat import MGHHeader
-
-    new_header = MGHHeader()
-    new_header.set_data_shape(data.shape)
-
-    # Create and save new MGH image
-    new_img = nib.freesurfer.mghformat.MGHImage(data, affine=img.affine, header=new_header)
-    new_img.to_filename(output_path)
-
-    print(f"Saved MGH: {output_path}")
-
-    # img = nib.load(gii_path)
-    # data_array = img.darrays[0].data.copy().squeeze()  # flatten to (163842,)
-    #
-    # medial_wall_indices = np.loadtxt(mask_txt_path, dtype=int)
-    #
-    # # Fill with random values, mask medial wall
-    # #data_array[:] = np.random.rand(data_array.shape[0])
-    # #data_array[:] = 1
-    # data_array[medial_wall_indices] = -1  # or = 0.0
-    #
-    # # Must assign with correct shape
-    # img.darrays[0].data[:] = data_array[:, np.newaxis]
-    #
-    # nib.save(img, output_gii)
-    # print(f"Saved: {output_gii}")

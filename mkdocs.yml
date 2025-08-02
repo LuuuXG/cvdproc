@@ -7,12 +7,32 @@ nav:
   - Usage: usage.md
   - DCM2BIDS:
       - dcm2bids: dcm2bids/dcm2bids.md
-  - Pipelines:
+  - Pipelines: 
       - Overview: pipelines/index.md
-      - WMH Quantification: pipelines/wmh_quantification.md
+      - Structural MRI (sMRI) Pipelines: 
+          - PVS Quantification: pipelines/sMRI/pvs_quantification.md
+          - WMH Quantification: pipelines/sMRI/wmh_quantification.md
+      - Diffusion MRI (dMRI) Pipelines:
+          - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
+      - Quantification MRI (qMRI) Pipelines:
+          - Sepia QSM: pipelines/qMRI/sepia_qsm.md
+      - Perfusion MRI (PWI) Pipelines:
+          - PWI Pipeline: pipelines/pwi/pwi_pipeline.md
 
 markdown_extensions:
   - admonition
   - pymdownx.superfences
   - pymdownx.details
   - pymdownx.tasklist
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_root_toc_entry: false
+            show_source: false
+            show_signature: false
+            exclude: "__init__"

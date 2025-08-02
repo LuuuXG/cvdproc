@@ -55,6 +55,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "nemo_postprocess":
             from ..pipelines.dmri.nemo_postprocess_pipeline import NemoPostprocessPipeline
             return NemoPostprocessPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "lqt_pipeline":
+            from ..pipelines.dmri.lqt_pipeline import LQTPipeline
+            return LQTPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Quantiative MRI ####
         elif pipeline_name.lower() == "sepia_qsm":

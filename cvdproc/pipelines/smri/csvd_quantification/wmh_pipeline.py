@@ -206,6 +206,8 @@ class WMHSegmentationPipeline:
             wmh_synthseg_node.inputs.wmh_filepath = os.path.join(self.output_path, binarized_wmh_filename)
             wmh_synthseg_node.inputs.prob_filepath = os.path.join(self.output_path, probmap_filename)
             wmh_synthseg_node.inputs.output = os.path.join(self.output_path, wmh_synthseg_filename)
+            wmh_synthseg_node.inputs.device = 'cpu'
+            wmh_synthseg_node.inputs.threads = 8
 
             wmh_workflow.connect([
                 (inputnode, wmh_synthseg_node, [("flair_file", "input")]),
