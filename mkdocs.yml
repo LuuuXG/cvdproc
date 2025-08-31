@@ -15,6 +15,7 @@ nav:
       - Diffusion MRI (dMRI) Pipelines:
           - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
       - Quantification MRI (qMRI) Pipelines:
+          - QSM Pipeline: pipelines/qMRI/qsm_pipeline.md
           - Sepia QSM: pipelines/qMRI/sepia_qsm.md
       - Perfusion MRI (PWI) Pipelines:
           - PWI Pipeline: pipelines/pwi/pwi_pipeline.md

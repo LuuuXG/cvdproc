@@ -6,9 +6,8 @@ import numpy as np
 
 from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Merge
-from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, Padding, EddyCuda, OrderEddyOutputs, DTIFit, RenameDTIFitOutputs, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters, DTIALPSsimple
+from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, OrderEddyOutputs, DTIFit, RenameDTIFitOutputs, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters, DTIALPSsimple
 from .synb0.synb0_nipype import Synb0
-from .freewater.single_shell_freewater import SingleShellFW
 from ..smri.mirror.mirror_nipype import MirrorMask
 from nipype.interfaces.fsl import FLIRT, ExtractROI, ConvertXFM
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
@@ -17,9 +16,12 @@ from cvdproc.pipelines.dmri.mrtrix3.tcksample_nipype import TckSampleCommand, Ca
 from cvdproc.pipelines.dmri.mrtrix3.denoise_degibbs_nipype import MrtrixDenoise, MrtrixDegibbs
 from cvdproc.pipelines.dmri.stats.dti_scalar_maps import GenerateWMMaskCommandLine, CalculateScalarMaps
 from cvdproc.pipelines.dmri.dipy.dipy_freewater_dti import FreeWaterTensor
+from cvdproc.pipelines.dmri.freewater.single_shell_freewater import SingleShellFW
+from cvdproc.pipelines.dmri.freewater.markvcid_freewater import MarkVCIDFreeWater
 from ..common.mri_synthstrip import MRISynthstripCommandLine
 from cvdproc.pipelines.common.filter_existing import FilterExisting
 from cvdproc.pipelines.common.merge_filename import MergeFilename
+from cvdproc.pipelines.common.pad_dwi import PadDWI
 from .psmd.psmd_nipype import PSMDCommandLine
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
@@ -205,9 +207,9 @@ class DWIPipeline:
             flair_file = flair_files[0]
             print(f"Using FLAIR: {flair_file}")
         else:
-            flair_files = [flair_files[0]]
-            flair_file = flair_files[0]
-            print(f"No specific FLAIR file selected. Using the first one :{flair_file}.")
+            # flair_files = [flair_files[0]]
+            # flair_file = flair_files[0]
+            print(f"No specific FLAIR file selected. If you want to include a FLAIR file, please specify it.")
 
         if self.use_freesurfer_clinical:
             fs_output = self.session.freesurfer_clinical_dir
@@ -223,7 +225,6 @@ class DWIPipeline:
         inputnode = Node(IdentityInterface(fields=['bids_dir', 't1w_file',
                                                    'dwi_file', 'bval_file',
                                                    'bvec_file', 'json_file',
-                                                   'use_synb0', 'output_path_synb0',
                                                    'output_path', 
                                                    'phase_encoding_number', 'total_readout_time', 
                                                    'fs_output', 'seed_mask_dtispace',
@@ -235,8 +236,6 @@ class DWIPipeline:
         inputnode.inputs.bval_file = dwi_bval
         inputnode.inputs.bvec_file = dwi_bvec
         inputnode.inputs.json_file = dwi_json
-        inputnode.inputs.use_synb0 = self.synb0
-        inputnode.inputs.output_path_synb0 = os.path.join(self.subject.bids_dir, 'derivatives', 'synb0', f'sub-{self.subject.subject_id}', f"ses-{self.session.session_id}")
         inputnode.inputs.output_path = self.output_path
         inputnode.inputs.phase_encoding_number = phase_encoding_direction_dict[phase_encoding_direction]
         inputnode.inputs.total_readout_time = total_readout_time
@@ -257,19 +256,19 @@ class DWIPipeline:
         if self.preprocess:
             # Padding: make sure the slices in the z direction are even
             # If no need to pad, the output will be the same as input
-            padding_node = Node(Padding(), name='padding')
-            dwi_workflow.connect(inputnode, 'dwi_file', padding_node, 'dwi_file')
-            dwi_workflow.connect(inputnode, 'bvec_file', padding_node, 'bvec_file')
-            dwi_workflow.connect(inputnode, 'bval_file', padding_node, 'bval_file')
-            dwi_workflow.connect(inputnode, 'json_file', padding_node, 'json_file')
-            padding_node.inputs.output_dir = os.path.dirname(dwi_image)
-            padding_node.inputs.basename = rename_bids_file(dwi_image, {"desc": "padding"}, 'dwi', '')
+            # TODO: change to use fslroi
+            padding_node = Node(PadDWI(), name='padding')
+            dwi_workflow.connect(inputnode, 'dwi_file', padding_node, 'in_dwi')
+            dwi_workflow.connect(inputnode, 'bvec_file', padding_node, 'in_bvec')
+            dwi_workflow.connect(inputnode, 'bval_file', padding_node, 'in_bval')
+            dwi_workflow.connect(inputnode, 'json_file', padding_node, 'in_json')
+            padding_node.inputs.out_file = os.path.join(os.path.dirname(dwi_image), rename_bids_file(dwi_image, {"desc": "cropped"}, 'dwi', '.nii.gz'))
             
             # Denoise using MRtrix3
             denoise_node = Node(MrtrixDenoise(), name='denoise')
-            dwi_workflow.connect(padding_node, 'padded_dwi_file', denoise_node, 'dwi_img')
-            dwi_workflow.connect(padding_node, 'padded_bvec_file', denoise_node, 'dwi_bvec')
-            dwi_workflow.connect(padding_node, 'padded_bval_file', denoise_node, 'dwi_bval')
+            dwi_workflow.connect(padding_node, 'out_file', denoise_node, 'dwi_img')
+            dwi_workflow.connect(padding_node, 'out_bvec', denoise_node, 'dwi_bvec')
+            dwi_workflow.connect(padding_node, 'out_bval', denoise_node, 'dwi_bval')
             denoise_node.inputs.output_dir = preproc_intermediate_dir
 
             # Degibbs using MRtrix3
@@ -285,12 +284,12 @@ class DWIPipeline:
                 synb0_node = Node(Synb0(), name='synb0')
                 dwi_workflow.connect([
                     (inputnode, synb0_node, [('t1w_file', 't1w_img'),
-                                                ('output_path_synb0', 'output_path_synb0'),
                                                 ('json_file', 'dwi_json')]),
                     (degibbs_node, synb0_node, [('output_dwi_img', 'dwi_img')])
                 ])
 
                 synb0_node.inputs.fmap_output_dir = os.path.join(self.subject.bids_dir, f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", 'fmap')
+                synb0_node.inputs.output_path_synb0 = os.path.join(self.subject.bids_dir, 'derivatives', 'synb0', f'sub-{self.subject.subject_id}', f"ses-{self.session.session_id}")
 
                 dwi_workflow.connect(synb0_node, 'acqparam', b0_all_node, 'acqparam')
                 dwi_workflow.connect(synb0_node, 'b0_all', b0_all_node, 'b0_all')
@@ -633,7 +632,7 @@ class DWIPipeline:
         # DTI-ALPS #
         ############
         if self.dtialps:
-            # script: alps.sh
+            # script: alps_custom.sh
             dtialps_output_dir = os.path.join(self.output_path, 'DTI-ALPS')
             
             dtialps_node = Node(DTIALPSsimple(), name='dtialps')
@@ -648,9 +647,9 @@ class DWIPipeline:
             dtialps_node.inputs.alps_script_path = self.alps_script_path
         
         ##########################
-        # Single Shell Freewater #
+        #       Free Water       #
         ##########################
-        freewater_node = Node(IdentityInterface(fields=['single_shell_fw_img', 'dti_fw_img']), name='freewater_node')
+        freewater_node = Node(IdentityInterface(fields=['single_shell_fw_img', 'markvcid_fw_img', 'dti_fw_img']), name='freewater_node')
 
         if 'single_shell_freewater' in self.freewater:
             single_shell_freewater_node = Node(SingleShellFW(), name='single_shell_freewater')
@@ -661,7 +660,7 @@ class DWIPipeline:
             dwi_workflow.connect(preproc_dwi_node, 'bvec', single_shell_freewater_node, 'fbvec')
             dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', single_shell_freewater_node, 'mask_file')
 
-            fw_output_path = os.path.join(self.output_path, 'single_shell_freewater')
+            fw_output_path = os.path.join(self.output_path, 'freewater', 'single_shell_freewater')
             single_shell_freewater_node.inputs.working_directory = fw_output_path
             single_shell_freewater_node.inputs.output_directory = fw_output_path
             single_shell_freewater_node.inputs.crop_shells = False
@@ -670,6 +669,20 @@ class DWIPipeline:
         else:
             freewater_node.inputs.fw_img = os.path.join(self.output_path, 'single_shell_freewater', 'freewater.nii.gz')
         
+        if 'markvcid_freewater' in self.freewater:
+            markvcid_freewater_node = Node(MarkVCIDFreeWater(), name='markvcid_freewater')
+
+            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', markvcid_freewater_node, 'in_dwi')
+            dwi_workflow.connect(preproc_dwi_node, 'bvec', markvcid_freewater_node, 'in_dwi_bvec')
+            dwi_workflow.connect(preproc_dwi_node, 'bval', markvcid_freewater_node, 'in_dwi_bval')
+            dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', markvcid_freewater_node, 'in_dwi_mask')
+
+            fw_output_path = os.path.join(self.output_path, 'freewater', 'markvcid_freewater')
+            markvcid_freewater_node.inputs.output_dir = fw_output_path
+            markvcid_freewater_node.inputs.script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'external', 'MarkVCID2', 'scripts_FW_CONSORTIUM'))
+
+            dwi_workflow.connect(markvcid_freewater_node, 'out_fw', freewater_node, 'markvcid_fw_img')
+        
         if 'dti_freewater' in self.freewater:
             dti_freewater_node = Node(FreeWaterTensor(), name='dti_freewater')
             dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', dti_freewater_node, 'dwi_file')
@@ -677,7 +690,7 @@ class DWIPipeline:
             dwi_workflow.connect(preproc_dwi_node, 'bval', dti_freewater_node, 'bval_file')
             dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', dti_freewater_node, 'mask_file')
 
-            fw_output_path = os.path.join(self.output_path, 'tensor_model_freewater')
+            fw_output_path = os.path.join(self.output_path, 'freewater', 'tensor_model_freewater')
             dti_freewater_node.inputs.output_dir = fw_output_path
 
             dwi_workflow.connect(dti_freewater_node, 'freewater_file', freewater_node, 'dti_fw_img')
@@ -690,15 +703,9 @@ class DWIPipeline:
         if self.psmd:
             psmd_output_dir = os.path.join(self.output_path, 'psmd')
 
-            # unzip_node = Node(GunzipInterface(), name="unzip_node")
-            # dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', unzip_node, 'file')
-            # unzip_node.inputs.out_dir = psmd_output_dir
-            # unzip_node.inputs.keep = True
-            # unzip_node.inputs.out_basename = 'data.nii'
-
             psmd_node = Node(PSMDCommandLine(), name="psmd_node")
             dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', psmd_node, 'dwi_data')
-            dwi_workflow.connect(inputnode, 'bval_file', psmd_node, 'bval_file')
+            dwi_workflow.connect(preproc_dwi_node, 'bval', psmd_node, 'bval_file')
             dwi_workflow.connect(preproc_dwi_node, 'bvec', psmd_node, 'bvec_file')
             psmd_node.inputs.mask_file = self.psmd_skeleton_mask
             if self.psmd_lesion_mask is not None and self.psmd_lesion_mask != '':
@@ -709,19 +716,16 @@ class DWIPipeline:
 
                 psmd_lesion_mask = [file for file in os.listdir(psmd_lesion_mask_dir) if f'{self.use_which_psmd_lesion_mask}' in file]
                 if psmd_lesion_mask is not None and len(psmd_lesion_mask) == 1:
-                    print(f"Using lesion mask: {psmd_lesion_mask[0]}.")
+                    print(f"[PSMD] Using lesion mask: {psmd_lesion_mask[0]}.")
                     psmd_lesion_mask = os.path.join(psmd_lesion_mask_dir, psmd_lesion_mask[0])
                 elif psmd_lesion_mask is not None and len(psmd_lesion_mask) > 1:
-                    print(f"Using the first lesion mask found: {psmd_lesion_mask[0]}.")
+                    print(f"[PSMD] Using the first lesion mask found: {psmd_lesion_mask[0]}.")
                     psmd_lesion_mask = os.path.join(psmd_lesion_mask_dir, psmd_lesion_mask[0])
                 else:
-                    print("No lesion mask found.")
+                    print("[PSMD] No lesion mask found.")
 
                 psmd_node.inputs.lesion_mask = psmd_lesion_mask
             psmd_node.inputs.output_dir = psmd_output_dir
-
-            # delete_dwi_file_node = Node(DeleteFileCommandLine(), name="delete_dwi_file_node")
-            # dwi_workflow.connect(psmd_node, "dwi", delete_dwi_file_node, "file")
         
         #########################
         # Calculate DWI metrics #

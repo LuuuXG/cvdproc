@@ -122,7 +122,7 @@ class Dcm2BidsProcessor:
             print('No temporary dcm2bids folder found, or it is not in the BIDS root folder.')
         
         # Fix 'IntendedFor' fields in JSON files
-        self.fix_intendedfor_for_subject_session(subject_id, session_id)
+        # self.fix_intendedfor_for_subject_session(subject_id, session_id)
     
     def fix_intendedfor_for_subject_session(self, subject_id, session_id):
         """

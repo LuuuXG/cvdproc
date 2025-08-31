@@ -31,6 +31,11 @@ class PipelineManager:
         #####################
 
         #### Structural MRI ####
+        elif pipeline_name.lower() == "t1_register":
+            from ..pipelines.smri.t1_register import T1RegisterPipeline
+            # replace 't1_register' in ouput_path to 'xfm'
+            output_path = output_path.replace('t1_register', 'xfm')
+            return T1RegisterPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "freesurfer":
             from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline
             return FreesurferPipeline(subject, session, output_path=output_path, **kwargs)
@@ -46,6 +51,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "fsl_anat":
             from ..pipelines.smri.fsl_anat_pipeline import FSLANATPipeline
             return FSLANATPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "chp_seg":
+            from ..pipelines.smri.chpseg_pipeline import ChPSegPipeline
+            return ChPSegPipeline(subject, session, output_path=output_path, **kwargs)
         ########################
 
         #### Diffusion MRI ####
@@ -63,6 +71,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "sepia_qsm":
             from ..pipelines.qmri.sepia_qsm_pipeline import SepiaQSMPipeline
             return SepiaQSMPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "qsm_pipeline":
+            from ..pipelines.qmri.qsm_pipeline import QSMPipeline
+            return QSMPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### PWI (DSC-MRI) ####
         elif pipeline_name.lower() == "pwi_pipeline":

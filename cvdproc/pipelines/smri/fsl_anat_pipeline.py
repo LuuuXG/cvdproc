@@ -49,7 +49,7 @@ class FSLANATPipeline:
         t1w_file = os.path.abspath(t1w_file)
 
         fsl_anat_wf = Workflow(name='fsl_anat_wf')
-        fsl_anat_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
+        fsl_anat_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
         inputnode = Node(IdentityInterface(fields=['input_image', 'output_directory']),
                          name='inputnode')

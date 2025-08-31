@@ -32,4 +32,4 @@ pip install -e /path/to/cvdproc -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 !!! note "tensorflow and torch"
-    Because these two packages are large, we do not specify them in `setup.py`. However, they will be used in the subsequent code. Please install them as needed.
+    Because these two packages are large in size, we do not specify them in `setup.py`. However, they will be used in the subsequent code. Please install them as needed.

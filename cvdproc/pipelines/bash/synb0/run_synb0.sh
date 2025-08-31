@@ -70,6 +70,9 @@ else
   echo "Running mri_synthstrip..."
   mri_synthstrip -i "$T1W_IMG" -o "${INPUTS}/T1.nii.gz"
 
+  flirt -in "${INPUTS}/T1.nii.gz" -ref "${INPUTS}/T1.nii.gz" -applyisoxfm 1 \
+      -interp trilinear -out "${INPUTS}/T1.nii.gz"
+
   echo "Extracting b0 from DWI..."
   fslroi "$DWI_IMG" "${INPUTS}/b0.nii.gz" 0 1
 

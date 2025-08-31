@@ -1,10 +1,10 @@
 %% Define the inputs
-input_qsm_bids_dir = '/this/is/prepared/for/nipype/input_qsm_bids_dir';
+input_qsm_bids_dir = 'F:/BIDS/7T_SVD/sub-SVD7TNEW01/ses-baseline/qsm';
 % QSM data are in the `input_qsm_bids_dir`
 phase_image_correction = false; % For GE acquisition
 reverse_phase = 0; % For GE acquisition
-subject_output_folder = '/this/is/prepared/for/nipype/subject_output_folder';
-sepia_toolbox_path = '/this/is/prepared/for/nipype/sepia_toolbox_path';
+subject_output_folder = 'F:/BIDS/7T_SVD/derivatives/qsm_pipeline/sub-SVD7TNEW01/ses-baseline';
+sepia_toolbox_path = 'E:/Neuroimage/Software/sepia-master_for_win';
 
 %% Add the SEPIA toolbox to the path (with subfolders)
 %addpath(genpath(sepia_toolbox_path));

@@ -23,7 +23,7 @@ class FreesurferPipeline:
 
     def check_data_requirements(self):
         """
-        检查数据需求
+        check data requirements
         :return: bool
         """
         return self.session.get_t1w_files() is not None
@@ -65,7 +65,7 @@ class FreesurferPipeline:
         fs_workflow.connect(inputnode, "fs_output_id", reconall_node, "subject_id")
         fs_workflow.connect(inputnode, "subjects_dir", reconall_node, "subjects_dir")
 
-        fs_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
+        fs_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
         return fs_workflow
 

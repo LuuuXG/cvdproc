@@ -13,7 +13,7 @@ class DenoiseDegibbsOutputSpec(TraitedSpec):
     output_dwi_bval = File(desc="Path to the denoised and de-gibbsed DWI bval file")
 
 class DenoiseDegibbs(CommandLine):
-    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_denoise_degibbs.sh"))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_denoise_degibbs.sh"))
     input_spec = DenoiseDegibbsInputSpec
     output_spec = DenoiseDegibbsOutputSpec
 
@@ -37,7 +37,7 @@ class MrtrixDenoiseOutputSpec(TraitedSpec):
     output_dwi_bval = File(desc="Path to the denoised DWI bval file")
 
 class MrtrixDenoise(CommandLine):
-    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_denoise.sh"))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_denoise.sh"))
     input_spec = MrtrixDenoiseInputSpec
     output_spec = MrtrixDenoiseOutputSpec
 
@@ -60,7 +60,7 @@ class MrtrixDegibbsOutputSpec(TraitedSpec):
     output_dwi_bval = File(desc="Path to the de-gibbsed DWI bval file")
     
 class MrtrixDegibbs(CommandLine):
-    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_degibbs.sh"))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_degibbs.sh"))
     input_spec = MrtrixDegibbsInputSpec
     output_spec = MrtrixDegibbsOutputSpec
 

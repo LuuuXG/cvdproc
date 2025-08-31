@@ -1,6 +1,7 @@
 import argparse
 import os
 import yaml
+import json
 from rich import print
 from rich.console import Console
 from rich.panel import Panel
@@ -62,6 +63,38 @@ def main():
         processor.initialize()
         print("BIDS initialization completed.")
 
+        subjects_info_json = os.path.join(bids_dir, 'participants.json')
+        subjects_info = os.path.join(bids_dir, 'participants.tsv')
+
+        participants_json_content = {
+            "subject": {
+                "LongName": "",
+                "Description": "subject ID (with 'sub-' prefix)"
+            },
+            "session": {
+                "LongName": "",
+                "Description": "session ID (with 'ses-' prefix)"
+            },
+            "age": {
+                "LongName": "",
+                "Description": "age of the participant",
+                "Units": "years"
+            },
+            "sex": {
+                "LongName": "",
+                "Description": "sex of the participant as reported by the participant",
+                "Levels": {
+                    "M": "male",
+                    "F": "female"
+                }
+            }
+        }
+
+        with open(subjects_info_json, 'w') as f:
+            json.dump(participants_json_content, f, indent=4)
+        print("participants.json file created.")
+
+
     # === DICOM to BIDS ===
     if args.run_dcm2bids:
         # Load main configuration
@@ -81,6 +114,9 @@ def main():
             dicom_dirs = [os.path.join(bids_dir, "sourcedata", sub) for sub in args.dicom_subdir]
         else:
             parser.error("Please provide either --dicom_dir or --dicom_subdir.")
+        
+        dicom_dirname = os.path.basename(dicom_dirs[0])
+        subjects_info = os.path.join(bids_dir, 'participants.tsv')
 
         for subject_id, session_id, dicom_dir in zip(args.subject_id, args.session_id, dicom_dirs):
             if not os.path.exists(dicom_dir):
@@ -169,7 +205,7 @@ def main():
 
             # Set output path
             output_path = os.path.join(output_base, args.pipeline, f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-            os.makedirs(output_path, exist_ok=True)
+            #os.makedirs(output_path, exist_ok=True)
 
             # Get pipeline object and create workflow
             manager = PipelineManager()

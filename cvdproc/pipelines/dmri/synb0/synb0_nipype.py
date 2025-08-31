@@ -1,14 +1,5 @@
 import os
-import subprocess
-import shutil
-import nibabel as nib
-import time
-import numpy as np
-import pandas as pd
-from nipype import Node, Workflow
-from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
-from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool, Int, Str
+from nipype.interfaces.base import TraitedSpec, File, Directory, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
 
 class Synb0InputSpec(CommandLineInputSpec):
     # T1W_IMG=$1
@@ -33,7 +24,7 @@ class Synb0OutputSpec(TraitedSpec):
     b0_u = File(desc="Path to the b0_u image")
 
 class Synb0(CommandLine):
-    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "run_synb0.sh"))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "synb0", "run_synb0.sh"))
     input_spec = Synb0InputSpec
     output_spec = Synb0OutputSpec
 
@@ -60,15 +51,3 @@ class Synb0(CommandLine):
         outputs["b0_all"] = os.path.join(self.inputs.output_path_synb0, "b0_all.nii.gz")
         outputs["b0_u"] = getattr(self, "_fmap_path", None)
         return outputs
-
-if __name__ == "__main__":
-    # Example usage
-    synb0 = Synb0()
-    synb0.inputs.t1w_img = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/anat/sub-WZMCI001_ses-01_acq-highres_T1w.nii.gz"
-    synb0.inputs.dwi_img = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/dwi/sub-WZMCI001_ses-01_acq-DTIb1000_dwi.nii.gz"
-    synb0.inputs.output_path_synb0 = "/mnt/f/BIDS/WZdata/derivatives/synb0/sub-WZMCI001/ses-01"
-    synb0.inputs.dwi_json = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/dwi/sub-WZMCI001_ses-01_acq-DTIb1000_dwi.json"
-    synb0.inputs.fmap_output_dir = "/mnt/f/BIDS/WZdata/sub-WZMCI001/ses-01/fmap"
-
-    result = synb0.run()  # This will execute the interface
-    print(result.outputs)

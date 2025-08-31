@@ -43,13 +43,13 @@ class SepiaQSMPipeline:
         self.session = session
         self.output_path = os.path.abspath(output_path)
 
-        self.use_which_t1w = kwargs.get('use_which_t1w', None)
-        self.normalize = kwargs.get('normalize', False) # normalize to MNI space
-        self.sepia_toolbox_path = kwargs.get('sepia_toolbox_path', None) # If you can type 'sepia' to open SEPIA GUI,
+        self.use_which_t1w = use_which_t1w
+        self.normalize = normalize # normalize to MNI space
+        self.sepia_toolbox_path = sepia_toolbox_path # If you can type 'sepia' to open SEPIA GUI,
                                                                          # It is likely that the toolbox is already in the path.
                                                                          # So, you don't need to specify this.
                                                                          # Otherwise, you need to specify the path to the SEPIA toolbox.
-        self.reverse_phase = kwargs.get('reverse_phase', 0) # 0=no need, 1=reverse phase image (For GE scans)
+        self.reverse_phase = reverse_phase # 0=no need, 1=reverse phase image (For GE scans)
 
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         self.sepia_qsm_script = os.path.join(base_dir, 'matlab', 'sepia_qsm', 'sepia_process.m')

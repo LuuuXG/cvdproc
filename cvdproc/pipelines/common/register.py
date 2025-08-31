@@ -2,7 +2,36 @@ from nipype import Node, Workflow
 from nipype.interfaces import fsl
 from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine
 from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool
+from traits.api import Bool, Str
+import os
+
+class SynthmorphNonlinearInputSpec(CommandLineInputSpec):
+    t1 = File(exists=True, mandatory=True, argstr='-t1 %s', desc='T1-weighted image')
+    mni_template = File(exists=True, mandatory=True, argstr='-mni_template %s', desc='MNI template image')
+    t1_mni_out = Str(mandatory=True, argstr='-t1_mni_out %s', desc='Output T1 image in MNI space')
+    t1_2_mni_warp = Str(mandatory=True, argstr='-t1_2_mni_warp %s', desc='Output warp field from T1 to MNI')
+    mni_2_t1_warp = Str(mandatory=True, argstr='-mni_2_t1_warp %s', desc='Output warp field from MNI to T1')
+    t1_stripped = Bool(False, argstr='-t1_stripped', desc='If set, indicates that the input T1 is already skull-stripped')
+    register_between_stripped = Bool(False, argstr='-register_between_stripped', desc='If set, indicates that both T1 and MNI template are skull-stripped')
+    brain_mask_out = Str(mandatory=False, argstr='-brain_mask_out %s', esc='Output brain mask in T1 space')
+
+class SynthmorphNonlinearOutputSpec(TraitedSpec):
+    t1_mni_out = Str(desc='Output T1 image in MNI space')
+    t1_2_mni_warp = Str(desc='Output warp field from T1 to MNI')
+    mni_2_t1_warp = Str(desc='Output warp field from MNI to T1')
+
+class SynthmorphNonlinear(CommandLine):
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bash', 'freesurfer', 'mri_synthmorph_single.sh'))
+    input_spec = SynthmorphNonlinearInputSpec
+    output_spec = SynthmorphNonlinearOutputSpec
+    terminal_output = 'allatonce'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['t1_mni_out'] = self.inputs.t1_mni_out
+        outputs['t1_2_mni_warp'] = self.inputs.t1_2_mni_warp
+        outputs['mni_2_t1_warp'] = self.inputs.mni_2_t1_warp
+        return outputs
 
 class SynthStripInputSpec(CommandLineInputSpec):
     in_file = File(exists=True, mandatory=True, argstr='-i %s', position=0, desc='Input image to process')
@@ -105,38 +134,6 @@ def create_register_workflow(highres_in_file, highres_out_file, highres_mask_fil
     workflow.connect(convert_xfm, 'out_matrix_file', outputnode, 'flirt_inverse_out_matrix_file')
 
     return workflow
-
-# if __name__ == '__main__':
-#     from nipype.interfaces.utility import Merge
-#     # 示例输入
-#     highres_in_file = '/mnt/f/BIDS/UKB_AFproject/sub-AF1000077/ses-01/anat/sub-AF1000077_ses-01_T1w.nii.gz'
-#     highres_out_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/sub-AF1000077_ses-01_T1w_stripped.nii.gz'
-#     highres_mask_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/sub-AF1000077_ses-01_T1w_mask.nii.gz'
-#     lowres_in_file = '/mnt/f/BIDS/UKB_AFproject/sub-AF1000077/ses-01/anat/sub-AF1000077_ses-01_FLAIR.nii.gz'
-#     lowres_out_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/sub-AF1000077_ses-01_FLAIR_stripped.nii.gz'
-#     lowres_mask_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/sub-AF1000077_ses-01_FLAIR_mask.nii.gz'
-#     flirt_out_matrix_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/flirt2t1w.mat'
-#     flirt_inverse_out_matrix_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/t1w2flair.mat'
-#     flirt_out_file = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype/sub-AF1000077_ses-01_FLAIR_registered.nii.gz'
-#     base_dir = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype'
-#
-#     # 创建工作流
-#     workflow = create_register_workflow(highres_in_file, highres_out_file, highres_mask_file,
-#                                         lowres_in_file, lowres_out_file, lowres_mask_file,
-#                                         flirt_out_matrix_file, flirt_inverse_out_matrix_file, flirt_out_file, base_dir,
-#                                         is_highres_skullstripped=True, is_lowres_skullstripped=True)
-#
-#     merge_node = Node(Merge(numinputs=2, outputnames=["image_to_predict"]), name="merge_node")
-#
-#     workflow_test = Workflow(name="workflow_test")
-#     workflow_test.base_dir = '/mnt/f/BIDS/UKB_AFproject/derivatives/nipype'
-#
-#     workflow_test.connect([
-#         (workflow, merge_node, [("outputnode.highres_out_file", "in1")]),
-#         (workflow, merge_node, [("outputnode.flirt_out_file", "in2")])
-#     ])
-#
-#     workflow_test.run()
 
 ################
 # FSL Register #

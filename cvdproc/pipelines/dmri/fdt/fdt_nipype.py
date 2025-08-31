@@ -2,91 +2,11 @@ import os
 import subprocess
 import shutil
 import nibabel as nib
-import time
 import numpy as np
 import pandas as pd
-from nipype import Node, Workflow
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
 from nipype.interfaces.utility import IdentityInterface
 from traits.api import Bool, Int, Str
-
-# import logging
-# logger = logging.getLogger(__name__)
-
-###########
-# Padding #
-###########
-class PaddingInputSpec(BaseInterfaceInputSpec):
-    dwi_file = File(exists=True, mandatory=True, desc="Input DWI image (.nii.gz)")
-    bval_file = File(exists=True, mandatory=True, desc="BVAL file")
-    bvec_file = File(exists=True, mandatory=True, desc="BVEC file")
-    json_file = File(exists=True, mandatory=True, desc="JSON metadata file")
-    output_dir = Directory(mandatory=True, desc="Directory to save the padded outputs")
-    basename = traits.Str(mandatory=True, desc="Base name for output files (without extension)")
-
-class PaddingOutputSpec(TraitedSpec):
-    padded_dwi_file = File(desc="Padded or original DWI image")
-    padded_bval_file = File(desc="BVAL file (copied or original)")
-    padded_bvec_file = File(desc="BVEC file (copied or original)")
-    padded_json_file = File(desc="JSON file (copied or original)")
-
-class Padding(BaseInterface):
-    input_spec = PaddingInputSpec
-    output_spec = PaddingOutputSpec
-
-    def _run_interface(self, runtime):
-        self._padded_dwi_file = None
-        self._padded_bval_file = None
-        self._padded_bvec_file = None
-        self._padded_json_file = None
-
-        dwi_path = self.inputs.dwi_file
-        bval_path = self.inputs.bval_file
-        bvec_path = self.inputs.bvec_file
-        json_path = self.inputs.json_file
-        outdir = os.path.abspath(self.inputs.output_dir)
-        basename = self.inputs.basename
-
-        os.makedirs(outdir, exist_ok=True)
-
-        img = nib.load(dwi_path)
-        data = img.get_fdata()
-        affine = img.affine
-        header = img.header
-        z_dim = data.shape[2]
-
-        if z_dim % 2 == 0:
-            # 不需要 padding
-            self._padded_dwi_file = dwi_path
-            self._padded_bval_file = bval_path
-            self._padded_bvec_file = bvec_path
-            self._padded_json_file = json_path
-        else:
-            # 在最底部（z=0）添加一层全0
-            zero_slice = np.zeros(data[:, :, :1, ...].shape)
-            padded_data = np.concatenate((zero_slice, data), axis=2)  # <<=== 改这里！
-
-            padded_img = nib.Nifti1Image(padded_data, affine, header)
-            self._padded_dwi_file = os.path.join(outdir, basename + ".nii.gz")
-            nib.save(padded_img, self._padded_dwi_file)
-
-            self._padded_bval_file = os.path.join(outdir, basename + ".bval")
-            self._padded_bvec_file = os.path.join(outdir, basename + ".bvec")
-            self._padded_json_file = os.path.join(outdir, basename + ".json")
-
-            shutil.copyfile(bval_path, self._padded_bval_file)
-            shutil.copyfile(bvec_path, self._padded_bvec_file)
-            shutil.copyfile(json_path, self._padded_json_file)
-
-        return runtime
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['padded_dwi_file'] = self._padded_dwi_file
-        outputs['padded_bval_file'] = self._padded_bval_file
-        outputs['padded_bvec_file'] = self._padded_bvec_file
-        outputs['padded_json_file'] = self._padded_json_file
-        return outputs
 
 ####################################
 # Generate b0_all and acqparam.txt #
