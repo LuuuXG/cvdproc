@@ -20,16 +20,16 @@ gpuDevice() % must see the GPU info by gpuDevice()
 % 4: Input data: in BIDS format (such as described in: https://sepia-documentation.readthedocs.io/en/latest/getting_started/Data-preparation.html)
 %% All parameters needed to define by users
 % paths
-bids_root_dir = 'F:/BIDS/demo_BIDS';
-subject_id = 'TAOHC0261';
-session_id = 'baseline';
+bids_root_dir = 'F:/BIDS/7T_SVD';
+subject_id = 'SVD7TNEW02';
+session_id = '01';
 cvdproc_dir = 'E:/Codes/cvdproc';
 FS_HOME = '/usr/local/freesurfer/7-dev';
 ants_path = ""; % currently not used
 
 % process settings
-phase_image_correction = false; % set to true For GE phase data
-reverse_phase = 0; % set to 1 For GE phase data
+phase_image_correction = true; % set to true For GE phase data
+reverse_phase = 1; % set to 1 For GE phase data
 
 %% ----------------------00 Load Funtions---------------------------
 chisep_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'Chisep_Toolbox_v1.2');
@@ -317,7 +317,7 @@ else
     fprintf('Found first magnitude echo-1 file: %s\n', first_mag_echo1);
 end
 
-brain_mask_out = sprintf('%sdesc-brain_mask.nii.gz', raw_qsm_prefix);
+brain_mask_out = sprintf('%slabel-brain_mask.nii.gz', raw_qsm_prefix);
 
 in_wsl  = win2wsl(first_mag_echo1);
 mask_wsl = win2wsl(brain_mask_out);
@@ -370,7 +370,7 @@ input(2).name = mag_smooth;
 input(3).name = '' ;
 input(4).name = sepia_header;
 output_basename = sepia_output_basename;
-mask_filename = [''] ;
+mask_filename = [brain_mask_out] ;
 
 % General algorithm parameters
 algorParam = struct();
@@ -383,7 +383,35 @@ algorParam.r2s.s0mode = 'Weighted sum' ;
 
 sepiaIO(input,output_basename,mask_filename,algorParam);
 
+% ----------------------------Post-process---------------------------------
 r2s = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_R2starmap.nii.gz', subject_id, session_id));
+swi = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_clearswi.nii.gz', subject_id, session_id));
+mip = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_clearswi-minIP.nii.gz', subject_id, session_id));
+
+mask = niftiread(brain_mask_out);
+mask = logical(mask);
+
+files_in = {swi, mip};
+
+for i = 1:numel(files_in)
+    data = niftiread(files_in{i});
+    info = niftiinfo(files_in{i});
+
+    % 应用 mask
+    data_masked = data .* cast(mask, class(data));
+
+    % 去掉后缀，得到 prefix
+    [folder, name, ~] = fileparts(files_in{i});
+    if endsWith(name, '.nii')  % 处理 .nii.gz 的情况
+        [~, name, ~] = fileparts(name);
+    end
+    out_prefix = fullfile(folder, name);
+
+    % 覆盖写回（保持压缩）
+    niftiwrite(data_masked, out_prefix, info, 'Compressed', true);
+
+    fprintf('Masked and overwritten: %s\n', files_in{i});
+end
 
 %% -------------03 ChiSep & SEPIA: QSM, ChiDia, ChiPara-------------
 sub_and_ses_str_sepia = sprintf('sub-%s_ses-%s', subject_id, session_id);
@@ -422,7 +450,10 @@ load(sepia_header);
 unwrapped_phase_raw = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_part-phase_unwrapped.nii.gz', subject_id, session_id));
 unwrapped_phase_raw_data = load_nii_img_only(unwrapped_phase_raw);
 
+% copy brain mask
 brain_mask = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_brain.nii.gz', subject_id, session_id));
+copyfile(brain_mask_out, brain_mask);
+
 brain_mask_data = load_nii_img_only(brain_mask);
 
 localfied_mask = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_localfield.nii.gz', subject_id, session_id));
@@ -531,7 +562,7 @@ Data.x_para(Data.x_para < 0) = 0;
 Data.x_dia(Data.x_dia < 0) = 0;
 Data.r2p_map(Data.r2p_map < 0) = 0;
 
-% vessel seg
+% % vessel seg
 % % Params for vessel enhancement filter (MFAT, Default)
 % params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
 % params.spacing = Data.VoxelSize;
@@ -574,20 +605,28 @@ chidia_old = fullfile(qsm_output_dir, 'ChiDia.nii');
 chipara_old = fullfile(qsm_output_dir, 'ChiPara.nii');
 chitotal_old = fullfile(qsm_output_dir, 'ChiTot.nii');
 chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
+% vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
+% vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
 
 chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
 chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
 chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
 chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-Chisep_Chimap.nii.gz', subject_id, session_id));
+% vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
+% vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
 
 convert_nii_to_gz(chidia_old,   chidia);
 convert_nii_to_gz(chipara_old,  chipara);
 convert_nii_to_gz(chitotal_old, chitotal);
 convert_nii_to_gz(chimap_old,   chimap);
+% convert_nii_to_gz(vesseldia_old,   vesseldia);
+% convert_nii_to_gz(vesselpara_old,   vesselpara);
 
 delete(chidia_old);
 delete(chipara_old);
 delete(chitotal_old);
 delete(chimap_old);
+% delete(vesseldia_old);
+% delete(vesselpara_old);
 
 % all done !

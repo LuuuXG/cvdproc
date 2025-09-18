@@ -51,9 +51,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "fsl_anat":
             from ..pipelines.smri.fsl_anat_pipeline import FSLANATPipeline
             return FSLANATPipeline(subject, session, output_path=output_path, **kwargs)
-        elif pipeline_name.lower() == "chp_seg":
-            from ..pipelines.smri.chpseg_pipeline import ChPSegPipeline
-            return ChPSegPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "anat_seg":
+            from ..pipelines.smri.anat_seg_pipeline import AnatSegPipeline
+            return AnatSegPipeline(subject, session, output_path=output_path, **kwargs)
         ########################
 
         #### Diffusion MRI ####

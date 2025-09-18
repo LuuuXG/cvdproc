@@ -51,10 +51,21 @@ Create a `config.yml` file in the `code` folder (note that we use the yaml forma
 # You need to specify the BIDS root folder here
 bids_dir: /mnt/f/BIDS/demo_wmh
 ## You need to specify the dcm2bids configuration file here
-dcm2bids: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
+dcm2bids: 
+  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
 ```
 
-Remember to change the `bids_dir` and `dcm2bids` paths to your own paths. The `bids_dir` is the root folder of your BIDS dataset, and the `dcm2bids` is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the `sourcedata` folder of the BIDS root directory. For example, if you have a folder named `DICOM_01` containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to `/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01`. The final folder structure should look like this:
+Remember to change the `bids_dir` and `config_file` paths to your own paths. The `bids_dir` is the root folder of your BIDS dataset, and the `config_file` is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the `sourcedata` folder of the BIDS root directory. For example, if you have a folder named `DICOM_01` containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to `/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01`. The final folder structure should look like this:
+
+```
+/mnt/f/BIDS/demo_wmh
+├── code
+│   ├── config.yml
+│   └── dcm2bids_config.json
+├── sourcedata
+│   └── DICOM_01
+└── .bidsignore
+```
 
 !!! info DICOM folder
     Because the original DICOM images obtained in actual research may have different structures, the file structure under the subject's DICOM folder may vary. However, it should be noted that there is no need to preprocess the subfolders under the DICOM folder in advance (for example, a common practice is to make one subfolder correspond to one scanning sequence). This is because `dcm2bids` will convert all DICOM files found under the folder, even if only a few sequences are specified in the json file (so, for example, when EPI sequences with DWI or multi-echo GRE sequences are included, the conversion time may take several minutes, but fortunately, theoretically, such conversion only needs to be done once).

@@ -16,9 +16,12 @@ from skimage import measure
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface, Merge
 from ....bids_data.rename_bids_file import rename_bids_file
-from ...common.register import create_register_workflow
 #from .shiva_segmentation.shiva_segmentation import SHIVAPredictImage
-from .shiva_segmentation.shiva_nipype import PrepareShivaInput, ShivaSegmentation
+from cvdproc.pipelines.smri.csvd_quantification.shiva_segmentation.shiva_parc import ShivaGeneralParcellation, Brain_Seg_for_biomarker
+from cvdproc.pipelines.smri.freesurfer.synthseg import SynthSeg
+from cvdproc.pipelines.smri.freesurfer.synthstrip import SynthStrip
+from cvdproc.pipelines.smri.ants.n4biascorr_nipype import SimpleN4BiasFieldCorrection
+from cvdproc.pipelines.smri.csvd_quantification.segcsvd.segment_pvs import SegCSVDPVS
 
 class PVSSegmentationPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
@@ -33,15 +36,6 @@ class PVSSegmentationPipeline:
         self.method = kwargs.get('method', 'SHIVA')
         self.modality = kwargs.get('modality', 'T1w')
         self.shiva_config = kwargs.get('shiva_config', os.path.join(self.subject.bids_dir, 'code', 'shiva_config.yml'))
-        # Path()
-        # self.predictor_files = kwargs.get('predictor_files', [])
-
-        # self.crop_or_pad_percentage = kwargs.get('crop_or_pad_percentage', (0.5, 0.5, 0.5))
-        # self.save_intermediate_image = kwargs.get('save_intermediate_image', False)
-        # self.threshold = kwargs.get('threshold', 0.5)
-
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        self.script_path_register = os.path.join(base_dir, 'bash', 'register.sh')
 
     def check_data_requirements(self):
         """
@@ -68,7 +62,7 @@ class PVSSegmentationPipeline:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
         else:
-            print("No specific T1w file selected. Using the first one.")
+            print("[PVS Pipeline] No specific T1w file selected. Using the first one.")
             t1w_files = [t1w_files[0]]
             t1w_file = t1w_files[0]
         
@@ -83,21 +77,21 @@ class PVSSegmentationPipeline:
                     raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
                 flair_file = flair_files[0]
             else:
-                print("No specific FLAIR file selected. Using the first one.")
+                print("[PVS Pipeline] No specific FLAIR file selected. Using the first one.")
                 flair_files = [flair_files[0]]
                 flair_file = flair_files[0]
 
             flair_filename = os.path.basename(flair_file).split('.nii')[0]
 
         pvs_quantification_workflow = Workflow(name='pvs_quantification_workflow')
-        pvs_quantification_workflow.base_dir = self.output_path
-
-        shiva_input_dir = os.path.join(self.output_path, 'shiva_input')
-        os.makedirs(shiva_input_dir, exist_ok=True)
-        # shiva_output_dir = os.path.join(self.output_path, 'shiva_output')
-        # os.makedirs(shiva_output_dir, exist_ok=True)
+        pvs_quantification_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
         if self.method == 'SHIVA':
+            from .shiva_segmentation.shiva_nipype import PrepareShivaInput, ShivaSegmentation
+
+            shiva_input_dir = os.path.join(self.output_path, 'shiva_input')
+            os.makedirs(shiva_input_dir, exist_ok=True)
+
             inputnode = Node(IdentityInterface(fields=['subject_id', 'flair_path', 't1_path', 'swi_path', 'output_dir',
                                                     'shiva_input_dir', 'shiva_output_dir', 'input_type', 'prediction', 'shiva_config', 'brain_seg']), name='inputnode')
             inputnode.inputs.subject_id = f'sub-{self.subject.subject_id}{session_entity}'
@@ -132,165 +126,83 @@ class PVSSegmentationPipeline:
                                                     ('shiva_config', 'shiva_config'),
                                                     ('brain_seg', 'brain_seg')]),
             ])
+        elif self.method == 'segcsvd':
+            inputnode = Node(IdentityInterface(fields=['t1_path']), name='inputnode')
+            inputnode.inputs.t1_path = t1w_file
+            # 1. synthseg
+            synthseg_out_ndoe = Node(IdentityInterface(fields=['synthseg_out']), name='synthseg_output')
+            anat_seg_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
+            synthseg_out = os.path.join(anat_seg_dir, 'synthseg', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_synthseg.nii.gz")
+            if os.path.exists(synthseg_out):
+                print(f"[PVS Pipeline] Found existing SynthSeg output: {synthseg_out}")
+                synthseg_out_ndoe.inputs.synthseg_out = synthseg_out
+            else:
+                synthseg = Node(SynthSeg(), name='synthseg')
+                pvs_quantification_workflow.connect(inputnode, 't1_path', synthseg, 'image')
+                synthseg.inputs.out = os.path.join(anat_seg_dir, 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_synthseg.nii.gz')
+                synthseg.inputs.vol = os.path.join(anat_seg_dir, 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-synthseg_volume.csv')
+                synthseg.inputs.robust = True
+                synthseg.inputs.parc = True
+                synthseg.inputs.keepgeom = True
+
+                pvs_quantification_workflow.connect(synthseg, 'out', synthseg_out_ndoe, 'synthseg_out')
+            
+            # 2. shiva derived brain seg for biomarker
+            shiva_general_parc_node = Node(ShivaGeneralParcellation(), name='shiva_general_parcellation')
+            pvs_quantification_workflow.connect(synthseg_out_ndoe, 'synthseg_out', shiva_general_parc_node, 'in_seg')
+            shiva_general_parc_node.inputs.out_seg = os.path.join(self.output_path, f"sub-{self.subject.subject_id}{session_entity}_space-T1w_desc-shivaParc_synthseg.nii.gz")
+
+            # 3. shiva pvs seg
+            shiva_pvs_seg_node = Node(Brain_Seg_for_biomarker(), name='shiva_pvs_segmentation')
+            pvs_quantification_workflow.connect(shiva_general_parc_node, 'out_seg', shiva_pvs_seg_node, 'brain_seg')
+            shiva_pvs_seg_node.inputs.custom_parc = 'pvs'
+            shiva_pvs_seg_node.inputs.out_file = os.path.join(self.output_path, f"sub-{self.subject.subject_id}{session_entity}_space-T1w_desc-shivaParcPVS_synthseg.nii.gz")
+            shiva_pvs_seg_node.inputs.parc_json = os.path.join(self.output_path, f"shivaParcPVS.json")
+
+            # 4. skull strip T1w and N4 bias correction
+            stripped_t1w_node = Node(IdentityInterface(fields=['stripped_t1w']), name='stripped_t1w_output')
+            xfm_output_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f"ses-{self.session.session_id}")
+            os.makedirs(xfm_output_dir, exist_ok=True)
+            t1w_stripped = os.path.join(xfm_output_dir, rename_bids_file(t1w_file, {'desc': 'brain'}, 'T1w', '.nii.gz'))
+            if os.path.exists(t1w_stripped):
+                print(f"[PVS Pipeline] Found existing skull-stripped T1w: {t1w_stripped}")
+                stripped_t1w_node.inputs.stripped_t1w = t1w_stripped
+            else:
+                synthstrip_t1w_node = Node(SynthStrip(), name='synthstrip_t1w')
+                pvs_quantification_workflow.connect(inputnode, 't1_path', synthstrip_t1w_node, 'image')
+                synthstrip_t1w_node.inputs.out_file = t1w_stripped
+                synthstrip_t1w_node.inputs.mask_file = os.path.join(self.output_path, rename_bids_file(t1w_file, {'label': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
+
+                pvs_quantification_workflow.connect(synthstrip_t1w_node, 'out_file', stripped_t1w_node, 'stripped_t1w')
+            
+            n4_biascorr_node = Node(SimpleN4BiasFieldCorrection(), name='n4_bias_correction')
+            pvs_quantification_workflow.connect(stripped_t1w_node, 'stripped_t1w', n4_biascorr_node, 'input_image')
+            n4_biascorr_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(t1w_file, {'desc': 'n4biascorr'}, 'T1w', '.nii.gz'))
+            n4_biascorr_node.inputs.output_bias = os.path.join(self.output_path, rename_bids_file(t1w_file, {'desc': 'n4biascorr'}, 'biasfield', '.nii.gz'))
+
+            # 5. PVS segmentation
+            # found whether there is an existing WMH file
+            wmh_output_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'wmh_quantification', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
+            # look for: lebel-WMH and space-T1w and mask.nii.gz, if multiple, use the first one
+            try:
+                wmh_files = [f for f in os.listdir(wmh_output_dir) if f.endswith('.nii.gz') and 'label-WMH' in f and 'space-T1w' in f and 'mask' in f]
+                if wmh_files:
+                    wmh_file = os.path.join(wmh_output_dir, wmh_files[0])
+                    print(f"[PVS Pipeline] Found existing WMH file: {wmh_file}")
+                else:
+                    wmh_file = 'none'
+                    print(f"[PVS Pipeline] No existing WMH file found. A pseudo WMH (all=0) will be created.")
+            except:
+                wmh_file = 'none'
+                print(f"[PVS Pipeline] No existing WMH file found. A pseudo WMH (all=0) will be created.")
+
+            segcsvd_pvs_node = Node(SegCSVDPVS(), name='segcsvd_pvs_segmentation')
+            pvs_quantification_workflow.connect(n4_biascorr_node, 'output_image', segcsvd_pvs_node, 't1w')
+            pvs_quantification_workflow.connect(synthseg_out_ndoe, 'synthseg_out', segcsvd_pvs_node, 'synthseg_out')
+            segcsvd_pvs_node.inputs.wmh_file = wmh_file
+            segcsvd_pvs_node.inputs.output_dir = self.output_path
+            segcsvd_pvs_node.inputs.pvs_probmap_filename = f"sub-{self.subject.subject_id}{session_entity}_space-T1w_label-PVS_desc-segcsvd_probmap.nii.gz"
+            segcsvd_pvs_node.inputs.pvs_binary_filename = f"sub-{self.subject.subject_id}{session_entity}_space-T1w_label-PVS_desc-segcsvdThr0p35_mask.nii.gz"
+            segcsvd_pvs_node.inputs.threshold = 0.35
 
         return pvs_quantification_workflow
-
-    # def run(self):
-    #     os.makedirs(self.output_path, exist_ok=True)
-    #     session_entity = f"_ses-{self.session.session_id}" if self.session.session_id else ""
-
-    #     ## 1. Get the T1w and FLAIR files
-    #     t1w_files = self.session.get_t1w_files()
-    #     if self.use_which_t1w:
-    #         t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
-    #         # 确保最终只有1个合适的文件
-    #         if len(t1w_files) != 1:
-    #             raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
-    #         t1w_file = t1w_files[0]
-    #     else:
-    #         print("No specific T1w file selected. Using the first one.")
-    #         t1w_files = [t1w_files[0]]
-    #         t1w_file = t1w_files[0]
-        
-    #     t1w_filename = os.path.basename(t1w_file).split('.nii')[0]
-
-    #     flair_files = self.session.get_flair_files()
-    #     if self.modality == 'T1w+FLAIR':
-    #         if self.use_which_flair:
-    #             flair_files = [f for f in flair_files if self.use_which_flair in f]
-    #             # 确保最终只有1个合适的文件
-    #             if len(flair_files) != 1:
-    #                 raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
-    #             flair_file = flair_files[0]
-    #         else:
-    #             print("No specific FLAIR file selected. Using the first one.")
-    #             flair_files = [flair_files[0]]
-    #             flair_file = flair_files[0]
-
-    #         flair_filename = os.path.basename(flair_file).split('.nii')[0]
-        
-    #     '''
-    #     Main part of the pipeline
-    #     '''
-    #     if self.method == 'SHIVA':
-    #         prefix = 'SHIVA_PVS'
-
-    #         thr_string = f'{self.threshold:.2f}'.replace('.', 'p')
-    #         entities_PVSprobmap = {
-    #             'space': 'T1w',
-    #             'desc': 'SHIVA',
-    #         }
-    #         entities_PVSmask = {
-    #             'space': 'T1w',
-    #             'desc': f'SHIVA-thr{thr_string}',
-    #         }
-    #         entities_PVSlabel = {
-    #             'space': 'T1w',
-    #             'desc': f'SHIVA-thr{thr_string}',
-    #         }
-    #         suffix_PVSprobmap = "PVSprobmap"
-    #         suffix_PVSmask = "PVSmask"
-    #         suffix_PVSlabel = "PVSlabel"
-    #         extension = ".nii.gz"
-    #         PVSprobmap_file = os.path.join(self.output_path, rename_bids_file(t1w_file, entities_PVSprobmap, suffix_PVSprobmap, extension))
-    #         PVSmask_file = os.path.join(self.output_path, rename_bids_file(t1w_file, entities_PVSmask, suffix_PVSmask, extension))
-    #         PVSlabel_file = os.path.join(self.output_path, rename_bids_file(t1w_file, entities_PVSlabel, suffix_PVSlabel, extension))
-
-    #         predict_node = Node(SHIVAPredictImage(), name="predict_image")
-    #         shiva_pvs_pipeline = Workflow(name='shiva_pvs_pipeline')
-    #         shiva_pvs_pipeline.base_dir = self.output_path
-
-    #         if self.modality == 'T1w':
-    #             image_to_predict = [t1w_file]
-
-    #             IdentityNode = Node(IdentityInterface(fields=['image_to_predict']), name='IdentityNode')
-    #             IdentityNode.inputs.image_to_predict = image_to_predict
-    #             shiva_pvs_pipeline.connect([
-    #                 (IdentityNode, predict_node, [('image_to_predict', 'image_to_predict')]),
-    #             ])
-    #         elif self.modality == 'T1w+FLAIR':
-    #             entities_t1w_mask = {
-    #                 'space': 'T1w',
-    #             }
-
-    #             entities_flair_mask = {
-    #                 'space': 'FLAIR',
-    #             }
-
-    #             entities_stripped = {
-    #                 'desc': 'stripped'
-    #             }
-
-    #             entities_flair2t1wxfm = {
-    #                 'from': 'FLAIR',
-    #                 'to': 'T1w'
-    #             }
-
-    #             entities_t1w2flairxfm = {
-    #                 'from': 'T1w',
-    #                 'to': 'FLAIR'
-    #             }
-
-    #             entities_flairint1w = {
-    #                 'space': 'T1w',
-    #                 'desc': 'stripped'
-    #             }
-
-    #             t1w_mask_file = os.path.join(self.output_path_xfm,
-    #                                          rename_bids_file(t1w_file, entities_t1w_mask, "brainmask", '.nii.gz'))
-    #             t1w_stripped_file = os.path.join(self.output_path_xfm,
-    #                                              rename_bids_file(t1w_file, entities_stripped, "T1w", '.nii.gz'))
-    #             flair_mask_file = os.path.join(self.output_path_xfm,
-    #                                            rename_bids_file(flair_file, entities_flair_mask, "brainmask",
-    #                                                             '.nii.gz'))
-    #             flair_stripped_file = os.path.join(self.output_path_xfm,
-    #                                                rename_bids_file(flair_file, entities_stripped, "FLAIR", '.nii.gz'))
-    #             flair2t1w_xfm_file = os.path.join(self.output_path_xfm,
-    #                                               rename_bids_file(t1w_file, entities_flair2t1wxfm, "xfm", '.mat'))
-    #             t1w2flair_xfm_file = os.path.join(self.output_path_xfm,
-    #                                               rename_bids_file(t1w_file, entities_t1w2flairxfm, "xfm", '.mat'))
-    #             flair_in_t1w_file = os.path.join(self.output_path_xfm,
-    #                                              rename_bids_file(flair_file, entities_flairint1w, "FLAIR", '.nii.gz'))
-
-    #             register_wf = create_register_workflow(t1w_file, t1w_stripped_file, t1w_mask_file,
-    #                                                    flair_file, flair_stripped_file, flair_mask_file,
-    #                                                    flair2t1w_xfm_file, t1w2flair_xfm_file, flair_in_t1w_file,
-    #                                                    self.output_path_xfm,
-    #                                                    False, False)
-
-    #             merge_node = Node(Merge(numinputs=2), name="merge_node")
-
-    #             shiva_pvs_pipeline.connect([
-    #                 (register_wf, merge_node, [("outputnode.highres_out_file", "in1")]),
-    #                 (register_wf, merge_node, [("outputnode.flirt_out_file", "in2")]),
-    #                 (merge_node, predict_node, [("out", "image_to_predict")]),
-    #             ])
-
-    #         predict_node.inputs.predictor_files = self.predictor_files
-    #         predict_node.inputs.crop_or_pad_percentage = tuple(self.crop_or_pad_percentage)
-    #         predict_node.inputs.threshold = self.threshold
-    #         predict_node.inputs.prefix = prefix
-    #         predict_node.inputs.output_path = self.output_path
-    #         predict_node.inputs.prediction_file = PVSprobmap_file
-    #         predict_node.inputs.binary_file = PVSmask_file
-    #         predict_node.inputs.thresholded_file = PVSlabel_file
-    #         predict_node.inputs.target_shape = (160, 214, 176)
-    #         predict_node.inputs.save_intermediate_image = self.save_intermediate_image
-
-    #         shiva_pvs_pipeline.run()
-
-    #         entities_T1wcropped = {
-    #             'space': 'T1w',
-    #             'desc': 'SHIVA',
-    #         }
-    #         entities_FLAIRcropped = {
-    #             'space': 'FLAIR',
-    #             'desc': 'SHIVA',
-    #         }
-    #         suffix_T1wcropped = "T1w"
-    #         suffix_FLAIRcropped = "FLAIR"
-
-    #         if self.save_intermediate_image:
-    #             os.rename(os.path.join(self.output_path, f'crop_{t1w_filename}.nii.gz'), os.path.join(self.output_path, rename_bids_file(t1w_file, entities_T1wcropped, suffix_T1wcropped, extension)))
-    #             if self.modality == 'T1w+FLAIR':
-    #                 os.rename(os.path.join(self.output_path, f'crop_{flair_filename}.nii.gz'), os.path.join(self.output_path, rename_bids_file(flair_file, entities_FLAIRcropped, suffix_FLAIRcropped, extension)))

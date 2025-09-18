@@ -5,13 +5,17 @@ from nipype.interfaces.utility import IdentityInterface
 from traits.api import Bool, Str
 import os
 
+#####################################
+# Synthmorph Nonlinear Registration #
+#####################################
+
 class SynthmorphNonlinearInputSpec(CommandLineInputSpec):
-    t1 = File(exists=True, mandatory=True, argstr='-t1 %s', desc='T1-weighted image')
+    t1 = File(argstr='-t1 %s', desc='T1-weighted image')
     mni_template = File(exists=True, mandatory=True, argstr='-mni_template %s', desc='MNI template image')
     t1_mni_out = Str(mandatory=True, argstr='-t1_mni_out %s', desc='Output T1 image in MNI space')
     t1_2_mni_warp = Str(mandatory=True, argstr='-t1_2_mni_warp %s', desc='Output warp field from T1 to MNI')
     mni_2_t1_warp = Str(mandatory=True, argstr='-mni_2_t1_warp %s', desc='Output warp field from MNI to T1')
-    t1_stripped = Bool(False, argstr='-t1_stripped', desc='If set, indicates that the input T1 is already skull-stripped')
+    t1_stripped = File(argstr='-t1_stripped %s', desc='Stripped T1-weighted image')
     register_between_stripped = Bool(False, argstr='-register_between_stripped', desc='If set, indicates that both T1 and MNI template are skull-stripped')
     brain_mask_out = Str(mandatory=False, argstr='-brain_mask_out %s', esc='Output brain mask in T1 space')
 
@@ -32,108 +36,6 @@ class SynthmorphNonlinear(CommandLine):
         outputs['t1_2_mni_warp'] = self.inputs.t1_2_mni_warp
         outputs['mni_2_t1_warp'] = self.inputs.mni_2_t1_warp
         return outputs
-
-class SynthStripInputSpec(CommandLineInputSpec):
-    in_file = File(exists=True, mandatory=True, argstr='-i %s', position=0, desc='Input image to process')
-    out_file = File(mandatory=True, argstr='-o %s', position=1, desc='Output stripped image')
-    mask_file = File(mandatory=True, argstr='-m %s', position=2, desc='Binary brain mask image')
-    use_gpu = Bool(False, argstr='-g', desc='Use GPU for processing')
-
-class SynthStripOutputSpec(TraitedSpec):
-    out_file = File(desc='Output stripped image')
-    mask_file = File(desc='Binary brain mask image')
-
-class SynthStrip(CommandLine):
-    _cmd = 'mri_synthstrip'
-    input_spec = SynthStripInputSpec
-    output_spec = SynthStripOutputSpec
-    terminal_output = 'allatonce'
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_file
-        outputs['mask_file'] = self.inputs.mask_file
-        return outputs
-
-
-class ConvertXfmInputSpec(CommandLineInputSpec):
-    out_matrix_file = File(mandatory=True, argstr='-omat %s', position=0,
-                          desc='Input transformation matrix file')
-    in_matrix_file = File(mandatory=True, exists=True, argstr='-inverse %s', position=1, desc='Output inverse matrix file')
-
-
-class ConvertXfmOutputSpec(TraitedSpec):
-    out_matrix_file = File(desc='Inverse transformation matrix')
-
-class ConvertXfm(CommandLine):
-    _cmd = 'convert_xfm'
-    input_spec = ConvertXfmInputSpec
-    output_spec = ConvertXfmOutputSpec
-    terminal_output = 'allatonce'
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['out_matrix_file'] = self.inputs.out_matrix_file
-        return outputs
-
-
-def create_register_workflow(highres_in_file, highres_out_file, highres_mask_file,
-                             lowres_in_file, lowres_out_file, lowres_mask_file,
-                             flirt_out_matrix_file, flirt_inverse_out_matrix_file, flirt_out_file, base_dir,
-                             is_highres_skullstripped=False, is_lowres_skullstripped=False):
-    
-    inputnode = Node(IdentityInterface(fields=["highres_in_file", "lowres_in_file",
-                                               "highres_out_file", "lowres_out_file",
-                                               "highres_mask_file", "lowres_mask_file",
-                                               "flirt_out_matrix_file", "flirt_inverse_out_matrix_file", "flirt_out_file"]), name="inputnode")
-    outputnode = Node(IdentityInterface(fields=["highres_out_file", "lowres_out_file",
-                                                "flirt_out_matrix_file", "flirt_out_file", "flirt_inverse_out_matrix_file"]),
-                      name="outputnode")
-    synthstrip_highres = Node(SynthStrip(), name='synthstrip_highres')
-    synthstrip_lowres = Node(SynthStrip(), name='synthstrip_lowres')
-    flirt_register = Node(fsl.FLIRT(), name='flirt_register')
-    convert_xfm = Node(ConvertXfm(), name='convert_xfm')
-
-    inputnode.inputs.highres_in_file = highres_in_file
-    inputnode.inputs.lowres_in_file = lowres_in_file
-    inputnode.inputs.highres_out_file = highres_out_file
-    inputnode.inputs.lowres_out_file = lowres_out_file
-    inputnode.inputs.highres_mask_file = highres_mask_file
-    inputnode.inputs.lowres_mask_file = lowres_mask_file
-    inputnode.inputs.flirt_out_matrix_file = flirt_out_matrix_file
-    inputnode.inputs.flirt_inverse_out_matrix_file = flirt_inverse_out_matrix_file
-    inputnode.inputs.flirt_out_file = flirt_out_file
-
-    workflow = Workflow(name='register_between_modalities')
-    workflow.base_dir = base_dir
-
-    if not is_highres_skullstripped:
-        workflow.connect(inputnode, 'highres_in_file', synthstrip_highres, 'in_file')
-        workflow.connect(inputnode, 'highres_out_file', synthstrip_highres, 'out_file')
-        workflow.connect(inputnode, 'highres_mask_file', synthstrip_highres, 'mask_file')
-        workflow.connect(synthstrip_highres, 'out_file', flirt_register, 'reference')
-    else:
-        workflow.connect(inputnode, 'highres_in_file', flirt_register, 'reference')
-
-    if not is_lowres_skullstripped:
-        workflow.connect(inputnode, 'lowres_in_file', synthstrip_lowres, 'in_file')
-        workflow.connect(inputnode, 'lowres_out_file', synthstrip_lowres, 'out_file')
-        workflow.connect(inputnode, 'lowres_mask_file', synthstrip_lowres, 'mask_file')
-        workflow.connect(synthstrip_lowres, 'out_file', flirt_register, 'in_file')
-    else:
-        workflow.connect(inputnode, 'lowres_in_file', flirt_register, 'in_file')
-
-    workflow.connect(inputnode, "flirt_out_file", flirt_register, "out_file")
-    workflow.connect(inputnode, "flirt_inverse_out_matrix_file", convert_xfm, "out_matrix_file")
-    workflow.connect(flirt_register, 'out_matrix_file', convert_xfm, 'in_matrix_file')
-
-    workflow.connect(inputnode, 'highres_out_file', outputnode, 'highres_out_file')
-    workflow.connect(inputnode, 'lowres_out_file', outputnode, 'lowres_out_file')
-    workflow.connect(flirt_register, 'out_file', outputnode, 'flirt_out_file')
-    workflow.connect(flirt_register, 'out_matrix_file', outputnode, 'flirt_out_matrix_file')
-    workflow.connect(convert_xfm, 'out_matrix_file', outputnode, 'flirt_inverse_out_matrix_file')
-
-    return workflow
 
 ################
 # FSL Register #
@@ -163,23 +65,13 @@ class ModalityRegistrationOutputSpec(TraitedSpec):
 
 class ModalityRegistration(CommandLine):
     script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bash'))
-    _cmd = os.path.join(script_dir, 'register.sh')
+    _cmd = 'bash ' + os.path.join(script_dir, 'register.sh')
 
     input_spec = ModalityRegistrationInputSpec
     output_spec = ModalityRegistrationOutputSpec
 
-    # def _strip_nii_ext(self, filename):
-    #     if filename.endswith('.nii.gz'):
-    #         return filename[:-7]
-    #     elif filename.endswith('.nii'):
-    #         return filename[:-4]
-    #     return filename
-
     def _list_outputs(self):
         outputs = self._outputs().get()
-
-        #target_name = self._strip_nii_ext(os.path.basename(self.inputs.image_target))
-        #source_name = self._strip_nii_ext(os.path.basename(self.inputs.image_source))
 
         out_dir = self.inputs.output_dir
         outputs['output_image'] = os.path.join(out_dir, self.inputs.registered_image_filename)
@@ -188,25 +80,80 @@ class ModalityRegistration(CommandLine):
 
         return outputs
 
-if __name__ == '__main__':
-    # Example usage
-    image_target = '/mnt/f/BIDS/SVD_BIDS/sub-SVD0100/ses-01/anat/sub-SVD0100_ses-01_acq-highres_T1w.nii.gz'
-    image_target_strip = 1
-    image_source = '/mnt/f/BIDS/SVD_BIDS/sub-SVD0100/ses-01/anat/sub-SVD0100_ses-01_acq-highres_FLAIR.nii.gz'
-    image_source_strip = 1
-    flirt_direction = 1
-    output_dir = '/mnt/f/BIDS/SVD_BIDS/derivatives/xfm/sub-SVD0100/ses-01'
+############################
+# Apply Warp (mri_convert) #
+############################
+class MRIConvertApplyWarpInputSpec(CommandLineInputSpec):
+    warp_image = File(exists=True, desc='Warp image (e.g., .nii.gz)', argstr='-at %s', mandatory=True)
+    input_image = File(exists=True, desc='Input image to be warped', argstr='%s', position=1, mandatory=True)
+    output_image = Str(desc='Output warped image', argstr='%s', position=2, mandatory=True)
+    interp = Str('interpolate', desc='Interpolation method: <interpolate|weighted|nearest|cubic>', argstr='-rt %s', position=3)
 
-    registration = ModalityRegistration()
-    registration.inputs.image_target = image_target
-    registration.inputs.image_target_strip = image_target_strip
-    registration.inputs.image_source = image_source
-    registration.inputs.image_source_strip = image_source_strip
-    registration.inputs.flirt_direction = flirt_direction
-    registration.inputs.output_dir = output_dir
-    registration.inputs.registered_image_filename = 'sub-SVD0100_ses-01_acq-highres_FLAIR_registered.nii.gz'
-    registration.inputs.source_to_target_mat_filename = 'sub-SVD0100_ses-01_acq-highres_FLAIR2T1w.mat'
-    registration.inputs.target_to_source_mat_filename = 'sub-SVD0100_ses-01_acq-highres_T1w2FLAIR.mat'
-    registration.inputs.dof = 6
+class MRIConvertApplyWarpOutputSpec(TraitedSpec):
+    output_image = File(desc='Output warped image')
 
-    result = registration.run()
+class MRIConvertApplyWarp(CommandLine):
+    input_spec = MRIConvertApplyWarpInputSpec
+    output_spec = MRIConvertApplyWarpOutputSpec
+    _cmd = 'mri_convert'
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['output_image'] = self.inputs.output_image
+        return outputs
+
+#####################################
+# 2-step Normalization to MNI space #
+#####################################
+from nipype import Node, Workflow
+from nipype.interfaces import fsl
+from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine, InputMultiPath
+from nipype.interfaces.utility import IdentityInterface
+from traits.api import Bool, Str, List
+import os
+
+# Usage:
+#   $0 \
+#     --t1w <T1w image> \
+#     --t1w_to_mni_warp <T1w->MNI warp .nii.gz/.mgz> \
+#     --qsm_to_t1w_affine <QSM->T1w affine .mat> \
+#     --output_dir <Output directory> \
+#     --input   <in1.nii.gz [in2.nii.gz ...]> \
+#     --output1 <out1_T1w.nii.gz [out2_T1w.nii.gz ...]> \
+#     --output2 <out1_MNI.nii.gz [out2_MNI.nii.gz ...]>
+
+class TwoStepNormalizationInputSpec(CommandLineInputSpec):
+    struct = File(exists=True, desc="Struct image", mandatory=True, argstr="--t1w %s")
+    struct_to_mni_warp = File(exists=True, desc="Struct to MNI warp file (.nii.gz/.mgz)", mandatory=True, argstr="--t1w_to_mni_warp %s")
+    source_to_struct_affine = File(exists=True, desc="source to struct affine matrix file (.mat)", mandatory=True, argstr="--qsm_to_t1w_affine %s")
+    output_dir = Str(desc="Output directory", mandatory=True, argstr="--output_dir %s")
+    # input = List(Str(exists=True), desc="Input QSM files", mandatory=True, argstr="--input %s...")
+    # output1 = List(Str(), desc="Output files in T1w space", argstr="--output1 %s...")
+    # output2 = List(Str(), desc="Output files in MNI space", argstr="--output2 %s...")
+    input = InputMultiPath(File(exists=True), argstr="--input %s", sep=" ", mandatory=True)
+    output_struct = List(Str, argstr="--output1 %s", sep=" ", mandatory=True)
+    output_mni = List(Str, argstr="--output2 %s", sep=" ", mandatory=True)
+
+
+class TwoStepNormalizationOutputSpec(TraitedSpec):
+    outputs_in_struct = List(Str(), desc="Outputs registered to Struct space")
+    outputs_in_mni = List(Str(), desc="Outputs registered to MNI space")
+
+class TwoStepNormalization(CommandLine):
+    _cmd = 'bash ' + os.path.join(os.path.dirname(__file__), '..', 'bash', 'qsm', 'qsm_register2.sh')
+    input_spec = TwoStepNormalizationInputSpec
+    output_spec = TwoStepNormalizationOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs_in_t1w = []
+        outputs_in_mni = []
+
+        for out in self.inputs.output1:
+            outputs_in_t1w.append(os.path.abspath(os.path.join(self.inputs.output_dir, os.path.basename(out))))
+        for out in self.inputs.output2:
+            outputs_in_mni.append(os.path.abspath(os.path.join(self.inputs.output_dir, os.path.basename(out))))
+        
+        outputs['outputs_in_struct'] = outputs_in_t1w
+        outputs['outputs_in_mni'] = outputs_in_mni
+        return outputs

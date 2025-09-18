@@ -75,14 +75,25 @@ def main():
                 "LongName": "",
                 "Description": "session ID (with 'ses-' prefix)"
             },
+            "name": {
+                "LongName": "",
+                "Description": "name of the participant (Extract from DICOM tag 'Patient's Name')"
+            },
+            "id": {
+                "LongName": "",
+                "Description": "identifier of the participant (Extract from DICOM tag 'Patient's ID')"
+            },
+            "date": {
+                "LongName": "",
+                "Description": "study date of the participant (Extract from DICOM tag 'Study Date')"
+            },
             "age": {
                 "LongName": "",
-                "Description": "age of the participant",
-                "Units": "years"
+                "Description": "age of the participant (Extract from DICOM tag 'Patient's Age')"
             },
             "sex": {
                 "LongName": "",
-                "Description": "sex of the participant as reported by the participant",
+                "Description": "sex of the participant (Extract from DICOM tag 'Patient's Sex')",
                 "Levels": {
                     "M": "male",
                     "F": "female"
@@ -94,6 +105,11 @@ def main():
             json.dump(participants_json_content, f, indent=4)
         print("participants.json file created.")
 
+        # overwrite participants.tsv with header only
+        # the subjects_info file should contain columns: subject, session, age, sex.
+        with open(subjects_info, 'w') as f:
+            f.write("subject\tsession\tname\tid\tdate\tage\tsex\n")
+        print("participants.tsv file created with header only.")
 
     # === DICOM to BIDS ===
     if args.run_dcm2bids:
@@ -131,6 +147,13 @@ def main():
                 subject_id=subject_id,
                 session_id=session_id
             )
+
+            # --- Update: Extract the first DICOM file and update participants.tsv ---
+            ds = processor.find_first_dicom(dicom_dir)
+            if ds:
+                processor.update_participants_tsv(bids_dir, subject_id, session_id, ds)
+            else:
+                print(f"Warning: No DICOM file found in {dicom_dir}, skipping participants.tsv update.")
 
             # Optional: fix bvec/bval
             fix_config = dcm2bids_config.get("dwi_fix_bvecbval", [])
@@ -220,6 +243,7 @@ def main():
             )
 
             wf = pipeline.create_workflow()
+            wf.base_dir = os.path.join(bids_dir, "derivatives", "workflows", f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
 
             print(f"[green]Stage 2: Running nipype workflow for {args.pipeline}[/green]")
             wf.run()

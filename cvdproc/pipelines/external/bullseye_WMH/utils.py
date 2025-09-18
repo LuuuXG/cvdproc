@@ -182,7 +182,7 @@ def generate_wmparc(incl_file, ndist_file, label_file, incl_labels=None, verbose
     if incl_labels is None:
         incl_mask = incl_aux > 0
     else:
-        incl_mask = np.zeros(incl_nib.header.get_data_shape(), dtype=np.bool)
+        incl_mask = np.zeros(incl_nib.header.get_data_shape(), dtype=bool)
         for lab in incl_labels:
             incl_mask[incl_aux == lab] = True
 

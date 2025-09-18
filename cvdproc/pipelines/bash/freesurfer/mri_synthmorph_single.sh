@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # sanity check
-if [[ -z "$t1" || -z "$mni_template" || -z "$t1_mni_out" || -z "$t1_2_mni_warp" || -z "$mni_2_t1_warp" ]]; then
+if [[ -z "$mni_template" || -z "$t1_mni_out" || -z "$t1_2_mni_warp" || -z "$mni_2_t1_warp" ]]; then
   echo "Usage: $0 -t1 <T1w> -mni_template <MNI> -t1_mni_out <output.nii.gz> -t1_2_mni_warp <warp.nii.gz> -mni_2_t1_warp <warp.nii.gz> [options]"
   exit 1
 fi

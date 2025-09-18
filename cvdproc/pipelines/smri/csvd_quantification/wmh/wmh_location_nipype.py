@@ -12,8 +12,8 @@ from traits.api import Bool, Int, Str
 
 from scipy.ndimage import label, sum
 
-from .....utils.python.basic_image_processor import extract_roi_from_image, calculate_volume
-from .....bids_data.rename_bids_file import rename_bids_file
+from cvdproc.utils.python.basic_image_processor import extract_roi_from_image, calculate_volume
+from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
 '''
 Different methods of WMH location quantification
@@ -350,80 +350,143 @@ class Fazekas(BaseInterface):
 
         return outputs
 
-############
-# Bullseye #
-############
-
-class BullseyesInputSpec(BaseInterfaceInputSpec):
-    fs_output_dir = Directory(mandatory=True, desc="Path to the FreeSurfer output directory")
-    fs_subject_id = Str(mandatory=True, desc="FreeSurfer subject ID")
-    output_dir = Directory(mandatory=True, desc="Path to the output directory")
-    flair_img = File(mandatory=True, desc="Path to the FLAIR image")
+class FazekasClassificationInputSpec(BaseInterfaceInputSpec):
     wmh_img = File(mandatory=True, desc="Path to the WMH mask")
-    t1w_to_flair_xfm = File(mandatory=True, desc="Path to the T1w to FLAIR transformation matrix")
-    bullseye_wmparc_filename = Str(mandatory=True, desc="Name of the output Bullseye WMParc file")
-    
-    xfm_output_dir = Directory(mandatory=True, desc="Path to the output directory for the transformation matrix")
-    fs_to_flair_xfm_filename = Str(mandatory=True, desc="Name of the output FreeSurfer to FLAIR transformation matrix file")
-    fs_to_t1w_xfm_filename = Str(mandatory=True, desc="Name of the output FreeSurfer to T1w transformation matrix file")
+    vent_mask = File(mandatory=True, desc="Path to the ventricle mask")
+    perivent_mask_3mm = File(mandatory=True, desc="Path to the periventricular mask file (3mm)")
+    perivent_mask_10mm = File(mandatory=True, desc="Path to the periventricular mask file (10mm)")
 
-class BullseyesOutputSpec(TraitedSpec):
-    bullseye_wmparc = File(desc="Path to the Bullseye WMParc file")
+    output_dir = Directory(mandatory=True, desc="Path to the output directory")
+    pwmh_mask_filename = Str(desc="Path to the periventricular or confluent WMH mask file")
+    dwmh_mask_filename = Str(desc="Path to the deep WMH mask file")
 
-class Bullseyes(BaseInterface):
-    input_spec = BullseyesInputSpec
-    output_spec = BullseyesOutputSpec
+class FazekasClassificationOutputSpec(TraitedSpec):
+    pwmh_mask = File(desc="Path to the periventricular or confluent WMH mask file")
+    dwmh_mask = File(desc="Path to the deep WMH mask file")
+
+class FazekasClassification(BaseInterface):
+    input_spec = FazekasClassificationInputSpec
+    output_spec = FazekasClassificationOutputSpec
 
     def _run_interface(self, runtime):
-        script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '....', 'external', 'run_bullseye_pipeline.py'))
-        python_script = os.path.join(script_dir, 'bullseye.py')
+        wmh_img = self.inputs.wmh_img
+        vent_mask = self.inputs.vent_mask
+        perivent_mask_3mm = self.inputs.perivent_mask_3mm
+        perivent_mask_10mm = self.inputs.perivent_mask_10mm
 
-        command = [
-                    "python", python_script,
-                    "-s", self.inputs.fs_output_dir,
-                    "--subjects", self.inputs.fs_subject_id,
-                    "-w", self.inputs.fs_output_dir,
-                    "-o", self.inputs.output_dir,
-                    "-p", "8"
-                ]
+        output_dir = self.inputs.output_dir
+        pwmh_mask_filename = self.inputs.pwmh_mask_filename
+        dwmh_mask_filename = self.inputs.dwmh_mask_filename
+
+        vent_mask_data = nib.load(vent_mask).get_fdata()
+        vent_mask_data[np.isnan(vent_mask_data)] = 0
         
-        subprocess.run(command, check=True)
+        mask_3mm_data = nib.load(perivent_mask_3mm).get_fdata()
+        mask_3mm_data[np.isnan(mask_3mm_data)] = 0
 
-        subprocess.run([
-            'tkregister2',
-            '--mov', os.path.join(self.inputs.fs_output_dir, self.inputs.fs_subject_id, 'mri', 'orig.mgz'),
-            '--targ', os.path.join(self.inputs.fs_output_dir, self.inputs.fs_subject_id, 'mri', 'rawavg.mgz'),
-            '--regheader',
-            '--reg', 'junk',
-            '--fslregout', os.path.join(self.inputs.xfm_output_dir, self.inputs.fs_to_t1w_xfm_filename),
-            '--noedit'
-        ], check=True)
+        mask_10mm_data = nib.load(perivent_mask_10mm).get_fdata()
+        mask_10mm_data[np.isnan(mask_10mm_data)] = 0
 
-        # concatenate the transformation matrices
-        subprocess.run([
-            'convert_xfm',
-            '-omat', os.path.join(self.inputs.xfm_output_dir, self.inputs.fs_to_flair_xfm_filename),
-            '-concat', self.inputs.t1w_to_flair_xfm, os.path.join(self.inputs.xfm_output_dir, self.inputs.fs_to_t1w_xfm_filename)
-        ], check=True)
+        wmh_nii = nib.load(wmh_img)
+        wmh_data = wmh_nii.get_fdata()
+        wmh_data[np.isnan(wmh_data)] = 0
 
-        # transform the wmparc file to the FLAIR space
-        subprocess.run([
-            'flirt',
-            '-in', os.path.join(self.inputs.output_dir, 'bullseye_wmparc.nii.gz'),
-            '-ref', self.inputs.flair_img,
-            '-out', os.path.join(self.inputs.output_dir, self.inputs.bullseye_wmparc_filename),
-            '-applyxfm',
-            '-init', os.path.join(self.inputs.xfm_output_dir, self.inputs.fs_to_flair_xfm_filename),
-            '-interp', 'nearestneighbour'
-        ], check=True)
+        mask_3mm_data = np.add(mask_3mm_data, vent_mask_data)
+        mask_3mm_data[mask_3mm_data > 1] = 1
 
-        # Set the output file path
-        self._bullseye_wmparc = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.bullseye_wmparc_filename))
+        mask_10mm_nii = nib.load(perivent_mask_10mm)
+        mask_10mm_data = mask_10mm_nii.get_fdata()
+        mask_10mm_data[np.isnan(mask_10mm_data)] = 0
+
+        labeled_wmh, num_features = label(wmh_data)
+
+        result_confluent_WMH = np.zeros_like(wmh_data)
+        result_periventricular_WMH = np.zeros_like(wmh_data)
+        result_deep_WMH = np.zeros_like(wmh_data)
+        result_periventricular_or_confluent_WMH = np.zeros_like(wmh_data)
+
+        for region_num in range(1, num_features + 1):
+            region = (labeled_wmh == region_num).astype(np.int32)
+
+            in_3mm = np.any(np.logical_and(region, mask_3mm_data))
+
+            out_10mm = np.any(np.logical_and(region, np.logical_not(mask_10mm_data)))
+
+            # confluent WMH: lesions that are partially within the 3mm mask and partially extend outside the 10mm mask
+            if in_3mm and out_10mm:
+                result_confluent_WMH = np.logical_or(result_confluent_WMH, region)
+
+            # periventricular WMH: lesions that are partially within the 3mm mask and do not extend outside the 10mm mask
+            if in_3mm and not out_10mm:
+                result_periventricular_WMH = np.logical_or(result_periventricular_WMH, region)
+
+            # deep WMH: lesions that are not within the 3mm mask
+            if not in_3mm:
+                result_deep_WMH = np.logical_or(result_deep_WMH, region)
+
+            result_periventricular_or_confluent_WMH = np.logical_or(result_confluent_WMH, result_periventricular_WMH)
+
+        result_deep_WMH_nii = nib.Nifti1Image(result_deep_WMH.astype(np.int32), wmh_nii.affine, wmh_nii.header)
+        nib.save(result_deep_WMH_nii, os.path.join(output_dir, dwmh_mask_filename))
+
+        result_periventricular_or_confluent_WMH_nii = nib.Nifti1Image(result_periventricular_or_confluent_WMH.astype(np.int32), wmh_nii.affine, wmh_nii.header)
+        nib.save(result_periventricular_or_confluent_WMH_nii, os.path.join(output_dir, pwmh_mask_filename))
 
         return runtime
     
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['bullseye_wmparc'] = self._bullseye_wmparc
+        outputs['pwmh_mask'] = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.pwmh_mask_filename))
+        outputs['dwmh_mask'] = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.dwmh_mask_filename))
+        return outputs
+
+############
+# Bullseye #
+############
+
+class BullseyesInputSpec(CommandLineInputSpec):
+    fs_output_dir = Str(mandatory=True, desc="Path to the FreeSurfer output directory", argstr='-s %s')
+    fs_subject_id = Str(mandatory=True, desc="FreeSurfer subject ID", argstr='--subjects %s')
+    output_dir = Str(mandatory=True, desc="Path to the output directory", argstr='-o %s')
+    work_dir = Str(desc="Path to the working directory", argstr='-w %s')
+    threads = Int(desc="Number of threads to use", argstr='-p %d', default_value=1)
+
+class BullseyesOutputSpec(TraitedSpec):
+    bullseye_wmparc = File(desc="Path to the Bullseye WMParc file")
+
+class Bullseyes(CommandLine):
+    input_spec = BullseyesInputSpec
+    output_spec = BullseyesOutputSpec
+    _cmd = f'python {os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "external", "bullseye_WMH", "run_bullseye_pipeline.py"))}'
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['bullseye_wmparc'] = os.path.abspath(os.path.join(self.inputs.output_dir, 'bullseye_wmparc.nii.gz'))
 
         return outputs
+
+if __name__ == "__main__":
+    # bullseyes = Bullseyes()
+    # bullseyes.inputs.fs_output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/freesurfer/sub-TAOHC0261'
+    # bullseyes.inputs.fs_subject_id = 'ses-baseline'
+    # bullseyes.inputs.output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
+    # bullseyes.inputs.work_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
+    # bullseyes.inputs.threads = 1
+    # res = bullseyes.run()
+    from cvdproc.pipelines.external.bullseye_WMH.bullseye_pipeline import create_bullseye_pipeline
+
+    bullseye_wmh_workflow = create_bullseye_pipeline(
+        scans_dir='/mnt/f/BIDS/demo_BIDS/derivatives/freesurfer/sub-TAOHC0261',
+        work_dir='/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261',
+        outputdir='/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261',
+        subject_ids=None)
+    print("Inputs:\n", bullseye_wmh_workflow.inputs.inputnode)
+
+    test_wf = Workflow(name='test_bullseye_wmh')
+    inputnode = Node(IdentityInterface(fields=['fs_subject_id']), name='inputnode')
+    inputnode.inputs.fs_subject_id = 'ses-baseline'
+
+    test_wf.connect(inputnode, 'fs_subject_id', bullseye_wmh_workflow, 'inputnode.subject_ids')
+
+    test_wf.base_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
+    res = test_wf.run()

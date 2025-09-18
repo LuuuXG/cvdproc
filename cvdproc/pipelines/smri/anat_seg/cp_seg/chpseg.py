@@ -18,7 +18,7 @@ class ChPSeg(CommandLine):
     """
     input_spec = ChPSegInputSpec
     output_spec = ChPSegOutputSpec
-    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bash', 'chpseg', 'chpseg.sh'))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'bash', 'chpseg', 'chpseg.sh'))
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

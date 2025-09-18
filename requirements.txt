@@ -15,3 +15,4 @@ torch
 dcm2niix
 dcm2bids
 openpyxl
+pydicom

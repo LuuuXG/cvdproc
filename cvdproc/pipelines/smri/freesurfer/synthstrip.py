@@ -63,13 +63,3 @@ class SynthStrip(CommandLine):
         outputs['mask_file'] = os.path.abspath(self.inputs.mask_file) if self.inputs.mask_file else None
         outputs['sdt_file'] = os.path.abspath(self.inputs.sdt_file) if self.inputs.sdt_file else None
         return outputs
-
-if __name__ == '__main__':
-    # Example usage
-    synthstrip = SynthStrip()
-    synthstrip.inputs.image = '/path/to/input_image.nii.gz'
-    synthstrip.inputs.out_file = '/path/to/output_stripped_image.nii.gz'
-    synthstrip.inputs.mask_file = '/path/to/output_mask.nii.gz'
-    synthstrip.inputs.sdt_file = '/path/to/output_sdt.nii.gz'
-    result = synthstrip.run()
-    print(result.outputs)  # Outputs the paths to the stripped image, mask, and distance transform files

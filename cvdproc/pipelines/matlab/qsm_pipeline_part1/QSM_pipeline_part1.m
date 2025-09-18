@@ -401,7 +401,7 @@ mask_filename = [brain_mask_out] ;
 % General algorithm parameters
 algorParam = struct();
 algorParam.general.isBET = 0 ;
-algorParam.general.fractional_threshold = 0.2 ;
+algorParam.general.fractional_threshold = 0.5 ;
 algorParam.general.gradient_threshold = 0 ;
 algorParam.general.isInvert = 0 ;
 algorParam.general.isRefineBrainMask = 0 ;
@@ -421,8 +421,14 @@ load(sepia_header);
 unwrapped_phase_raw = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_part-phase_unwrapped.nii.gz', subject_id, session_id));
 unwrapped_phase_raw_data = load_nii_img_only(unwrapped_phase_raw);
 
+% copy brain mask
 brain_mask = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_brain.nii.gz', subject_id, session_id));
+copyfile(brain_mask_out, brain_mask);
+
 brain_mask_data = load_nii_img_only(brain_mask);
+
+localfied_mask = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_localfield.nii.gz', subject_id, session_id));
+localfied_mask_data = load_nii_img_only(localfied_mask);
 
 TE_s = TE;
 t2s_roi = 0.04;
@@ -442,7 +448,7 @@ save_nii_img_only(brain_mask, unwrapped_phase_average, unwrapped_phase_average_d
 % ------------------------02 backgroud field remove------------------------
 info = niftiinfo(unwrapped_phase_average);
 voxelSize = info.PixelDimensions;
-[local_field_data, brain_mask_new_data]=V_SHARP(unwrapped_phase_average_data, brain_mask_data,'voxelsize', voxelSize,'smvsize', 12);
+[local_field_data, brain_mask_new_data]=V_SHARP(unwrapped_phase_average_data, localfied_mask_data,'voxelsize', voxelSize,'smvsize', 12);
 local_field_hz_data = double(local_field_data) / (2*pi*delta_TE);
 
 local_field = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_localfield.nii.gz', subject_id, session_id));
@@ -527,7 +533,7 @@ Data.x_para(Data.x_para < 0) = 0;
 Data.x_dia(Data.x_dia < 0) = 0;
 Data.r2p_map(Data.r2p_map < 0) = 0;
 
-% vessel seg
+% % vessel seg
 % % Params for vessel enhancement filter (MFAT, Default)
 % params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
 % params.spacing = Data.VoxelSize;
@@ -570,20 +576,28 @@ chidia_old = fullfile(qsm_output_dir, 'ChiDia.nii');
 chipara_old = fullfile(qsm_output_dir, 'ChiPara.nii');
 chitotal_old = fullfile(qsm_output_dir, 'ChiTot.nii');
 chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
+% vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
+% vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
 
 chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
 chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
 chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
 chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-Chisep_Chimap.nii.gz', subject_id, session_id));
+% vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
+% vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
 
 convert_nii_to_gz(chidia_old,   chidia);
 convert_nii_to_gz(chipara_old,  chipara);
 convert_nii_to_gz(chitotal_old, chitotal);
 convert_nii_to_gz(chimap_old,   chimap);
+% convert_nii_to_gz(vesseldia_old,   vesseldia);
+% convert_nii_to_gz(vesselpara_old,   vesselpara);
 
 delete(chidia_old);
 delete(chipara_old);
 delete(chitotal_old);
 delete(chimap_old);
+% delete(vesseldia_old);
+% delete(vesselpara_old);
 
 % all done !

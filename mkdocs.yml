@@ -5,13 +5,14 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage: usage.md
-  - DCM2BIDS:
+  - Dicom2BIDS:
       - dcm2bids: dcm2bids/dcm2bids.md
   - Pipelines: 
       - Overview: pipelines/index.md
       - Structural MRI (sMRI) Pipelines: 
-          - PVS Quantification: pipelines/sMRI/pvs_quantification.md
+          - Anatomical Segmentation: pipelines/sMRI/anat_seg.md
           - WMH Quantification: pipelines/sMRI/wmh_quantification.md
+          - PVS Quantification: pipelines/sMRI/pvs_quantification.md
       - Diffusion MRI (dMRI) Pipelines:
           - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
       - Quantification MRI (qMRI) Pipelines:
@@ -19,6 +20,7 @@ nav:
           - Sepia QSM: pipelines/qMRI/sepia_qsm.md
       - Perfusion MRI (PWI) Pipelines:
           - PWI Pipeline: pipelines/pwi/pwi_pipeline.md
+  - Containers: containers.md
 
 markdown_extensions:
   - admonition

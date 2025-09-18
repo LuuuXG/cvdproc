@@ -74,7 +74,6 @@ class QSMPipeline:
         print(f"[QSM] Using T1w file: {t1w_file}")
 
         qsm_wf = Workflow(name='qsm_workflow')
-        qsm_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
         inputnode = Node(IdentityInterface(fields=['in_t1', 'bids_dir', 'subject_id', 'session_id', 'output_dir', 'phase_image_correction', 'reverse_phase']),
                          name='inputnode')
@@ -121,6 +120,9 @@ class QSMPipeline:
                 raise FileNotFoundError("No suitable QSM magnitude file found (looking for 'echo-1' and 'part-mag').")
             print(f"[QSM] Using QSM magnitude file for registration: {mag_1stecho_file}")
 
+            xfm_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
+            os.makedirs(xfm_dir, exist_ok=True)
+
             mag_to_t1w_register_node = Node(ModalityRegistration(), name='mag_to_t1w_registration')
             qsm_wf.connect(inputnode, 'in_t1', mag_to_t1w_register_node, 'image_target')
             mag_to_t1w_register_node.inputs.image_target_strip = 0
@@ -143,7 +145,7 @@ class QSMPipeline:
                 t1w_to_mni_register_node = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
                 qsm_wf.connect(inputnode, 'in_t1', t1w_to_mni_register_node, 't1')
                 t1w_to_mni_register_node.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.output_path, rename_bids_file(t1w_file, {'space': 'MNI'}, 'T1w', '.nii.gz'))
+                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI', 'desc':'brain'}, 'T1w', '.nii.gz'))
                 t1w_to_mni_register_node.inputs.t1_2_mni_warp = target_warp
                 t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
                 t1w_to_mni_register_node.inputs.t1_stripped = False

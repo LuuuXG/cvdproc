@@ -53,7 +53,7 @@ class FSLANATOutputSpec(TraitedSpec):
     mni_to_t1w_nonlin_field = File(desc='Path to the MNI to T1w non-linear field file')
 
 class FSLANAT(CommandLine):
-    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "fsl_anat_custom.sh"))
+    _cmd = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "fsl", "fsl_anat_custom.sh"))
     input_spec = FSLANATInputSpec
     output_spec = FSLANATOutputSpec
     #terminal_output = 'allatonce'

@@ -1,6 +1,8 @@
 # Usage
 
-Please refer to the different pages for specific functions:
+**Please refer to the different pages for specific functions:**
+
+If you need to create a BIDS dataset from DICOM files, please refer to:
 
 - [dcm2bids](dcm2bids/dcm2bids.md): Create BIDS dataset from DICOM files.
   

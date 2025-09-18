@@ -6,12 +6,12 @@ import numpy as np
 import json
 import pandas as pd
 import glob
+import pydicom
 from bids.cli import layout
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from bids.layout import BIDSLayout
 from requests import session
-
 
 class Dcm2BidsProcessor:
     def __init__(self, BIDS_root_folder):
@@ -120,9 +120,6 @@ class Dcm2BidsProcessor:
                     
         else:
             print('No temporary dcm2bids folder found, or it is not in the BIDS root folder.')
-        
-        # Fix 'IntendedFor' fields in JSON files
-        # self.fix_intendedfor_for_subject_session(subject_id, session_id)
     
     def fix_intendedfor_for_subject_session(self, subject_id, session_id):
         """
@@ -202,6 +199,55 @@ class Dcm2BidsProcessor:
                     if os.path.exists(bval_path) and os.path.exists(fix_item["bval"]):
                         print(f"Replacing {bval_path} with {fix_item['bval']}")
                         shutil.copyfile(fix_item["bval"], bval_path)
+    
+    def find_first_dicom(self, dicom_root):
+        """Recursively find the first dicom file under dicom_root"""
+        for root, dirs, files in os.walk(dicom_root):
+            for f in files:
+                fpath = os.path.join(root, f)
+                try:
+                    ds = pydicom.dcmread(fpath, stop_before_pixels=True)
+                    return ds
+                except Exception:
+                    continue
+        return None
+
+
+    def update_participants_tsv(self, bids_dir, subject_id, session_id, ds):
+        participants_tsv = os.path.join(bids_dir, "participants.tsv")
+
+        col_order = ["subject", "session", "name", "id", "date", "age", "sex"]
+
+        if not os.path.exists(participants_tsv):
+            with open(participants_tsv, "w") as f:
+                f.write("\t".join(col_order) + "\n")
+
+        df = pd.read_csv(participants_tsv, sep="\t")
+
+        name = getattr(ds, "PatientName", "")
+        pid = getattr(ds, "PatientID", "")
+        study_date = getattr(ds, "StudyDate", "")
+        age = getattr(ds, "PatientAge", "")
+        sex = getattr(ds, "PatientSex", "")
+
+        new_row = {
+            "subject": f"sub-{subject_id}",
+            "session": f"ses-{session_id}",
+            "name": str(name),
+            "id": str(pid),
+            "date": str(study_date),
+            "age": str(age),
+            "sex": str(sex),
+        }
+
+        df = df[~((df["subject"] == new_row["subject"]) & (df["session"] == new_row["session"]))]
+
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+        df = df[col_order]
+        df.to_csv(participants_tsv, sep="\t", index=False)
+
+        print(f"participants.tsv updated for {new_row['subject']} {new_row['session']}")
     
     def check_data(self, check_data_config):
         """Check BIDS rawdata and/or derivatives files based on filename or json criteria, and save results to check_data.xlsx"""
