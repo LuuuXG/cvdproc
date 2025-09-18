@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../../qMRI/sepia_qsm/">
+        <link rel="prev" href="../../">
       
       
-        <link rel="next" href="../../../containers/">
+        <link rel="next" href="../wmh_quantification/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>PWI Pipeline - cvdproc</title>
+        <title>Anatomical Segmentation - cvdproc</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#pwi-pipeline" class="md-skip">
+        <a href="#anatomical-segmentation" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              PWI Pipeline
+              Anatomical Segmentation
             
           </span>
         </div>
@@ -390,18 +390,20 @@
                 
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" checked>
         
           
           <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
@@ -417,7 +419,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             Structural MRI (sMRI) Pipelines
@@ -428,10 +430,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../sMRI/anat_seg/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Anatomical Segmentation
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -442,6 +466,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      AnatSegPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AnatSegPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-more-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      A more detailed description:
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -454,7 +531,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/wmh_quantification/" class="md-nav__link">
+      <a href="../wmh_quantification/" class="md-nav__link">
         
   
   
@@ -477,7 +554,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/pvs_quantification/" class="md-nav__link">
+      <a href="../pvs_quantification/" class="md-nav__link">
         
   
   
@@ -666,20 +743,18 @@
                 
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
         
           
           <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
@@ -695,7 +770,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
             Perfusion MRI (PWI) Pipelines
@@ -706,32 +781,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    PWI Pipeline
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../pwi/pwi_pipeline/" class="md-nav__link">
         
   
   
@@ -742,44 +795,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.pwi.pwi_pipeline.PWIPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
-    <span class="md-ellipsis">
-      A more detailed description:
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -849,11 +864,26 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.pwi.pwi_pipeline.PWIPipeline.__init__" class="md-nav__link">
+  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      AnatSegPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AnatSegPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -882,10 +912,10 @@
 
 
 
-<h1 id="pwi-pipeline">PWI Pipeline</h1>
+<h1 id="anatomical-segmentation">Anatomical Segmentation</h1>
 
 
-<div class="doc doc-object doc-class">
+<div class="doc doc-object doc-module">
 
 
 
@@ -893,9 +923,37 @@
     <div class="doc doc-contents first">
 
 
-        <p>Postprocessing pipeline for Dynamic Susceptibility Contrast MRI (DSC-MRI) perfusion data (PWI).</p>
-<p>This pipeline is to: Calculate PWI maps from DSC-MRI data (rCBF, rCBV, MTT, TTP, K2)</p>
-<p>Last updated: 2025-07-27, WYJ</p>
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="doc doc-heading">
+            <code>AnatSegPipeline</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+        <p>Generating anatomical segmentation atlas from sMRI</p>
 
 
 
@@ -919,15 +977,15 @@
 <div class="doc doc-object doc-function">
 
 
-<h2 id="cvdproc.pipelines.pwi.pwi_pipeline.PWIPipeline.__init__" class="doc doc-heading">
+<h3 id="cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span></code>
 
-</h2>
+</h3>
 
 
     <div class="doc doc-contents ">
 
-        <p>Postprocessing pipeline for DSC-MRI perfusion data (PWI).</p>
+        <p>Generating anatomical segmentation atlas from sMRI</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -946,11 +1004,11 @@
                 <code>subject</code>
             </td>
             <td>
-                  <code><span title="BIDSSubject">BIDSSubject</span></code>
+                  <code><span title="object">object</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>A BIDS subject object.</p>
+                <p>Subject object</p>
               </div>
             </td>
             <td>
@@ -962,11 +1020,11 @@
                 <code>session</code>
             </td>
             <td>
-                  <code><span title="BIDSSession">BIDSSession</span></code>
+                  <code><span title="object">object</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>A BIDS session object.</p>
+                <p>Session object</p>
               </div>
             </td>
             <td>
@@ -982,7 +1040,7 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Directory to save outputs.</p>
+                <p>Output directory</p>
               </div>
             </td>
             <td>
@@ -991,50 +1049,65 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>use_which_pwi</code>
+                <code>use_which_t1w</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Keyword to select the desired PWI file.</p>
+                <p>specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used</p>
               </div>
             </td>
             <td>
-                  <code>&#39;pwi&#39;</code>
+                  <code>&#39;T1w&#39;</code>
             </td>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>dsc_mri_toolbox_path</code>
+                <code>methods</code>
             </td>
             <td>
-                  <code><span title="str">str</span></code>
+                  <code><span title="list">list</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to the MATLAB dsc-mri-toolbox.</p>
+                <p>List of methods to use. Options include 'synthseg' and 'chpseg'.</p>
               </div>
             </td>
             <td>
-                  <code>None</code>
+                  <code>[&#39;synthseg&#39;, &#39;chpseg&#39;]</code>
             </td>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>extract_from</code>
+                <code>cpu_first</code>
             </td>
             <td>
-                  <code><span title="str">str</span></code>
+                  <code><span title="bool">bool</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If extracting results, please provide it.</p>
+                <p>Whether to use CPU first for SynthSeg (if available)</p>
               </div>
             </td>
             <td>
-                  <code>None</code>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>**kwargs</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional arguments</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
             </td>
           </tr>
       </tbody>
@@ -1051,22 +1124,22 @@
 
     </div>
 
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<ol>
-<li>
-<p>Strip the PWI data using SynthStrip to create a brain mask.</p>
-</li>
-<li>
-<p>Calculate the PWI concentration map (a 4D image).</p>
-</li>
-<li>
-<p>Auto select the AIF (arterial input function) from the concentration data. (Please refer to <a href="https://github.com/OSIPI/DCE-DSC-MRI_CodeCollection/blob/develop/src/original/JBJA_GUSahlgrenska_SWE/AIF_selection_auto/AIF_selection_automatic.py">Auto AIF Selection</a>)</p>
-</li>
-<li>
-<p>Generate the perfusion maps (rCBF, rCBV, MTT, TTP, K2) using the MATLAB-based <a href="https://github.com/FAIR-Unipd/dsc-mri-toolbox">dsc-mri-toolbox</a>.</p>
-</li>
-</ol>
+<p>In this pipeline, we collect several anatomical segmentation methods for structural MRI (sMRI).</p>
+<ul>
+<li><a href="https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg">SynthSeg</a></li>
+<li><a href="https://github.com/Center-of-Imaging-Biomarker-Development/chp_seg">chpseg</a>: Using T1w image to segment the choroid plexus (CP) in lateral ventricles.</li>
+</ul>
 
 
 
