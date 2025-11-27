@@ -19,22 +19,22 @@ from dipy.direction.peaks import peaks_from_model, reshape_peaks_for_visualizati
 
 #%% 01 Load DSI data
 
-# 如果使用示例DSI数据
+# Use sample DSI data if desired
 fraw, fbval, fbvec = get_fnames('taiwan_ntu_dsi')
 brain_mask = None
 
-# 预处理后的DWI、bval、bvec、mask
+# Preprocessed DWI, bval, bvec, mask paths
 # fraw = r'E:\Neuroimage\TestDataSet\BIDS_TestDataSet\sub-Patient238\dwi\sub-Patient238_acq-b4000_dwi.nii.gz'
 # fbval = r'E:\Neuroimage\TestDataSet\BIDS_TestDataSet\sub-Patient238\dwi\sub-Patient238_acq-b4000_dwi.bval'
 # fbvec = r'E:\Neuroimage\TestDataSet\BIDS_TestDataSet\sub-Patient238\dwi\sub-Patient238_acq-b4000_dwi.bvec'
 # brain_mask = r'E:\Neuroimage\TestDataSet\BIDS_TestDataSet\sub-Patient238\dwi\sub-Patient238_acq-b4000_dwi_b0_mask.nii.gz'
 
-# 提取文件夹路径，用于最后保存结果
+# Extract folder path for saving results
 file_folder = os.path.dirname(fraw)
 
 data, affine, voxel_size = load_nifti(fraw, return_voxsize=True)
 
-# 如果没有指定mask，则x*y*z全部为1
+# If no mask is specified, use an all-ones mask
 if brain_mask is None:
     data_mask = np.ones(data.shape[:-1])
 else:
@@ -54,8 +54,8 @@ gqi_model = GeneralizedQSamplingModel(gtab, sampling_length=3)
 
 sphere = get_sphere('symmetric642')
 
-# 在z方向遍历每一个slice，分层重建
-# peak: x*y*z*15 （peaks_from_model默认5个peaks）
+# Reconstruct slice by slice along the z-axis
+# peak: x*y*z*15 (peaks_from_model defaults to 5 peaks)
 total_peaks = np.zeros((data.shape[0], data.shape[1], data.shape[2], 15))
 # total_gfa = np.zeros((data.shape[0], data.shape[1], data.shape[2]))
 

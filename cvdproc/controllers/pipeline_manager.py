@@ -3,12 +3,12 @@ import os
 class PipelineManager:
     def get_pipeline(self, pipeline_name, subject, session=None, output_path=None, **kwargs):
         """
-        获取指定 pipeline 的实例
-        :param pipeline_name: str, pipeline 名称
-        :param subject: BIDSSubject 对象
-        :param session: BIDSSession 对象（可选）
-        :param output_path: str, 用户指定的输出路径
-        :return: pipeline 对象
+        Retrieve an instance of the specified pipeline.
+        :param pipeline_name: str, pipeline name
+        :param subject: BIDSSubject instance
+        :param session: optional BIDSSession instance
+        :param output_path: str, user-specified output path
+        :return: pipeline instance
         """
         # Default output path: <pipeline_name>/sub-<subject_id>/ses-<session_id>
         if subject is not None:
@@ -94,11 +94,11 @@ class PipelineManager:
 
     def _generate_default_output_path(self, subject, session, pipeline_name):
         """
-        生成默认输出路径
-        :param subject: BIDSSubject 对象
-        :param session: BIDSSession 对象
-        :param pipeline_name: str, pipeline 名称
-        :return: str, 默认输出路径
+        Build the default output path for a pipeline run.
+        :param subject: BIDSSubject instance
+        :param session: BIDSSession instance
+        :param pipeline_name: str, pipeline name
+        :return: str, default output path
         """
         session_part = f"/ses-{session.session_id}" if session else ""
         return os.path.join(

@@ -242,7 +242,7 @@ def main():
         else:
             print_boxed_message_rich(f"All {numbers} visits finished!", color="bold cyan")
 
-    # === 提取结果 ===
+    # === Extract results ===
     if args.extract_results:
         config = load_config(args.config_file)
         

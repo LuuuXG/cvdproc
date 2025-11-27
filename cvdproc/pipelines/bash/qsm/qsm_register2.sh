@@ -77,7 +77,7 @@ fi
 
 mkdir -p "$OUTDIR"
 
-# Debug prints (有助于在 Nipype 日志里确认是否正确解析)
+# Debug prints (helps confirm argument parsing in Nipype logs)
 echo "INPUTS:   ${INPUTS[*]}"
 echo "OUTPUT1s: ${OUTS_T1W[*]}"
 echo "OUTPUT2s: ${OUTS_MNI[*]}"

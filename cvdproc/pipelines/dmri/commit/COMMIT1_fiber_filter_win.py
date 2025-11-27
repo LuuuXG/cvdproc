@@ -3,7 +3,7 @@ import os
 
 #commit.setup()
 
-# 更换工作目录
+# Change working directory
 os.chdir(r'E:\Neuroimage\TestDataSet\COMMIT_example\data')
 
 from commit import trk2dictionary

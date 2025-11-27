@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# === 参数解析 ===
+# === Argument parsing ===
 T1W_IMG=$1
 DWI_IMG=$2
 OUTPUT_DIR=$3
@@ -13,7 +13,7 @@ if [[ $# -ne 5 ]]; then
   exit 1
 fi
 
-# === 路径设置 ===
+# === Path setup ===
 INPUTS="${OUTPUT_DIR}/INPUTS"
 OUTPUTS="${OUTPUT_DIR}/OUTPUTS"
 B0_ALL="${OUTPUT_DIR}/b0_all.nii.gz"
@@ -26,13 +26,13 @@ fi
 
 mkdir -p "$INPUTS" "$OUTPUTS" "$FMAP_DIR"
 
-# === 从 DWI JSON 提取参数 ===
+# === Extract parameters from the DWI JSON ===
 # PE_DIR=$(jq -r '.PhaseEncodingDirection' "$DWI_JSON")
 # TOTAL_READOUT_TIME=$(jq -r '.TotalReadoutTime' "$DWI_JSON")
 PE_DIR=$(grep -oP '"PhaseEncodingDirection"\s*:\s*"\K[^"]+' "$DWI_JSON")
 TOTAL_READOUT_TIME=$(grep -oP '"TotalReadoutTime"\s*:\s*\K[0-9eE\.+-]+' "$DWI_JSON")
 
-# === 映射 PhaseEncodingDirection 到向量 ===
+# === Map PhaseEncodingDirection to a vector ===
 declare -A PE_MAP=( ["i"]="1 0 0" ["i-"]="-1 0 0" ["j"]="0 1 0" ["j-"]="0 -1 0" ["k"]="0 0 1" ["k-"]="0 0 -1" )
 PE_VECTOR="${PE_MAP[$PE_DIR]}"
 if [[ -z "$PE_VECTOR" ]]; then
@@ -40,8 +40,8 @@ if [[ -z "$PE_VECTOR" ]]; then
   exit 1
 fi
 
-# === PhaseEncodingDirection 到 dir label ===
-# === 取相反方向 ===
+# === Convert PhaseEncodingDirection to a direction label ===
+# === Use the opposite direction ===
 reverse_pe_dir() {
   case "$1" in
     i) echo "i-" ;;
@@ -63,7 +63,7 @@ if [[ -z "$DIR_LABEL" ]]; then
   exit 1
 fi
 
-# === 检查是否已存在 b0_all ===
+# === Check whether b0_all already exists ===
 if [[ -f "$B0_ALL" ]]; then
   echo "b0_all.nii.gz already exists. Skipping synb0-disco."
 else
@@ -101,11 +101,11 @@ EOF
   fslmerge -t "$B0_ALL" "${OUTPUTS}/b0_d_smooth.nii.gz" "${OUTPUTS}/b0_u.nii.gz"
 fi
 
-# === 构建 IntendedFor 字段 ===
+# === Build the IntendedFor field ===
 DWI_BIDS_RELPATH=$(echo "$DWI_JSON" | sed -E 's|.*/(ses-[^/]+/dwi/[^/]+)\.json|\1.nii.gz|')
 INTENDED_FOR="${DWI_BIDS_RELPATH}"
 
-# === 提取 sub- 和 ses- ===
+# === Extract sub- and ses- labels ===
 SUBJECT=$(echo "$DWI_JSON" | grep -oP 'sub-[^/]+' | head -n 1)
 SESSION=$(echo "$DWI_JSON" | grep -oP 'ses-[^/]+' | head -n 1)
 

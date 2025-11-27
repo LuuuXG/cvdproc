@@ -5,11 +5,11 @@ BLUE="\e[34m"
 GREEN="\e[32m"
 RED="\e[31m"
 
-# 参数
-subject_id=$1        # 单个 subject
-source_dir=$2        # 代码路径
+# Parameters
+subject_id=$1        # Single subject
+source_dir=$2        # Code path
 SUBJECTS_DIR=$3      # freesurfer SUBJECTS_DIR
-output_dir=$4        # 输出路径
+output_dir=$4        # Output path
 
 root_dir=$(pwd)
 
@@ -17,14 +17,14 @@ echo -e "${BLUE}######################################"
 echo -e "##### Starting Bullseye Pipeline #####"
 echo -e "######################################${NC}"
 
-# 找到输入目录
+# Locate input directory
 root_patient_dir=${SUBJECTS_DIR}/${subject_id}
 if [[ ! -d $root_patient_dir ]]; then
   echo -e "${RED} XXXXX Subject ${subject_id} not found in ${SUBJECTS_DIR} XXXXX${NC}"
   exit 1
 fi
 
-# 建立输出目录
+# Create output directory
 #out_patient_dir=${output_dir}/${subject_id}
 out_patient_dir=$output_dir
 mkdir -p $out_patient_dir
@@ -81,10 +81,10 @@ else
   exit 1
 fi
 
-# 合并 lobes
+# Merge lobes
 bash $source_dir/lobar_regions/get_lobes_labels.sh ${out_patient_dir}/aparc_labels/
 
-# 生成 lobes colortable
+# Generate lobes colortable
 cat > ${out_patient_dir}/aparc_lobes.ctab <<EOF
 1  frontal_lobe   255   0     0   0
 2  parietal_lobe  0   255     0   0
@@ -92,7 +92,7 @@ cat > ${out_patient_dir}/aparc_lobes.ctab <<EOF
 4  temporal_lobe  0     0   255   0
 EOF
 
-# 生成 lh 注释
+# Generate lh annotation
 mris_label2annot --s $subject_id \
   --ctab ${out_patient_dir}/aparc_lobes.ctab \
   --h lh --a aparc_lobes \
@@ -101,7 +101,7 @@ mris_label2annot --s $subject_id \
   --l ${out_patient_dir}/aparc_labels/lh.occipital_lobe.label \
   --l ${out_patient_dir}/aparc_labels/lh.temporal_lobe.label
 
-# 生成 rh 注释
+# Generate rh annotation
 mris_label2annot --s $subject_id \
   --ctab ${out_patient_dir}/aparc_lobes.ctab \
   --h rh --a aparc_lobes \
@@ -110,7 +110,7 @@ mris_label2annot --s $subject_id \
   --l ${out_patient_dir}/aparc_labels/rh.occipital_lobe.label \
   --l ${out_patient_dir}/aparc_labels/rh.temporal_lobe.label
 
-# 转换到 aseg 空间
+# Convert to aseg space
 mri_aparc2aseg --s $subject_id --annot aparc_lobes --labelwm --wmparc-dmax 1000 \
   --rip-unknown --hypo-as-wm --o ${out_patient_dir}/lobar_map.nii.gz --annot-table ${out_patient_dir}/aparc_lobes.ctab
 

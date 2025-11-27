@@ -30,8 +30,8 @@ class PadDWI(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        # if in_dwi 的z方向为偶数，则out_XXX与in_XXX相同
-        # if in_dwi 的z方向为奇数，则out_XXX为out_file, bvec（替换.nii.gz到.bvec）...
+        # If the z dimension of in_dwi is even, the outputs match the inputs.
+        # If the z dimension of in_dwi is odd, the outputs use the padded files (swap .nii.gz to .bvec/.bval/.json).
         dwi_img = nib.load(self.inputs.in_dwi)
         Nz = dwi_img.shape[2]
         if Nz % 2 == 0:

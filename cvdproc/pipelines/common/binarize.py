@@ -5,24 +5,24 @@ import numpy as np
 
 def threshold_binarize_nifti(image_path, threshold, output_path=None):
     """
-    对指定的 NIfTI 图像进行阈值二值化处理，并保存到源文件所在的文件夹。
+    Apply threshold-based binarization to a NIfTI image and save it to disk.
 
     Parameters:
-    - image_path (str): 输入 NIfTI 文件的路径 (.nii 或 .nii.gz)。
-    - threshold (float): 用于二值化的阈值。
-    - output_path (str): 可选参数，输出二值化图像的路径。
+    - image_path (str): Path to the input NIfTI file (.nii or .nii.gz).
+    - threshold (float): Threshold used for binarization.
+    - output_path (str): Optional path for the binarized image.
     """
-    # 加载 NIfTI 图像
+    # Load the NIfTI image
     img = nib.load(image_path)
     img_data = img.get_fdata()
 
-    # 进行阈值二值化
+    # Apply thresholding
     binarized_data = (img_data > threshold).astype(np.uint8)
 
-    # 创建新的 NIfTI 图像
+    # Create a new NIfTI image
     binarized_img = nib.Nifti1Image(binarized_data, img.affine)
 
-    # 构建输出文件路径
+    # Build the output file path
     if output_path is not None:
         output_path = output_path
     else:
@@ -31,7 +31,7 @@ def threshold_binarize_nifti(image_path, threshold, output_path=None):
         output_filename = f"binarized_thr{threshold}_{image_name}"
         output_path = os.path.join(folder, output_filename)
 
-    # 保存二值化图像
+    # Save the binarized image
     nib.save(binarized_img, output_path)
     print(f"Binarized image saved to {output_path}")
 
