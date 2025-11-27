@@ -21,7 +21,7 @@ class CAT12Pipeline:
 
     def check_data_requirements(self):
         """
-        检查数据需求
+        Check whether required data is available.
         :return: bool
         """
         return self.session.get_t1w_files() is not None
@@ -31,7 +31,7 @@ class CAT12Pipeline:
 
         if self.use_which_t1w:
             t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
-            # 确保最终只有1个合适的文件
+            # Ensure exactly one suitable file remains
             if len(t1w_files) != 1:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
@@ -141,11 +141,11 @@ class CAT12Pipeline:
     
     def _extract_tiv(self, subject_id, session_id, base_path):
         """
-        提取 TIV、CSF、GM 和 WM 的值
+        Extract TIV, CSF, GM, and WM values.
         """
         txt_path = os.path.join(base_path, 'TIV.txt')
 
-        # 初始化变量
+        # Initialize values
         tiv = None
         csf = None
         gm = None
@@ -153,19 +153,19 @@ class CAT12Pipeline:
 
         if os.path.exists(txt_path):
             with open(txt_path, 'r') as f:
-                # 读取第一行内容
+                # Read the first line
                 line = f.readline().strip()
-                # 按空格分割字符串，提取数值
+                # Split by spaces to extract values
                 values = line.split()
-                
-                # 检查是否有足够的数值
-                if len(values) >= 4:
-                    tiv = float(values[0])  # 第一个值为 TIV
-                    csf = float(values[1])  # 第二个值为 CSF
-                    gm = float(values[2])   # 第三个值为 GM
-                    wm = float(values[3])   # 第四个值为 WM
 
-        # 返回提取的结果
+                # Verify there are enough values
+                if len(values) >= 4:
+                    tiv = float(values[0])  # First value is TIV
+                    csf = float(values[1])  # Second value is CSF
+                    gm = float(values[2])   # Third value is GM
+                    wm = float(values[3])   # Fourth value is WM
+
+        # Return the extracted results
         return pd.DataFrame([{
             'Subject': subject_id,
             'Session': session_id,
@@ -183,25 +183,25 @@ class CAT12Pipeline:
         columns = ['Subject', 'Session', 'TIV', 'CSF', 'GM', 'WM']
         results_df = pd.DataFrame(columns=columns)
 
-        # 遍历所有 sub-* 文件夹
+        # Iterate over all sub-* folders
         for subject_folder in os.listdir(cat12_output_path):
             subject_id = subject_folder.split('-')[1]
             subject_folder_path = os.path.join(cat12_output_path, subject_folder)
 
             if os.path.isdir(subject_folder_path):
-                # 检查是否有 ses-* 文件夹
+                # Check for ses-* folders
                 session_folders = [f for f in os.listdir(subject_folder_path) if 'ses-' in f]
 
-                if session_folders:  # 如果有 ses-* 文件夹
+                if session_folders:  # If ses-* folders exist
                     for session_folder in session_folders:
                         session_path = os.path.join(subject_folder_path, session_folder)
                         new_data = self._extract_tiv(subject_id, session_folder.split('-')[1], session_path)
                         results_df = pd.concat([results_df, new_data], ignore_index=True)
-                else:  # 如果没有 ses-* 文件夹
+                else:  # If there are no ses-* folders
                     new_data = self._extract_tiv(subject_id, 'N/A', subject_folder_path)
                     results_df = pd.concat([results_df, new_data], ignore_index=True)
 
-        # 保存结果到 Excel 文件
+        # Save results to an Excel file
         output_excel_path = os.path.join(self.output_path, 'cat12_tiv_results.xlsx')
         results_df.to_excel(output_excel_path, header=True, index=False)
         print(f"Quantification results saved to {output_excel_path}")

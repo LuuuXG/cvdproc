@@ -5,10 +5,10 @@ import re
 class BIDSSession:
     def __init__(self, bids_dir, subject_id, session_id):
         """
-        初始化一个 BIDSSession 实例
-        :param bids_dir: str, BIDS 根目录
-        :param subject_id: str, 受试者 ID (如 '01')
-        :param session_id: str, 会话 ID (如 '01')
+        Initialize a BIDSSession instance.
+        :param bids_dir: str, BIDS root directory
+        :param subject_id: str, subject ID (e.g. "01")
+        :param session_id: str, session ID (e.g. "01")
         """
         self.subject_id = subject_id
         self.session_id = session_id
@@ -38,9 +38,9 @@ class BIDSSession:
 
     def _find_files(self, modality):
         """
-        查找指定模态目录下的所有 NIfTI 文件
-        :param modality: str, 模态名称 (如 'anat', 'dwi', 'func')
-        :return: list, 匹配的文件路径列表
+        Locate all NIfTI files within the specified modality directory.
+        :param modality: str, modality name (e.g. "anat", "dwi", "func")
+        :return: list, matching file paths
         """
         modality_dir = os.path.join(self.session_dir, modality)
         if not os.path.exists(modality_dir):
@@ -55,9 +55,9 @@ class BIDSSession:
     
     def _find_output(self, output_name):
         """
-        查找指定输出目录
-        :param output_name: str, 输出目录名称 (如 'freesurfer')
-        :return: str, 输出目录路径；如果不存在，返回 None
+        Locate a derivative output directory.
+        :param output_name: str, output directory name (e.g. "freesurfer")
+        :return: str, output directory path; returns None if it does not exist
         """
         if self.session_id is not None:
             output_dir = os.path.join(self.bids_dir, 'derivatives', output_name, f"sub-{self.subject_id}", f"ses-{self.session_id}")
@@ -67,8 +67,8 @@ class BIDSSession:
 
     def list_all_files(self):
         """
-        列出该 session 下所有模态文件
-        :return: dict, 各模态及其文件路径
+        List all modality files available in this session.
+        :return: dict, modalities and their file paths
         """
         return {
             'anat': self.anat_files,
@@ -81,22 +81,22 @@ class BIDSSession:
 
     def get_flair_files(self):
         """
-        返回 anat 下的所有 FLAIR 文件路径
-        :return: list, FLAIR 文件路径列表；如果不存在，返回空列表
+        Return all FLAIR file paths under anat.
+        :return: list, FLAIR file paths; returns an empty list if none exist
         """
         return [file for file in self.anat_files if 'FLAIR.nii' in file]
 
     def get_t1w_files(self):
         """
-        返回 anat 下的所有 T1w 文件路径
-        :return: list, T1w 文件路径列表；如果不存在，返回空列表
+        Return all T1w file paths under anat.
+        :return: list, T1w file paths; returns an empty list if none exist
         """
         return [file for file in self.anat_files if 'T1w.nii' in file]
     
     def get_dwi_files(self):
         """
-        返回 DWI 文件路径
-        :return: list, 包括dwi, bval, bvec, json 的文件路径列表
+        Return DWI file paths.
+        :return: list, file paths including dwi, bval, bvec, and json files
         """
         dwi_list = []
         for file in self.dwi_files:
@@ -112,8 +112,8 @@ class BIDSSession:
 
     def get_fmap_files(self):
         """
-        返回 fieldmap 文件路径
-        :return: list, 包括反向 b0 的文件路径
+        Return fieldmap file paths.
+        :return: list, file paths including reverse b0 files
         """
         fmap_list = []
         for file in self.fmap_files:
@@ -123,21 +123,21 @@ class BIDSSession:
     
     def get_swi_files(self):
         """
-        返回 SWI 文件路径
-        :return: list, SWI 文件路径列表
+        Return SWI file paths.
+        :return: list, SWI file paths
         """
         return self.swi_files
     
     def get_qsm_files(self):
         """
-        返回 QSM 文件路径
-        :return: list, QSM 文件路径列表
+        Return QSM file paths.
+        :return: list, QSM file paths
         """
         return self.qsm_files
     
     def get_pwi_files(self):
         """
-        返回 PWI 文件路径
-        :return: list, PWI 文件路径列表
+        Return PWI file paths.
+        :return: list, PWI file paths
         """
         return self.pwi_files

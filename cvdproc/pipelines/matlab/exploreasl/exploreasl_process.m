@@ -73,7 +73,7 @@ dataPar.x.SESSIONS = {['ses-' session_id]};
 
 json_path = fullfile(input_bids_dir, 'dataPar.json');
 
-% 使用 savejson（需 JSONlab 工具箱：https://github.com/fangq/jsonlab）
+% Use savejson (requires JSONlab toolbox: https://github.com/fangq/jsonlab)
 savejson('', dataPar, json_path);
 
 fprintf('dataPar.json created at: %s\n', json_path);
@@ -82,13 +82,13 @@ fprintf('dataPar.json created at: %s\n', json_path);
 bidsignore_path = fullfile(input_bids_dir, '.bidsignore');
 lines_to_add = {"dataPar.json", "rawdata/"};
 
-% 如果 .bidsignore 不存在则创建
+% Create .bidsignore if it does not exist
 if ~exist(bidsignore_path, 'file')
     fid = fopen(bidsignore_path, 'w');
     fclose(fid);
 end
 
-% 读取当前内容，避免重复添加
+% Read existing contents to avoid duplicates
 existing_lines = {};
 fid = fopen(bidsignore_path, 'r');
 if fid ~= -1
@@ -97,7 +97,7 @@ if fid ~= -1
     existing_lines = existing_lines{1};
 end
 
-% 追加新行（如果尚未存在）
+% Append the new line if it is not already present
 fid = fopen(bidsignore_path, 'a');
 for i = 1:length(lines_to_add)
     if ~any(strcmp(existing_lines, lines_to_add{i}))

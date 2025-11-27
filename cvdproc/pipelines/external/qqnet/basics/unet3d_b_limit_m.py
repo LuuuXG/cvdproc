@@ -48,7 +48,7 @@ class unet3d(nn.Module):
         self.final = nn.Conv3d(filters[0], n_classes, 1)
 
     def forward(self, inputs, xmins, xmaxs, Mask):
-        # 下采样/上采样主干
+        # Downsample/upsample backbone
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
 
@@ -70,22 +70,22 @@ class unet3d(nn.Module):
 
         final = self.final(up1)  # [B, 5, Z, Y, X]
 
-        # ------- 边界裁剪（不再使用 np.asscalar / Hardtanh）-------
-        # xmins/xmaxs 是 numpy 数组形状(5,1)，先 squeeze 成(5,)
-        # 然后放到与 final 相同的 dtype / device
+        # ------- Bound the outputs (no longer using np.asscalar / Hardtanh) -------
+        # xmins/xmaxs are numpy arrays shaped (5,1); squeeze to (5,)
+        # then move to the same dtype/device as final
         xmins_t = torch.as_tensor(np.squeeze(xmins), dtype=final.dtype, device=final.device)  # [5]
         xmaxs_t = torch.as_tensor(np.squeeze(xmaxs), dtype=final.dtype, device=final.device)  # [5]
 
-        # 变成 [1, C, 1, 1, 1] 以便广播到体素维度
+        # Reshape to [1, C, 1, 1, 1] to broadcast across voxels
         xmins_t = xmins_t.view(1, -1, 1, 1, 1)
         xmaxs_t = xmaxs_t.view(1, -1, 1, 1, 1)
 
         final_bounded = torch.clamp(final, min=xmins_t, max=xmaxs_t)  # [B,5,Z,Y,X]
 
-        # ------- 乘 mask 并返回 -------
-        # 你的 Mask_t1 在外部已经是 [1,1,Z,Y,X]（DoubleTensor, cuda），这里确保 dtype/device 匹配并广播
+        # ------- Apply mask and return -------
+        # Mask_t1 outside is already [1,1,Z,Y,X] (DoubleTensor, cuda); ensure dtype/device match and broadcast
         Mask = Mask.to(dtype=final_bounded.dtype, device=final_bounded.device)
-        final_masked = final_bounded * Mask  # 广播到通道维
+        final_masked = final_bounded * Mask  # broadcast across channels
 
         return final_masked    
       

@@ -373,7 +373,7 @@ class Dcm2BidsProcessor:
             f"ses-{session_id}",
             "anat"
         )
-        # deface以<suffix>.nii.gz结尾的每个文件，deface后覆盖原文件
+        # Deface each file ending with <suffix>.nii.gz and overwrite the original.
         if not os.path.exists(anat_dir):
             print(f"[WARN] No anat directory found for sub-{subject_id}, ses-{session_id}. Skipping deface.")
             return
@@ -460,7 +460,7 @@ class Dcm2BidsProcessor:
             custom_name = check["custom_name"]
             column_titles.extend([custom_name, f"{custom_name}_number"])
 
-        # 获取所有 subjects (只考虑 rawdata 中存在的)
+        # Collect all subjects (only those present in rawdata)
         all_subjects = sorted([
             d.replace("sub-", "")
             for d in os.listdir(self.BIDS_root_folder)
@@ -485,7 +485,7 @@ class Dcm2BidsProcessor:
                     derivatives_name = check.get("derivatives_name", None)
                     suffix = check.get("suffix", None)
 
-                    # ---------------- 找到候选文件 ----------------
+                    # ---------------- Locate candidate files ----------------
                     filepaths = []
                     if derivatives_name is None:
                         # rawdata
@@ -505,7 +505,7 @@ class Dcm2BidsProcessor:
                             pattern = os.path.join(derivatives_dir, criteria)
                             filepaths = glob.glob(pattern, recursive=True)
 
-                    # ---------------- 匹配逻辑 ----------------
+                    # ---------------- Matching logic ----------------
                     match_found = False
                     match_count = 0
 
@@ -524,7 +524,7 @@ class Dcm2BidsProcessor:
                                         match_found = True
                                         match_count += 1
 
-                    # 更新结果
+                    # Update results
                     custom_name_idx = 2 + check_idx * 2
                     custom_name_number_idx = custom_name_idx + 1
                     row[custom_name_idx] = 1 if match_found else 0
@@ -532,7 +532,7 @@ class Dcm2BidsProcessor:
 
                 results.append(row)
 
-        # 保存 Excel
+        # Save Excel output
         output_dir = os.path.join(self.BIDS_root_folder, "derivatives", "population")
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, "check_data.xlsx")
@@ -542,7 +542,7 @@ class Dcm2BidsProcessor:
             df.to_excel(writer, index=False, sheet_name="Check Data")
             sheet = writer.book["Check Data"]
 
-            # 设置字体和列宽
+            # Configure font and column widths
             calibri_font = Font(name="Calibri")
             for row in sheet.iter_rows():
                 for cell in row:

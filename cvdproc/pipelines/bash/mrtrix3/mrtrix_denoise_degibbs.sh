@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# === 参数解析 ===
+# === Argument parsing ===
 DWI_NIFTI=$1
 DWI_BVEC=$2
 DWI_BVAL=$3
