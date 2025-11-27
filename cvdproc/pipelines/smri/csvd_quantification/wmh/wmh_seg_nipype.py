@@ -353,6 +353,31 @@ class PrepareTrueNetData(CommandLine):
     def _gen_output_filename(self, suffix: str) -> str:
         return f"{self.inputs.outname}_{suffix}.nii.gz"
 
+class PrepareTrueNetData2InputSpec(CommandLineInputSpec):
+    flair = File(desc="Skull-stripped FLAIR image path (should be aligned with T1w)", argstr='%s', position=0, exists=True)
+    t1w = File(desc="Skull-stripped T1 image path (should be aligned with FLAIR)", argstr='%s', position=1, exists=True)
+    brain_mask = File(desc="Brain mask path", argstr='%s', position=2, exists=True)
+    synthseg_img = File(desc="SynthSeg output image path", argstr='%s', position=3, exists=True)
+    output_dir = Directory(desc="Output directory for processed images", argstr='%s', position=4, exists=False, mandatory=True)
+    prefix = Str(desc="Prefix for output files", argstr='%s', position=5, exists=False, mandatory=True)
+
+class PrepareTrueNetData2OutputSpec(TraitedSpec):
+    output_dir = Directory(desc="Output directory for processed images")
+    processed_flair = Either(File, None, desc="Processed FLAIR image (or None if not provided)")
+    processed_t1 = Either(File, None, desc="Processed T1 image (or None if not provided)")
+
+class PrepareTrueNetData2(CommandLine):
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "bash", "fsl", "truenet_preprocess_custom.sh"))
+    input_spec = PrepareTrueNetData2InputSpec
+    output_spec = PrepareTrueNetData2OutputSpec
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_dir'] = os.path.abspath(self.inputs.output_dir)
+        outputs['processed_flair'] = os.path.join(outputs['output_dir'], f"{self.inputs.prefix}_FLAIR.nii.gz") if getattr(self.inputs, "flair", None) else None
+        outputs['processed_t1'] = os.path.join(outputs['output_dir'], f"{self.inputs.prefix}_T1.nii.gz") if getattr(self.inputs, "t1w", None) else None
+        
+        return outputs
 
 class TrueNetEvaluateInputSpec(CommandLineInputSpec):
     inp_dir = Directory(exists=True, desc="Input directory containing test images", mandatory=True, argstr='-i %s')
@@ -415,31 +440,36 @@ class TrueNetPostProcess(BaseInterface):
         # Apply thresholding to create a binary mask
         binary_mask = (truenet_output_data > self.inputs.threshold).astype(np.uint8)
 
-        # Load the WM mask (Match *_WMmask.nii.gz) from the preprocess directory
+        # Try to load WM mask
         wm_mask_file = [f for f in os.listdir(self.inputs.preprocess_dir) if f.endswith('_WMmask.nii.gz')]
-        if not wm_mask_file:
-            raise FileNotFoundError(f"No WM mask file found in {self.inputs.preprocess_dir}")
-        wm_mask_file = os.path.join(self.inputs.preprocess_dir, wm_mask_file[0])
-        wm_mask_img = nib.load(wm_mask_file)
-        wm_mask_data = wm_mask_img.get_fdata()
+        if wm_mask_file:
+            wm_mask_file = os.path.join(self.inputs.preprocess_dir, wm_mask_file[0])
+            wm_mask_img = nib.load(wm_mask_file)
+            wm_mask_data = wm_mask_img.get_fdata()
 
-        # Get each WMH lesion (use scipy).
-        # If a WMH lesion is completely outside the WM mask, it will be removed.
-        labeled_mask, num_features = label(binary_mask, structure=np.ones((3, 3, 3)))
-        for i in range(1, num_features + 1):
-            lesion_mask = (labeled_mask == i).astype(np.uint8)
-            lesion_data = lesion_mask * truenet_output_data
-            lesion_mean = np.mean(lesion_data[wm_mask_data > 0])
-            if lesion_mean == 0:
-                binary_mask[labeled_mask == i] = 0
+            # Label WMH clusters
+            labeled_mask, num_features = label(binary_mask, structure=np.ones((3, 3, 3)))
+            for i in range(1, num_features + 1):
+                lesion_mask = (labeled_mask == i).astype(np.uint8)
+                lesion_voxels = np.sum(lesion_mask)
+                if lesion_voxels == 0:
+                    continue
+
+                outside_voxels = np.sum(lesion_mask * (wm_mask_data == 0))
+                outside_ratio = outside_voxels / lesion_voxels
+
+                # Remove lesion if >30% outside WM mask
+                if outside_ratio > 0.3:
+                    binary_mask[labeled_mask == i] = 0
 
         # Save the binary mask as a NIfTI file
         wmh_mask_file = os.path.join(self.inputs.output_dir, self.inputs.output_mask_name)
         nib.save(nib.Nifti1Image(binary_mask, truenet_output_img.affine), wmh_mask_file)
 
-        # Save the probability map as a NIfTI file
+        # Save the probability map as a NIfTI file (keep original TrueNet output)
         probmap_file = os.path.join(self.inputs.output_dir, self.inputs.output_prob_map_name)
-        os.rename(truenet_output_file, probmap_file)
+        #os.rename(truenet_output_file, probmap_file)
+        shutil.copy(truenet_output_file, probmap_file)
 
         # Set the output files
         self._wmh_mask = wmh_mask_file
@@ -451,5 +481,4 @@ class TrueNetPostProcess(BaseInterface):
         outputs = self.output_spec().get()
         outputs['wmh_mask'] = os.path.abspath(self._wmh_mask)
         outputs['wmh_prob_map'] = os.path.abspath(self._wmh_prob_map)
-        
         return outputs

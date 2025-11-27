@@ -1,0 +1,13 @@
+# In the first step, we aggregate the cortical parcellation in aparc into a set of lobes with the command:
+
+mri_annotation2label --subject P00004203_S0001 --hemi rh --lobesStrict lobes
+mri_annotation2label --subject P00004203_S0001 --hemi Lh --lobesStrict lobes
+
+#  The next step, we need to map the lobes to a volume. This we do with mri_aparc2aseg FS command:
+
+mri_aparc2aseg --s P00004203_S0001 --annot lobes --labelwm --wmparc-dmax 1000 --rip-unknown --hypo-as-wm --o lobes+aseg.nii.gz
+
+# label2annot
+mris_label2annot --s P00004203_S0001 --ctab P00004203_S0001/label/aparc.annot.ctab  --h lh --a myaparc3 --l P00004203_S0001/label/lh.frontal_lobe.label --l P00004203_S0001/label/lh.parietal_lobe.label --l P00004203_S0001/label/lh.occipital_lobe.label --l P00004203_S0001/label/lh.temporal_lobe.label
+ERROR: cannot find or read P00004203_S0001/label/aparc.annot.ctab
+

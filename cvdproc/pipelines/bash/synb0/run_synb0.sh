@@ -33,7 +33,7 @@ PE_DIR=$(grep -oP '"PhaseEncodingDirection"\s*:\s*"\K[^"]+' "$DWI_JSON")
 TOTAL_READOUT_TIME=$(grep -oP '"TotalReadoutTime"\s*:\s*\K[0-9eE\.+-]+' "$DWI_JSON")
 
 # === 映射 PhaseEncodingDirection 到向量 ===
-declare -A PE_MAP=( ["i"]="-1 0 0" ["i-"]="1 0 0" ["j"]="0 -1 0" ["j-"]="0 1 0" ["k"]="0 0 -1" ["k-"]="0 0 1" )
+declare -A PE_MAP=( ["i"]="1 0 0" ["i-"]="-1 0 0" ["j"]="0 1 0" ["j-"]="0 -1 0" ["k"]="0 0 1" ["k-"]="0 0 -1" )
 PE_VECTOR="${PE_MAP[$PE_DIR]}"
 if [[ -z "$PE_VECTOR" ]]; then
   echo "Unsupported PhaseEncodingDirection: $PE_DIR"
@@ -82,7 +82,7 @@ $PE_VECTOR $TOTAL_READOUT_TIME
 $PE_VECTOR 0
 EOF
 
-  DOCKER_IMAGE="docker.xuanyuan.me/leonyichencai/synb0-disco:v3.1"
+  DOCKER_IMAGE="leonyichencai/synb0-disco:v3.1"
   # if ! docker inspect "$DOCKER_IMAGE" > /dev/null 2>&1; then
   #   docker pull "$DOCKER_IMAGE"
   # fi
@@ -112,6 +112,8 @@ SESSION=$(echo "$DWI_JSON" | grep -oP 'ses-[^/]+' | head -n 1)
 FMAP_BASENAME="${SUBJECT}_${SESSION}_dir-${DIR_LABEL}_acq-synb0_epi"
 FMAP_NII="${FMAP_DIR}/${FMAP_BASENAME}.nii.gz"
 FMAP_JSON="${FMAP_DIR}/${FMAP_BASENAME}.json"
+FMAP_BVAL="${FMAP_DIR}/${FMAP_BASENAME}.bval"
+FMAP_BVECS="${FMAP_DIR}/${FMAP_BASENAME}.bvec"
 
 echo "Copying undistorted b0 image to fmap directory..."
 cp "${OUTPUTS}/b0_u.nii.gz" "$FMAP_NII"
@@ -125,6 +127,10 @@ cat > "$FMAP_JSON" <<EOF
   "IntendedFor": "$INTENDED_FOR"
 }
 EOF
+
+echo "Creating empty bval and bvec files for fmap..."
+echo "0" > "$FMAP_BVAL"
+echo -e "0\n0\n0" > "$FMAP_BVECS"
 
 echo " Synb0-DISCO complete."
 echo " Fmap image: $FMAP_NII"

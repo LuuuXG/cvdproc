@@ -1,0 +1,12 @@
+{
+    "left_frontal": 3001,
+    "left_parietal": 3002,
+    "left_occipital": 3003,
+    "left_temporal": 3004,
+    "right_frontal": 4001,
+    "right_parietal": 4002,
+    "right_occipital": 4003,
+    "right_temporal": 4004,
+    "corpus_callosum": 251,
+    "basal_ganglia": 52
+}

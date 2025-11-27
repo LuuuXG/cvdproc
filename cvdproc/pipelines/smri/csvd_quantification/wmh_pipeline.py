@@ -12,12 +12,12 @@ from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Merge, Function
 from ....bids_data.rename_bids_file import rename_bids_file
 
-from .wmh.wmh_seg_nipype import LSTSegmentation, LSTAI, WMHSynthSegSingle, PrepareTrueNetData, TrueNetEvaluate, TrueNetPostProcess
+from .wmh.wmh_seg_nipype import LSTSegmentation, LSTAI, WMHSynthSegSingle, PrepareTrueNetData, PrepareTrueNetData2, TrueNetEvaluate, TrueNetPostProcess
 from .wmh.wmh_location_nipype import FazekasClassification
 from .wmh.wmh_shape_nipype import WMHShape
 
 from nipype.interfaces.fsl.maths import ApplyMask
-from nipype.interfaces import fsl
+from nipype.interfaces.fsl.preprocess import ApplyXFM
 from ..fsl.fsl_anat_nipype import FSLANAT
 from ..fsl.distancemap_nipype import DistanceMap
 from ...common.copy_file import CopyFileCommandLine
@@ -27,11 +27,13 @@ from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApp
 from ..freesurfer.synthSR import SynthSR
 from ..freesurfer.synthstrip import SynthStrip
 from cvdproc.pipelines.smri.freesurfer.synthseg import SynthSeg
-from ...common.register import ModalityRegistration
+from ...common.register import ModalityRegistration, Tkregister2fs2t1w
 
 from cvdproc.pipelines.common.extract_region import ExtractRegion
 from cvdproc.pipelines.common.calculate_volume import CalculateVolume
 from cvdproc.pipelines.common.calculate_roi_volume import CalculateROIVolume
+
+from cvdproc.config.paths import get_package_path
 
 class WMHSegmentationPipeline:
     """
@@ -62,7 +64,7 @@ class WMHSegmentationPipeline:
             use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, FLAIR image is not used
             seg_method: WMH segmentation method, one of ['LST', 'LSTAI', 'WMHSynthSeg', 'truenet']
             seg_threshold: threshold for WMH segmentation (not used for WMHSynthSeg method)
-            location_method: list of location method, subset of ['Fazekas', 'bullseye', 'shiva', 'McDonald']
+            location_method: list of location method, subset of ['Fazekas', 'bullseye', 'shiva', 'McDonald', 'JHU']
             ventmask_method: method to get ventricle mask, one of ['SynthSeg']
             use_bianca_mask: whether to use BIANCA white matter mask to constrain WMH segmentation
             normalize_to_mni: whether to normalize the WMH mask to MNI space
@@ -157,7 +159,7 @@ class WMHSegmentationPipeline:
             print(f"[WMH Pipeline] Segmentation threshold is not used for WMHSynthSeg method.")
         # location_method must be subset of ['Fazekas', 'bullseye', 'McDonald']
         for method in self.location_method:
-            if method not in ['Fazekas', 'bullseye', 'McDonald', 'shiva']:
+            if method not in ['Fazekas', 'bullseye', 'McDonald', 'shiva', 'JHU']:
                 raise ValueError(f"location_method must be subset of ['Fazekas', 'bullseye', 'McDonald', 'shiva'], but got {self.location_method}.")
         print(f"[WMH Pipeline] Using location method: {self.location_method}")
         if self.normalize_to_mni:
@@ -167,11 +169,14 @@ class WMHSegmentationPipeline:
 
         wmh_workflow = Workflow(name="WMHSegmentationPipeline")
 
-        inputnode = Node(IdentityInterface(fields=['flair', 't1w', 'seg_threshold', 'subject_id']), name='inputnode')
+        inputnode = Node(IdentityInterface(fields=['flair', 't1w', 'seg_threshold', 'subject_id',
+                                                   'subject', 'session']), name='inputnode')
         inputnode.inputs.flair = flair_file
         inputnode.inputs.t1w = t1w_file
         inputnode.inputs.seg_threshold = self.seg_threshold
         inputnode.inputs.subject_id = f"ses-{self.session.session_id}" # used to connect bullseye nested workflow
+        inputnode.inputs.subject = f"sub-{self.subject.subject_id}"
+        inputnode.inputs.session = f"ses-{self.session.session_id}"
 
         # ------------------------
         # Part 1: WMH Segmentation
@@ -236,11 +241,13 @@ class WMHSegmentationPipeline:
         
         # Skull-strip T1w if T1w provided
         if t1w_file != '':
-            t1w_stripped_node = Node(IdentityInterface(fields=["t1w_stripped"]), name="t1w_stripped_node")
+            t1w_stripped_node = Node(IdentityInterface(fields=["t1w_stripped", "brain_mask"]), name="t1w_stripped_node")
             t1w_stripped = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'desc': 'brain'}, 'T1w', '.nii.gz'))
-            if os.path.exists(t1w_stripped):
+            brain_mask = os.path.join(os.path.dirname(t1w_stripped), rename_bids_file(t1w_file, {'label': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
+            if os.path.exists(t1w_stripped) and os.path.exists(brain_mask):
                 print(f"[WMH Pipeline] Found existing skull-stripped T1w: {t1w_stripped}. Will use it directly.")
                 t1w_stripped_node.inputs.t1w_stripped = t1w_stripped
+                t1w_stripped_node.inputs.brain_mask = brain_mask
             else:
                 t1w_synthstrip = Node(SynthStrip(), name='t1w_synthstrip')
                 wmh_workflow.connect(inputnode, 't1w', t1w_synthstrip, 'image')
@@ -249,15 +256,19 @@ class WMHSegmentationPipeline:
                 t1w_synthstrip.inputs.no_csf = True
                 
                 wmh_workflow.connect(t1w_synthstrip, 'out_file', t1w_stripped_node, 't1w_stripped')
+                wmh_workflow.connect(t1w_synthstrip, 'mask_file', t1w_stripped_node, 'brain_mask')
         
         # Determine whether need to run SynthSeg in prior
         # 1: Fazekas + SynthSeg ventricle mask
         # 2: shiva
+        # 3: truenet
         run_synthseg = False
         synthseg_outfile = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_synthseg.nii.gz')
         if 'Fazekas' in self.location_method and self.ventmask_method == 'SynthSeg':
             run_synthseg = True
         if 'shiva' in self.location_method:
+            run_synthseg = True
+        if self.seg_method == 'truenet':
             run_synthseg = True
         if os.path.exists(synthseg_outfile):
             run_synthseg = False
@@ -276,6 +287,14 @@ class WMHSegmentationPipeline:
             synthseg_node.inputs.robust = True
             synthseg_node.inputs.parc = True
             synthseg_node.inputs.keepgeom = True
+        
+        # check whether already have synthseg output
+        check_synthseg = Node(IdentityInterface(fields=["synthseg_output"]), name="synthseg_output")
+        if run_synthseg:
+            wmh_workflow.connect(synthseg_node, 'out', check_synthseg, 'synthseg_output')
+        else:
+            print(f"[WMH Pipeline] Found existing SynthSeg output: {synthseg_outfile}. Will use it directly.")
+            check_synthseg.inputs.synthseg_output = synthseg_outfile
 
         if self.seg_method == 'LST':
             # As inplement in the LST segmentation script, still use raw FLAIR image instead of registered one
@@ -379,22 +398,25 @@ class WMHSegmentationPipeline:
             truenet_output_dir = os.path.join(self.output_path, 'truenet_output')
             os.makedirs(truenet_output_dir, exist_ok=True)
 
-            prepare_truenet_data = Node(PrepareTrueNetData(), name='prepare_truenet_data')
-            evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
-
             if t1w_file != '' and flair_file != '':
+                prepare_truenet_data = Node(PrepareTrueNetData2(), name='prepare_truenet_data')
+                evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
                 # truenet T1w + FLAIR
                 # Let truenet do the preprocess (but in T1w space)
-                wmh_workflow.connect(inputnode, 't1w', prepare_truenet_data, 'T1')
-                wmh_workflow.connect(flair_in_t1w_node, 'flair_in_t1w', prepare_truenet_data, 'FLAIR')
-                prepare_truenet_data.inputs.outname = truenet_preprocess_dir + '/truenet_preprocess'
-                prepare_truenet_data.inputs.verbose = True
+                wmh_workflow.connect(t1w_stripped_node, 't1w_stripped', prepare_truenet_data, 't1w')
+                wmh_workflow.connect(flair_in_t1w_node, 'flair_in_t1w', prepare_truenet_data, 'flair')
+                wmh_workflow.connect(t1w_stripped_node, 'brain_mask', prepare_truenet_data, 'brain_mask')
+                wmh_workflow.connect(check_synthseg, 'synthseg_output', prepare_truenet_data, 'synthseg_img')
+                prepare_truenet_data.inputs.output_dir = truenet_preprocess_dir
+                prepare_truenet_data.inputs.prefix = 'truenet_preprocess'
 
                 wmh_workflow.connect(prepare_truenet_data, 'output_dir', evaluate_truenet_data, 'inp_dir')
                 evaluate_truenet_data.inputs.model_name = 'ukbb'
                 evaluate_truenet_data.inputs.output_dir = truenet_output_dir
 
             elif t1w_file != '' and flair_file == '':
+                prepare_truenet_data = Node(PrepareTrueNetData(), name='prepare_truenet_data')
+                evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
                 # truenet T1w only
                 # Let truenet do the preprocess
                 wmh_workflow.connect(inputnode, 't1w', prepare_truenet_data, 'T1')
@@ -405,6 +427,8 @@ class WMHSegmentationPipeline:
                 evaluate_truenet_data.inputs.model_name = 'ukbb_t1'
                 evaluate_truenet_data.inputs.output_dir = truenet_output_dir
             elif t1w_file == '' and flair_file != '':
+                prepare_truenet_data = Node(PrepareTrueNetData(), name='prepare_truenet_data')
+                evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
                 # truenet FLAIR only
                 # Let truenet do the preprocess (actually can pass original flair image)
                 def _copy_flair(flair, outname):
@@ -422,23 +446,22 @@ class WMHSegmentationPipeline:
                 evaluate_truenet_data.inputs.model_name = 'ukbb_flair'
                 evaluate_truenet_data.inputs.output_dir = truenet_output_dir
             
-            # copy evaluate_truenet_data pred_file to output_path with proper name
-            def _copy_truenet_output(pred_file, out_file):
-                import shutil
-                shutil.copy(pred_file, out_file)
-                return out_file
-            copy_truenet_output = Node(Function(input_names=['pred_file', 'out_file'],
-                                               output_names=['out_file'],
-                                               function=_copy_truenet_output), name='copy_truenet_output')
-            wmh_workflow.connect(evaluate_truenet_data, 'pred_file', copy_truenet_output, 'pred_file')
-            copy_truenet_output.inputs.out_file = os.path.join(self.output_path, probmap_filename_flair if t1w_file == '' else probmap_filename_t1w)
+            # truenet postprocess
+            truenet_postprocess = Node(TrueNetPostProcess(), name='truenet_postprocess')
+            wmh_workflow.connect(evaluate_truenet_data, 'pred_file', truenet_postprocess, 'pred_file')
+            wmh_workflow.connect(prepare_truenet_data, 'output_dir', truenet_postprocess, 'preprocess_dir')
+            truenet_postprocess.inputs.output_dir = self.output_path
+            wmh_workflow.connect(inputnode, 'seg_threshold', truenet_postprocess, 'threshold')
+            truenet_postprocess.inputs.output_mask_name = binarized_wmh_filename_t1w if t1w_file != '' else binarized_wmh_filename_flair
+            truenet_postprocess.inputs.output_prob_map_name = probmap_filename_t1w if t1w_file != '' else probmap_filename_flair
 
-            # also generate binary mask
-            binarize_truenet_output = Node(FSLMathsThr(), name='binarize_truenet_output')
-            wmh_workflow.connect(copy_truenet_output, 'out_file', binarize_truenet_output, 'in_file')
-            wmh_workflow.connect(inputnode, 'seg_threshold', binarize_truenet_output, 'threshold')
-            binarize_truenet_output.inputs.binarize = True
-            binarize_truenet_output.inputs.out_file = os.path.join(self.output_path, binarized_wmh_filename_flair if t1w_file == '' else binarized_wmh_filename_t1w)
+            # connect to wmh_mask_node
+            if t1w_file != '' and flair_file != '':
+                wmh_workflow.connect(truenet_postprocess, 'wmh_mask', wmh_mask_node, 'wmh_mask_t1w')
+                wmh_workflow.connect(truenet_postprocess, 'wmh_prob_map', wmh_mask_node, 'wmh_probmap_t1w')
+            else:
+                wmh_workflow.connect(truenet_postprocess, 'wmh_mask', wmh_mask_node, 'wmh_mask_flair')
+                wmh_workflow.connect(truenet_postprocess, 'wmh_prob_map', wmh_mask_node, 'wmh_probmap_flair')
             
         final_wmh_mask_node = Node(IdentityInterface(fields=["final_wmh_mask_flair", "final_wmh_mask_t1w"]), name="final_wmh_mask_node")
 
@@ -490,13 +513,6 @@ class WMHSegmentationPipeline:
                     print("TODO")
                 elif self.ventmask_method == 'SynthSeg':
                     print("[WMH Pipeline] Using SynthSeg to generate lateral ventricle mask.")
-
-                    # check whether already have synthseg output
-                    check_synthseg = Node(IdentityInterface(fields=["synthseg_output"]), name="synthseg_output")
-                    if run_synthseg:
-                        wmh_workflow.connect(synthseg_node, 'out', check_synthseg, 'synthseg_output')
-                    else:
-                        check_synthseg.inputs.synthseg_output = synthseg_outfile
                     
                     # Extract lateral ventricle mask from synthseg output
                     # eg vent_mask = extract_roi_from_image(self.inputs.wmh_synthseg, [4, 43], binarize=True, output_path=os.path.join(self.inputs.output_dir, self.inputs.vent_mask_filename))
@@ -549,22 +565,111 @@ class WMHSegmentationPipeline:
                 dwmh_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-DWMH_desc-{self.seg_method}{thr_string}_volume.csv")
             
             if 'bullseye' in self.location_method:
-                from cvdproc.pipelines.external.bullseye_WMH.bullseye_pipeline_custom import create_bullseye_pipeline
+                #from cvdproc.pipelines.external.bullseye_WMH.bullseye_pipeline_custom import create_bullseye_pipeline
+                from cvdproc.pipelines.smri.csvd_quantification.wmh.wmh_location_nipype import Bullseye2
 
                 if self.session.freesurfer_dir is None:
                     raise ValueError("Freesurfer directory is not available. Please run Freesurfer recon-all first.")
                 else:
+                    # print(f"[WMH Pipeline] Found Freesurfer directory: {self.session.freesurfer_dir}. Will run Bullseye WMH location quantification.")
+                    # bullseye_pipeline = create_bullseye_pipeline(
+                    #     scans_dir = os.path.dirname(self.session.freesurfer_dir),
+                    #     work_dir = self.output_path,
+                    #     outputdir = self.output_path,
+                    #     subject_ids = None,
+                    #     lobes_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-lobes_wmparc.nii.gz",
+                    #     shells_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-shells_wmparc.nii.gz",
+                    #     bullseye_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-bullseye_wmparc.nii.gz",)
+                    # wmh_workflow.connect(inputnode, 'subject_id', bullseye_pipeline, 'inputnode.subject_ids')
+
+                    # # calculate volume using outputnode.bullseye_wmparc
+                    # # these parcellation files are in Freesurfer space, need to be transformed to raw T1w space
+                    # fs_to_t1w_reg = Node(Tkregister2fs2t1w(), name='fs_to_t1w_reg')
+                    # fs_to_t1w_reg.inputs.fs_subjects_dir = os.path.dirname(self.session.freesurfer_dir)
+                    # wmh_workflow.connect(inputnode, 'session', fs_to_t1w_reg, 'fs_subject_id')
+                    # fs_to_t1w_reg.inputs.output_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-fs_to-T1w_xfm.mat")
+                    # fs_to_t1w_reg.inputs.output_inverse_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-fs_xfm.mat")
+
+                    # # only transform outputnode.bullseye_wmparc to T1w space
+                    # transform_bullseye_parc_to_t1w = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w')
+                    # wmh_workflow.connect(bullseye_pipeline, 'outputnode.bullseye_wmparc', transform_bullseye_parc_to_t1w, 'in_file')
+                    # wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w, 'reference')
+                    # wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w, 'in_matrix_file')
+                    # transform_bullseye_parc_to_t1w.inputs.interp = 'nearestneighbour'
+                    # transform_bullseye_parc_to_t1w.inputs.apply_xfm = True
+                    # transform_bullseye_parc_to_t1w.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-bullseye_wmparc.nii.gz")
+
+                    # bullseye_quantification = Node(CalculateROIVolume(), name='bullseye_quantification')
+                    # wmh_workflow.connect(transform_bullseye_parc_to_t1w, 'out_file', bullseye_quantification, 'roi_nii')
+                    # wmh_workflow.connect(final_wmh_mask_node, 'final_wmh_mask_t1w', bullseye_quantification, 'in_nii')
+                    # bullseye_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-bullseye_volume.csv")
+
+                    # # also need to create a json file to describe the bullseye parcellation
+                    # # 41-44: BG layer 1 (center) to layer 4 (cortex)
+                    # # 101-104: left frontal lobe layer 1 (center) to layer 4 (cortex)
+                    # # 121-124: left occipital lobe layer 1 (center) to layer 4 (cortex)
+                    # # 131-134: left temporal + parietal lobe layer 1 (center) to layer 4 (cortex)
+                    # # 211-214: right frontal lobe layer 1 (center) to layer 4 (cortex)
+                    # # 221-224: right occipital lobe layer 1 (center) to layer 4 (cortex)
+                    # # 231-234: right temporal + parietal lobe layer 1 (center) to layer 4 (cortex)
+
                     print(f"[WMH Pipeline] Found Freesurfer directory: {self.session.freesurfer_dir}. Will run Bullseye WMH location quantification.")
-                    bullseye_pipeline = create_bullseye_pipeline(
-                        scans_dir = os.path.dirname(self.session.freesurfer_dir),
-                        work_dir = self.output_path,
-                        outputdir = self.output_path,
-                        subject_ids = None,
-                        lobes_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-lobes_wmparc.nii.gz",
-                        shells_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-shells_wmparc.nii.gz",
-                        bullseye_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-bullseye_wmparc.nii.gz",)
-                    wmh_workflow.connect(inputnode, 'subject_id', bullseye_pipeline, 'inputnode.subject_ids')
-            
+                    bullseye_process = Node(Bullseye2(), name='bullseye_process')
+                    wmh_workflow.connect(inputnode, 'session', bullseye_process, 'subject_id')
+                    bullseye_process.inputs.source_dir = get_package_path('pipelines', 'external', 'WMH_Bullseye')
+                    bullseye_process.inputs.subjects_dir = os.path.dirname(self.session.freesurfer_dir)
+                    bullseye_process.inputs.output_dir = os.path.join(self.output_path, 'bullseye')
+
+                    fs_to_t1w_reg = Node(Tkregister2fs2t1w(), name='fs_to_t1w_reg')
+                    fs_to_t1w_reg.inputs.fs_subjects_dir = os.path.dirname(self.session.freesurfer_dir)
+                    wmh_workflow.connect(inputnode, 'session', fs_to_t1w_reg, 'fs_subject_id')
+                    fs_to_t1w_reg.inputs.output_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-fs_to-T1w_xfm.mat")
+                    fs_to_t1w_reg.inputs.output_inverse_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-fs_xfm.mat")
+
+                    # use 4 separate nodes
+                    transform_bullseye_parc_to_t1w_bullseye = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w_bullseye')
+                    wmh_workflow.connect(bullseye_process, 'bullseye_wmparc', transform_bullseye_parc_to_t1w_bullseye, 'in_file')
+                    wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w_bullseye, 'reference')
+                    wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w_bullseye, 'in_matrix_file')
+                    transform_bullseye_parc_to_t1w_bullseye.inputs.interp = 'nearestneighbour'
+                    transform_bullseye_parc_to_t1w_bullseye.inputs.apply_xfm = True
+                    transform_bullseye_parc_to_t1w_bullseye.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-bullseye_wmparc.nii.gz")
+
+                    transform_bullseye_parc_to_t1w_bullseyebis = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w_bullseyebis')
+                    wmh_workflow.connect(bullseye_process, 'bullseye_wmparc_bis', transform_bullseye_parc_to_t1w_bullseyebis, 'in_file')
+                    wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w_bullseyebis, 'reference')
+                    wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w_bullseyebis, 'in_matrix_file')
+                    transform_bullseye_parc_to_t1w_bullseyebis.inputs.interp = 'nearestneighbour'
+                    transform_bullseye_parc_to_t1w_bullseyebis.inputs.apply_xfm = True
+                    transform_bullseye_parc_to_t1w_bullseyebis.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-bullseyebis_wmparc.nii.gz")
+
+                    transform_bullseye_parc_to_t1w_lobarseg = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w_lobarseg')
+                    wmh_workflow.connect(bullseye_process, 'lobar_wmparc', transform_bullseye_parc_to_t1w_lobarseg, 'in_file')
+                    wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w_lobarseg, 'reference')
+                    wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w_lobarseg, 'in_matrix_file')
+                    transform_bullseye_parc_to_t1w_lobarseg.inputs.interp = 'nearestneighbour'
+                    transform_bullseye_parc_to_t1w_lobarseg.inputs.apply_xfm = True
+                    transform_bullseye_parc_to_t1w_lobarseg.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-lobarseg_wmparc.nii.gz")
+
+                    transform_bullseye_parc_to_t1w_lobarsegbis = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w_lobarsegbis')
+                    wmh_workflow.connect(bullseye_process, 'lobar_wmparc_bis', transform_bullseye_parc_to_t1w_lobarsegbis, 'in_file')
+                    wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w_lobarsegbis, 'reference')
+                    wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w_lobarsegbis, 'in_matrix_file')
+                    transform_bullseye_parc_to_t1w_lobarsegbis.inputs.interp = 'nearestneighbour'
+                    transform_bullseye_parc_to_t1w_lobarsegbis.inputs.apply_xfm = True
+                    transform_bullseye_parc_to_t1w_lobarsegbis.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-lobarsegbis_wmparc.nii.gz")
+
+                    # quantification (volume) using bullseye_wmparc_bis and lobar_wmparc_bis
+                    bullseye_quantification = Node(CalculateROIVolume(), name='bullseye_quantification')
+                    wmh_workflow.connect(transform_bullseye_parc_to_t1w_bullseyebis, 'out_file', bullseye_quantification, 'roi_nii')
+                    wmh_workflow.connect(final_wmh_mask_node, 'final_wmh_mask_t1w', bullseye_quantification, 'in_nii')
+                    bullseye_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-bullseye_volume.csv")
+
+                    lobar_quantification = Node(CalculateROIVolume(), name='lobar_quantification')
+                    wmh_workflow.connect(transform_bullseye_parc_to_t1w_lobarsegbis, 'out_file', lobar_quantification, 'roi_nii')
+                    wmh_workflow.connect(final_wmh_mask_node, 'final_wmh_mask_t1w', lobar_quantification, 'in_nii')
+                    lobar_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-lobarseg_volume.csv")
+
             if 'shiva' in self.location_method:
                 from cvdproc.pipelines.smri.csvd_quantification.shiva_segmentation.shiva_parc import ShivaGeneralParcellation, Brain_Seg_for_biomarker
                 shiva_general_parc_node = Node(ShivaGeneralParcellation(), name='shiva_general_parc')
@@ -709,10 +814,10 @@ class WMHSegmentationPipeline:
                 target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI_warp.nii.gz')
                 
                 if not os.path.exists(target_warp):
-                    print(f"[WMH Pipeline] No existing T1w to MNI warp file found: {target_warp}. Will run ANTs registration to get the warp (1mm resolution).")
+                    print(f"[WMH Pipeline] No existing T1w to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
                     print(f"[WMH Pipeline] If you want a different resolution, please run a separate T1 registration pipeline first.")
                     t1w_to_mni_registration = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
-                    wmh_workflow.connect(t1w_stripped_node, 't1w_stripped', t1w_to_mni_registration, 't1_stripped')
+                    wmh_workflow.connect(inputnode, 't1w', t1w_to_mni_registration, 't1')
                     t1w_to_mni_registration.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
                     t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(t1w_file, {'space': 'MNI', 'desc':'brain'}, 'T1w', '.nii.gz'))
                     t1w_to_mni_registration.inputs.t1_2_mni_warp = target_warp
@@ -723,6 +828,24 @@ class WMHSegmentationPipeline:
                 else:
                     print(f"[WMH Pipeline] Found existing T1w to MNI warp file: {target_warp}. Will use it to transform WMH to MNI space.")
                     wmh_to_mni_transform_node.inputs.warp_image = target_warp
+                
+                if 'JHU' in self.location_method:
+                    # transform JHU WM atlas to T1w space
+                    jhu_to_t1w_transform = Node(MRIConvertApplyWarp(), name='jhu_to_t1w_transform')
+                    target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
+                    if not os.path.exists(target_inverse_warp):
+                        wmh_workflow.connect(t1w_to_mni_registration, 'mni_2_t1_warp', jhu_to_t1w_transform, 'warp_image')
+                    else:
+                        jhu_to_t1w_transform.inputs.warp_image = target_inverse_warp
+                    jhu_to_t1w_transform.inputs.input_image = get_package_path('data', 'standard', 'JHU', 'JHU-ICBM-labels-1mm.nii.gz')
+                    jhu_to_t1w_transform.inputs.output_image = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-JHU_atlas.nii.gz")
+                    jhu_to_t1w_transform.inputs.interp = 'nearest'
+
+                    # volume quantification
+                    jhu_wmh_quantification = Node(CalculateROIVolume(), name='jhu_wmh_quantification')
+                    wmh_workflow.connect(jhu_to_t1w_transform, 'output_image', jhu_wmh_quantification, 'roi_nii')
+                    wmh_workflow.connect(final_wmh_mask_node, 'final_wmh_mask_t1w', jhu_wmh_quantification, 'in_nii')
+                    jhu_wmh_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-JHU_volume.csv")
             elif t1w_file == '' and flair_file != '': # If only FLAIR available, will normalize to MNI space
                 wmh_to_mni_transform_node = MapNode(MRIConvertApplyWarp(), name='wmh_to_mni_transform_node', iterfield=['input_image', 'output_image', 'interp'])
 
@@ -757,7 +880,7 @@ class WMHSegmentationPipeline:
                 target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-FLAIR_to-MNI_warp.nii.gz')
 
                 if not os.path.exists(target_warp):
-                    print(f"[WMH Pipeline] No existing FLAIR to MNI warp file found: {target_warp}. Will run ANTs registration to get the warp (1mm resolution).")
+                    print(f"[WMH Pipeline] No existing FLAIR to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
                     print(f"[WMH Pipeline] If you want a different resolution, please run a separate FLAIR registration pipeline first.")
                     flair_to_mni_registration = Node(SynthmorphNonlinear(), name='flair_to_mni_registration')
                     wmh_workflow.connect(inputnode, 'flair', flair_to_mni_registration, 't1')

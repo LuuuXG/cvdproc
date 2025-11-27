@@ -15,7 +15,7 @@ mkdir -p "$OUTPUT_DIR"
 
 mrconvert "$DWI_NIFTI" "$OUTPUT_DIR/dwi4denoise.mif" -fslgrad "$DWI_BVEC" "$DWI_BVAL" -force
 
-dwidenoise "$OUTPUT_DIR/dwi4denoise.mif" "$OUTPUT_DIR/dwi_denoise.mif" -force
+dwidenoise "$OUTPUT_DIR/dwi4denoise.mif" "$OUTPUT_DIR/dwi_denoise.mif" -force -nthreads 8
 
 #mrdegibbs "$OUTPUT_DIR/dwi_denoise.mif" "$OUTPUT_DIR/dwi_degibbs.mif" -nthreads 4 -force
 

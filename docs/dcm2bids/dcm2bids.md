@@ -50,10 +50,33 @@ Create a `config.yml` file in the `code` folder (note that we use the yaml forma
 ```yml
 # You need to specify the BIDS root folder here
 bids_dir: /mnt/f/BIDS/demo_wmh
-## You need to specify the dcm2bids configuration file here
 dcm2bids: 
-  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
+  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json # You need to specify the dcm2bids configuration file here
+  # And there are other parameters you can specify:
+  # You can skip these parameters (left as empty) to do nothing additional
+  dwi_fix_bvecbval:
+    - match: "acq-NODDIb2500_"
+      bvec: "/mnt/f/BIDS/demo_wmh/code/bvec.bvec"
+      bval: "/mnt/f/BIDS/demo_wmh/code/bval.bval"
+    - match: "another_keyword"
+      bvec: "/path/to/another/bvec.bvec"
+      bval: "/path/to/another/bval.bval"
+  perf_fix_aslcontext:
+    - match: "asl"
+      aslcontext: "/mnt/f/BIDS/demo_wmh/code/aslcontext.tsv"
+    - match: "another_keyword"
+      aslcontext: "/path/to/another/aslcontext.tsv"
+  deface_anat: true
+  fix_intendedfor: true
 ```
+
+`dwi_fix_bvecbval`: It is used in case the bvec and bval information in the DICOM files are incorrect. You can specify multiple matching criteria and corresponding bvec and bval files. The `match` field is a keyword that will be matched with the file names of the converted NIfTI files (for example, if the DWI sequence has `acq-NODDIb2500_` in its file name, it will use the specified bvec and bval files to replace the original ones).
+
+`perf_fix_aslcontext`: Similar to `dwi_fix_bvecbval`, it is used when dcm2niix does not generate the correct `*_aslcontext.tsv` file for ASL images. You can specify multiple matching criteria and corresponding aslcontext files. The `match` field is a keyword that will be matched with the file names of the converted NIfTI files (for example, if the ASL sequence has `asl` in its file name, it will use the specified aslcontext file to replace the original one).
+
+`deface_anat`: Whether to deface the anatomical images (T1w, T2w, and FLAIR) using FSL. Default is false.
+
+`fix_intendedfor`: Whether to fix the `IntendedFor` field in all .json files. Default is false. This is useful for running nipreps. It will change the `IntendedFor` field to relative paths (start from ses-<session_id>). Although it is deprecated in the latest BIDS specification (now, BIDS URI is needed), many nipreps still require it (see [this](https://github.com/nipreps/sdcflows/issues/336)).
 
 Remember to change the `bids_dir` and `config_file` paths to your own paths. The `bids_dir` is the root folder of your BIDS dataset, and the `config_file` is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the `sourcedata` folder of the BIDS root directory. For example, if you have a folder named `DICOM_01` containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to `/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01`. The final folder structure should look like this:
 

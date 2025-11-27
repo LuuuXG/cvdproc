@@ -13,8 +13,8 @@ class ConcInputSpec(BaseInterfaceInputSpec):
     mask_path = File(exists=True, mandatory=True, desc='Path to the mask image file')
     echo_time = Float(mandatory=True, desc='Echo time in seconds')
     repetition_time = Float(mandatory=True, desc='Repetition time in seconds')
-    output_path = Directory(exists=True, mandatory=True, desc='Output directory for the modified script')
-    output_conc_path = File(mandatory=True, desc='Output path for the concentration image')
+    output_path = Str(exists=True, mandatory=True, desc='Output directory for the modified script')
+    output_conc_path = Str(mandatory=True, desc='Output path for the concentration image')
 
     script_path = Str(desc='Path to the MATLAB script that runs the concentration processing')
 
@@ -26,6 +26,9 @@ class Conc(BaseInterface):
     output_spec = ConcOutputSpec
 
     def _run_interface(self, runtime):
+        # make sure output_path exist
+        os.makedirs(self.inputs.output_path, exist_ok=True)
+
         with open(self.inputs.script_path) as script_file:
             script_content = script_file.read()
         
@@ -67,7 +70,7 @@ class DSCMRIInputSpec(BaseInterfaceInputSpec):
     mask_path = File(exists=True, mandatory=True, desc='Path to the mask image file')
     echo_time = Float(mandatory=True, desc='Echo time in seconds')
     repetition_time = Float(mandatory=True, desc='Repetition time in seconds')
-    output_path = Directory(exists=True, mandatory=True, desc='Output directory for the modified script')
+    output_path = Str(exists=True, mandatory=True, desc='Output directory for the modified script')
     output_cbv_path = File(mandatory=True, desc='Output path for the CBV image')
     output_cbv_lc_path = File(mandatory=True, desc='Output path for the CBV_LC image')
     output_k2_path = File(mandatory=True, desc='Output path for the K2 image')
@@ -100,6 +103,8 @@ class DSCMRI(BaseInterface):
     output_spec = DSCMRIOutputSpec
 
     def _run_interface(self, runtime):
+        os.makedirs(self.inputs.output_path, exist_ok=True)
+
         with open(self.inputs.script_path) as script_file:
             script_content = script_file.read()
         

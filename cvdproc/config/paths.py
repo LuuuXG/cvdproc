@@ -2,6 +2,12 @@ import os
 import glob
 import re
 
+PACKAGE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def get_package_path(*subpaths):
+    """Return absolute path inside the cvdproc package."""
+    return os.path.join(PACKAGE_ROOT, *subpaths)
+
 # Global path constants
 FSAVERAGE_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'standard', 'fsaverage')
 LH_MEDIAL_WALL_TXT = os.path.join(FSAVERAGE_DIR, 'lh.aparc.label_medial_wall.txt')

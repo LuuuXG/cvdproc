@@ -73,14 +73,3 @@ class SynthSeg(CommandLine):
         outputs['qc'] = os.path.abspath(self.inputs.qc) if self.inputs.qc else None
 
         return outputs
-
-if __name__ == '__main__':
-    # Example usage
-    synthseg = SynthSeg()
-    synthseg.inputs.image = '/mnt/e/neuroimage/synthseg/input'  # Can be a single image or a folder
-    synthseg.inputs.out = '/mnt/e/neuroimage/synthseg/output'  # Must be a folder
-    synthseg.inputs.parc = True  # Example of setting an optional boolean argument
-    synthseg.inputs.robust = True
-    synthseg.inputs.vol = '/mnt/e/neuroimage/synthseg/output/volumes.csv'  # Optional CSV output
-    result = synthseg.run()
-    print(result.outputs)  # Outputs the paths to the segmentation outputs, volume CSV, and QC CSV files

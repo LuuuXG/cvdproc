@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../pvs_quantification/">
+        <link rel="prev" href="../anat_seg/">
       
       
-        <link rel="next" href="../../dMRI/lqt_pipeline/">
+        <link rel="next" href="../pvs_quantification/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -278,7 +278,7 @@
   
   
   <span class="md-ellipsis">
-    DCM2BIDS
+    Dicom2BIDS
     
   </span>
   
@@ -289,7 +289,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
-            DCM2BIDS
+            Dicom2BIDS
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -433,12 +433,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../pvs_quantification/" class="md-nav__link">
+      <a href="../anat_seg/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    PVS Quantification
+    Anatomical Segmentation
     
   </span>
   
@@ -465,6 +465,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    WMH Quantification
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -477,6 +490,159 @@
 
       </a>
       
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      WMHSegmentationPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="WMHSegmentationPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-more-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      A more detailed description:
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modalities-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      modalities to use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      segmentation methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bianca-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      bianca mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lateral-ventricle-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      lateral ventricle mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#location-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      location methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#normalization-to-mni-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      normalization to MNI space
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shape-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      shape features
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pvs_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PVS Quantification
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -604,6 +770,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
         
   
@@ -704,6 +893,28 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Containers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -724,6 +935,125 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      WMHSegmentationPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="WMHSegmentationPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-more-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      A more detailed description:
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modalities-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      modalities to use
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      segmentation methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bianca-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      bianca mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lateral-ventricle-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      lateral ventricle mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#location-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      location methods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#normalization-to-mni-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      normalization to MNI space
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shape-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      shape features
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -739,7 +1069,412 @@
 
 
 <h1 id="wmh-quantification">WMH Quantification</h1>
-<p>pipeline name: <code>wmh_quantification</code></p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline" class="doc doc-heading">
+            <code>WMHSegmentationPipeline</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+        <p>WMH Segmentation and Quantification Pipeline</p>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>WMH Segmentation and Quantification Pipeline</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>subject</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BIDSSubject object</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>session</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BIDSSession object</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_path</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>output directory for the pipeline</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_t1w</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_flair</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>specific string to select FLAIR image, e.g. 'acq-highres'. If None, FLAIR image is not used</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seg_method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>WMH segmentation method, one of ['LST', 'LSTAI', 'WMHSynthSeg', 'truenet']</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;LST&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>seg_threshold</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>threshold for WMH segmentation (not used for WMHSynthSeg method)</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>location_method</code>
+            </td>
+            <td>
+                  <code><span title="list">list</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>list of location method, subset of ['Fazekas', 'bullseye', 'shiva', 'McDonald']</p>
+              </div>
+            </td>
+            <td>
+                  <code>[&#39;Fazekas&#39;]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ventmask_method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>method to get ventricle mask, one of ['SynthSeg']</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;SynthSeg&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_bianca_mask</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to use BIANCA white matter mask to constrain WMH segmentation</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>normalize_to_mni</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to normalize the WMH mask to MNI space</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shape_features</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to calculate shape features for each WMH cluster (need normalize_to_mni=True and location_method contains 'Fazekas')</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cvdproc.pipelines.smri.csvd_quantification.wmh_pipeline.WMHSegmentationPipeline.check_data_requirements" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">check_data_requirements</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Check data requirements for the pipeline (At least one FLAIR image or T1w image)
+:return: bool</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div><hr />
+<h2 id="a-more-detailed-description">A more detailed description:</h2>
+<h3 id="modalities-to-use">modalities to use</h3>
+<ul>
+<li>T1w</li>
+<li>FLAIR</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Note on T1w</p>
+<p>If T1w is provided, make sure it is a 3D T1w image. In the following description, we will not specify whether T1w is 2D or 3D, as we assume T1w is 3D by default.</p>
+</div>
+<p>We handle T1w and FLAIR images using the following logic: You can provide either a T1w or a FLAIR image, or both (T1w/FLAIR/T1w+FLAIR). If T1w is provided, the segmentation will be performed on the T1w space (if FLAIR is also provided, FLAIR image will be registered to T1w space and then segmented). The concern here is that if the WMH is segmented on FLAIR image and then transformed to T1w space using a linear registration, the edges of the WMH mask may appear jagged or discontinuous.</p>
+<h3 id="segmentation-methods">segmentation methods</h3>
+<p>Please refer to the table below for the available segmentation methods and their corresponding modalities and notes.</p>
+<p>My advice on method selection:</p>
+<ul>
+<li>The sensitivity of the methods (especially the ability to detect WMH lesions in the deep white matter). More generally, the nature of the WMH lesions in your dataset (CSVD-related WMH, MS lesions, etc.). For instance, LST-LPA and LST-AI are based on MS data.</li>
+<li>Whether the method will identify WMH in corpus callosum or not</li>
+<li>The modalities you have (T1w only, FLAIR only, or both T1w and FLAIR)</li>
+</ul>
+<p>Currently, you can only choose one method for WMH segmentation. So a possible way to choose a method is to modify the config file and run the pipeline multiple times with different methods, then compare the results.</p>
+<table>
+<thead>
+<tr>
+<th>method name</th>
+<th>seg_method</th>
+<th>modalities</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LST-LPA</td>
+<td>'LST'</td>
+<td>(2D/3D) FLAIR / (2D/3D) FLAIR + T1w</td>
+<td><a href="https://www.applied-statistics.de/lst.html">LST</a>. According to my experience, this method can effectively identify PWMH lesions, but may struggle with smaller DWMH. It is a simple and convenient method for WMH segmentation and is applied in various studies.</td>
+</tr>
+<tr>
+<td>LST-AI</td>
+<td>'LSTAI'</td>
+<td>(2D/3D) FLAIR + T1w</td>
+<td><a href="https://github.com/CompImg/LST-AI">LST-AI</a>. Please specify 'LSTAI' rather than 'LST-AI' in the config file (to avoid extra '-', which conflicts with BIDS style). This method is more sensitive to DWMH detection, but may not identify some PWMH. Additionally, attention should be paid to the selection of thresholds, as the resulting probmap is the average of three models, and many values close to 0.33 or 0.66 may appear in the probmap.</td>
+</tr>
+<tr>
+<td>WMH-SynthSeg</td>
+<td>'WMHSynthSeg'</td>
+<td>(2D/3D) FLAIR / T1w</td>
+<td><a href="https://surfer.nmr.mgh.harvard.edu/fswiki/WMH-SynthSeg">WMH-SynthSeg</a>. The advantages of this method include the ability to obtain 1mm resolution results, even when the input is 2D FLAIR. However, based on my experience, the segmentation performance varies across different FLAIR sequences, and it may exaggerate WMH.</td>
+</tr>
+<tr>
+<td>FSL truenet</td>
+<td>'truenet'</td>
+<td>3D FLAIR / T1w / 3D FLAIR + T1w</td>
+<td><a href="https://github.com/v-sundaresan/truenet">FSL truenet</a>. The advantages of this method include the provision of multiple models, suitable for single-channel FLAIR and T1w or dual-channel FLAIR + T1w, especially FLAIR + T1w will get very good results, but the preprocessing time is relatively long (because it involves steps such as FAST segmentation). In addition, the preprocessing process seems to have some problems for the case of only FLAIR, and the results obtained without preprocessing when only FLAIR is used are consistent with the results obtained after running preprocessing.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bianca-mask">bianca mask</h3>
+<p>If 'use_bianca_mask' is set to True, an inclusion mask is applied after the segmentation step (ref: 'The script below creates an example of inclusion mask from T1 images, which excludes cortical GM and the following structures: putamen, globus pallidus, nucleus accumbens, thalamus, brainstem, cerebellum, hippocampus, amygdala. The cortical GM is excluded from the brain mask by extracting the cortical CSF from single-subject’s CSF pve map, dilating it to reach the cortical GM, and excluding these areas. The other structures are identified in MNI space, non-linearly registered to the single-subjects’ images, and removed from the brain mask.' in <a href="https://web.mit.edu/fsl_v5.0.10/fsl/doc/wiki/BIANCA(2f)Userguide.html">FSL BIANCA</a>).</p>
+<p>Other WMH segmentation methods not included in the pipeline:</p>
+<ul>
+<li><a href="https://cns.readthedocs.io/en/latest/manual/quickstart.html">UBO detector</a></li>
+<li><a href="https://github.com/pboutinaud/SHiVAi">SHiVAi</a></li>
+<li><a href="https://github.com/AICONSlab/segcsvd">segcsvd</a></li>
+<li><a href="https://github.com/miac-research/MARS-WMH">MARS-WMH</a></li>
+<li><a href="https://web.mit.edu/fsl_v5.0.10/fsl/doc/wiki/BIANCA(2f)Userguide.html">FSL BIANCA</a>: not included because it requires training data</li>
+</ul>
+<h3 id="lateral-ventricle-mask">lateral ventricle mask</h3>
+<p>'ventmask_method' is used to specify the method for obtaining the lateral ventricle mask, which is required for the Fazekas location method. You can choose one of the following methods: 'SynthSeg'</p>
+<ul>
+<li>'SynthSeg': use <a href="https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg">SynthSeg</a></li>
+</ul>
+<h3 id="location-methods">location methods</h3>
+<p>You can choose one or more location methods to get the location information of WMH.</p>
+<ul>
+<li>'Fazekas': classify WMH into periventricular WMH (PWMH) and deep WMH (DWMH) based on the distance to the lateral ventricles of each WMH cluster. WMH lesions totally outside the 10mm distance to the lateral ventricles are classified as DWMH. Those totally within 10mm distance or partially within 10mm distance are classified as PWMH (Theoretical should be divided into periventricular WMH and confluent WMH, but simplified to PWMH. See this <a href="https://alz-journals.onlinelibrary.wiley.com/doi/10.1002/alz.13345">Keller et al.</a> for more information). </li>
+<li>'bullseye': calculate WMH volume according a bullseye parcellation scheme (see <a href="https://linkinghub.elsevier.com/retrieve/pii/S0150986117302249">Sudre et al.</a>). Do this classification need precomputed freesurfer recon-all results.</li>
+<li>'shiva': calculate WMH volume according to the SHIVA parcellation scheme (Shallow, Deep, Perivetricular, Cerebellar, and Brainstem). See <a href="https://github.com/pboutinaud/SHiVAi">shivai</a> for more information.</li>
+<li>'McDonald': This utilizes the annotation of WMH clusters in <a href="https://github.com/CompImg/LST-AI">LST-AI</a>. It is more suitable for MS lesions.</li>
+</ul>
+<h3 id="normalization-to-mni-space">normalization to MNI space</h3>
+<p>If 'normalize_to_mni' is set to True, the WMH segmentation results will be transformed to MNI space using a non-linear registration (SynthMorph).</p>
+<h3 id="shape-features">shape features</h3>
+<p>If 'shape_features' is set to True, shape features of PWMH and DWMH will be calculated. We refer to the SMART-MR studies (e.g., <a href="https://alz-journals.onlinelibrary.wiley.com/doi/10.1002/alz.13345">Keller et al.</a>, <a href="https://www.neurology.org/doi/10.1212/WNL.0000000000011827">Ghaznawi et al.</a>) and <a href="https://www.karger.com/Article/FullText/515836">Han et al.</a></p>
+<p>Methodological issues must be considered:</p>
+<ul>
+<li>The simple hypothesis is that WMH lesions will be more complex and irregular as they grow larger. However, WMH in different locations may have different growth patterns. For example, a normal aging-related PWMH lesion may reveal a cap-like shape along the lateral ventricle (Fazekas score 1, assume have 4 WMH clusters in left/right anterior/posterior horn of lateral ventricle, respectively), these WMH clusters may grow and merge to a single large PWMH lesion (Fazekas score 3). So, compare the small and large PWMH lesions directly may not be appropriate (in another word, the shape features may dramatically change when two or more WMH clusters merge).</li>
+<li>If you want to compare the shape features of WMH between different subjects, is it rational to simplely calculate the mean shape features of all WMH clusters in each subject? It seems OK with DWMH clusters, but not for PWMH clusters (see the above point).</li>
+</ul>
 
 
 

@@ -148,7 +148,6 @@ class QSMPipeline:
                 t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI', 'desc':'brain'}, 'T1w', '.nii.gz'))
                 t1w_to_mni_register_node.inputs.t1_2_mni_warp = target_warp
                 t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
-                t1w_to_mni_register_node.inputs.t1_stripped = False
                 t1w_to_mni_register_node.inputs.register_between_stripped = True
 
                 qsm_wf.connect(t1w_to_mni_register_node, 't1_2_mni_warp', t1_2_mni_warp_node, 't1_2_mni_warp')

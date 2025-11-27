@@ -1,0 +1,7 @@
+os 
+numpy
+nibabel
+import sys
+scipy
+matplotlib
+

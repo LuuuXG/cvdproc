@@ -64,7 +64,7 @@ class QSMPipelinePart1(BaseInterface):
         self._processed_phase_path = os.path.join(subject_output_dir, f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_part-phase_desc-smoothed_GRE.nii.gz')
         self._qsm_mask_path = os.path.join(subject_output_dir, 'QSM_reconstruction', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_mask_QSM.nii.gz')
         self._raw_qsm_path = os.path.join(subject_output_dir, 'QSM_reconstruction', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_desc-raw_Chimap.nii.gz')
-        self._chisep_qsm_path = os.path.join(subject_output_dir, 'QSM_reconstruction', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_desc-Chisep_Chimap.nii.gz')
+        self._chisep_qsm_path = os.path.join(subject_output_dir, 'QSM_reconstruction', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_desc-QSMnet_Chimap.nii.gz')
         self._r2star_path = os.path.join(subject_output_dir, 'sepia_output', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_R2starmap.nii.gz')
         self._s0_path = os.path.join(subject_output_dir, 'sepia_output', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_S0map.nii.gz')
         self._t2star_path = os.path.join(subject_output_dir, 'sepia_output', f'sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_T2starmap.nii.gz')

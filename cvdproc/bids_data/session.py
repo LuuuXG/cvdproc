@@ -29,7 +29,7 @@ class BIDSSession:
         self.qsm_files = self._find_files('qsm')
         self.pwi_files = self._find_files('pwi')
 
-        # Derivatives: derivatives/<output_name>/sub-<subject_id>/ses-<session_id>/<pipeline>
+        # Derivatives: derivatives/<output_name>/sub-<subject_id>/ses-<session_id>
         self.freesurfer_dir = self._find_output('freesurfer')
         self.freesurfer_clinical_dir = self._find_output('freesurfer_clinical')
         self.lesion_mask_dir = self._find_output('lesion_mask')

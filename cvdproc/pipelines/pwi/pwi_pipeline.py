@@ -13,6 +13,8 @@ from cvdproc.bids_data.rename_bids_file import rename_bids_file
 from cvdproc.pipelines.pwi.aif.auto_aif_nipype import AutoAIFFromPWI
 from cvdproc.pipelines.pwi.dsc_mri_toolbox.dsc_mri_nipype import DSCMRI, Conc
 
+from cvdproc.config.paths import get_package_path
+
 class PWIPipeline:
     """
     Postprocessing pipeline for Dynamic Susceptibility Contrast MRI (DSC-MRI) perfusion data (PWI).
@@ -27,7 +29,7 @@ class PWIPipeline:
                  session, 
                  output_path, 
                  use_which_pwi: str = "pwi", 
-                 dsc_mri_toolbox_path: str = None,
+                 #baseline_range: list = [0, 15],
                  extract_from: str = None,
                  **kwargs):
         """
@@ -38,7 +40,6 @@ class PWIPipeline:
             session (BIDSSession): A BIDS session object.
             output_path (str): Directory to save outputs.
             use_which_pwi (str, optional): Keyword to select the desired PWI file.
-            dsc_mri_toolbox_path (str, optional): Path to the MATLAB dsc-mri-toolbox.
             extract_from (str, optional): If extracting results, please provide it.
 
         """
@@ -46,8 +47,8 @@ class PWIPipeline:
         self.session = session
         self.output_path = os.path.abspath(output_path)
         self.use_which_pwi = use_which_pwi
-        self.dsc_mri_toolbox_path = dsc_mri_toolbox_path
         self.extract_from = extract_from
+        #self.baseline_range = baseline_range
 
     def check_data_requirements(self):
         return self.session.get_pwi_files() is not None
@@ -66,7 +67,7 @@ class PWIPipeline:
         if pwi_path is None:
             raise FileNotFoundError(f"No PWI file found with keyword '{self.use_which_pwi}' in session {self.session.session_id}.")
         pwi_path = os.path.abspath(pwi_path)
-        print('Using PWI file:', pwi_path)
+        print('[PWI Pipeline] Using PWI file:', pwi_path)
 
         pwi_img = pwi_path
         pwi_json = pwi_path.replace('.nii.gz', '.json')
@@ -77,7 +78,7 @@ class PWIPipeline:
         if 'EchoTime' in pwi_json_data and 'RepetitionTime' in pwi_json_data:
             echo_time = pwi_json_data['EchoTime']
             repetition_time = pwi_json_data['RepetitionTime']
-            print(f"EchoTime: {echo_time}, RepetitionTime: {repetition_time}")
+            print(f"[PWI Pipeline] EchoTime: {echo_time}, RepetitionTime: {repetition_time}")
         else:
             raise KeyError(f"EchoTime not found in JSON file {pwi_json}. Please ensure the PWI JSON file contains 'EchoTime'.")
 
@@ -85,7 +86,6 @@ class PWIPipeline:
         # Main Workflow #
         #################
         pwi_workflow = Workflow(name='pwi_workflow')
-        pwi_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}")
 
         # Input node
         input_node = Node(IdentityInterface(fields=['pwi_img', 'echo_time', 'repetition_time', 'dsc_mri_toolbox_path']),
@@ -93,7 +93,7 @@ class PWIPipeline:
         input_node.inputs.pwi_img = pwi_img
         input_node.inputs.echo_time = echo_time
         input_node.inputs.repetition_time = repetition_time
-        input_node.inputs.dsc_mri_toolbox_path = self.dsc_mri_toolbox_path
+        input_node.inputs.dsc_mri_toolbox_path = get_package_path('data', 'matlab_toolbox', 'dsc-mri-toolbox')
         
         # Get pwi mask
         synthstrip_node = Node(SynthStrip(), name='synthstrip_node')
@@ -120,7 +120,7 @@ class PWIPipeline:
         #auto_aif_node.inputs.output_conc = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'deltaR2s', '.nii.gz'))
         auto_aif_node.inputs.output_aif_vec = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'AIF', '.mat'))
         auto_aif_node.inputs.output_aif_roi = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'AIFmask', '.nii.gz'))
-        auto_aif_node.inputs.baseline_range = [0, 15]
+        #auto_aif_node.inputs.baseline_range = [0, 15]
 
         # Calculate PWI map
         pwi_map_node = Node(DSCMRI(), name='pwi_map_node')

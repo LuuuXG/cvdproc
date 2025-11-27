@@ -17,10 +17,10 @@ if strcmp(RunOptions.InputType, 'nifti')
     save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
     [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.qsm_map, 'QSM_map');
     save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
-    %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_para, 'vesselMask_para');
-    %save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
-    %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_dia, 'vesselMask_dia');
-    %save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
+    [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_para, 'vesselMask_para');
+    save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
+    [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_dia, 'vesselMask_dia');
+    save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
     %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.QSM, 'QSM');
     %save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
     %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.local_field, 'local_field');

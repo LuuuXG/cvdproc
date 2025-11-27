@@ -7,25 +7,46 @@ from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface
 from .freesurfer.recon_all_clinical import ReconAllClinical, CopySynthSR, PostProcess
 from .freesurfer.synthSR import SynthSR
+from cvdproc.pipelines.smri.freesurfer.subfieldseg import SegmentSubregions, SegmentHACross, SegmentBS, SegmentThalamic, HypothalamicSubunits
 
 from ...bids_data.rename_bids_file import rename_bids_file
 
 class FreesurferPipeline:
-    def __init__(self, subject, session, output_path, **kwargs):
+    def __init__(self, 
+                 subject: object, 
+                 session: object, 
+                 output_path: str, 
+                 use_which_t1w: str = "",
+                 subregion_ha: bool = False,
+                 subregion_thalamus: bool = False,
+                 subregion_brainstem: bool = False,
+                 subregion_hypothalamus: bool = False,
+                 **kwargs):
         """
         Freesurfer pipeline
+
+        Args:
+            subject (object): Subject object
+            session (object): Session object
+            output_path (str): Output path
+            use_which_t1w (str, optional): Use specific T1w file if multiple are available. Defaults to "".
+            subregion_ha (bool, optional): Whether to segment hippocampus and amygdala subregions. Defaults to False.
+            subregion_thalamus (bool, optional): Whether to segment thalamus subregions. Defaults to False.
+            subregion_brainstem (bool, optional): Whether to segment brainstem subregions. Defaults to False.
+            subregion_hypothalamus (bool, optional): Whether to segment hypothalamus subunits. Defaults to False.
         """
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
 
-        self.use_which_t1w = kwargs.get('use_which_t1w', None)
+        self.use_which_t1w = use_which_t1w
+
+        self.subregion_ha = subregion_ha
+        self.subregion_thalamus = subregion_thalamus
+        self.subregion_brainstem = subregion_brainstem
+        self.subregion_hypothalamus = subregion_hypothalamus
 
     def check_data_requirements(self):
-        """
-        check data requirements
-        :return: bool
-        """
         return self.session.get_t1w_files() is not None
     
     def create_workflow(self):
@@ -44,6 +65,8 @@ class FreesurferPipeline:
             t1w_files = [t1w_files[0]]
             t1w_file = t1w_files[0]
         
+        print(f"[FreesurferPipeline] Using T1w file: {t1w_file}")
+        
         fs_output_path = os.path.dirname(self.output_path)
         fs_output_id = os.path.basename(self.output_path)
         os.makedirs(fs_output_path, exist_ok=True)
@@ -60,12 +83,32 @@ class FreesurferPipeline:
 
         reconall_node = Node(ReconAll(), name="reconall")
         reconall_node.inputs.directive = "all"
-        reconall_node.inputs.flags = '-qcache'
+        reconall_node.inputs.flags = '-qcache -no-isrunning'
         fs_workflow.connect(inputnode, "t1w_file", reconall_node, "T1_files")
         fs_workflow.connect(inputnode, "fs_output_id", reconall_node, "subject_id")
         fs_workflow.connect(inputnode, "subjects_dir", reconall_node, "subjects_dir")
 
         fs_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
+
+        if self.subregion_ha:
+            segment_ha_node = Node(SegmentHACross(), name="segment_ha")
+            fs_workflow.connect(reconall_node, "subject_id", segment_ha_node, "subject_id")
+            fs_workflow.connect(reconall_node, "subjects_dir", segment_ha_node, "subjects_dir")
+        
+        if self.subregion_thalamus:
+            segment_thalamus_node = Node(SegmentThalamic(), name="segment_thalamus")
+            fs_workflow.connect(reconall_node, "subject_id", segment_thalamus_node, "subject_id")
+            fs_workflow.connect(reconall_node, "subjects_dir", segment_thalamus_node, "subjects_dir")
+        
+        if self.subregion_brainstem:
+            segment_brainstem_node = Node(SegmentBS(), name="segment_brainstem")
+            fs_workflow.connect(reconall_node, "subject_id", segment_brainstem_node, "subject_id")
+            fs_workflow.connect(reconall_node, "subjects_dir", segment_brainstem_node, "subjects_dir")
+        
+        if self.subregion_hypothalamus:
+            segment_hypothalamus_node = Node(HypothalamicSubunits(), name="segment_hypothalamus")
+            fs_workflow.connect(reconall_node, "subject_id", segment_hypothalamus_node, "s")
+            fs_workflow.connect(reconall_node, "subjects_dir", segment_hypothalamus_node, "sd")
 
         return fs_workflow
 
@@ -81,10 +124,6 @@ class FreesurferClinicalPipeline:
         self.use_which_t1w = kwargs.get('use_which_t1w', None)
 
     def check_data_requirements(self):
-        """
-        检查数据需求
-        :return: bool
-        """
         return self.session.get_t1w_files() is not None
         
     def create_workflow(self):
@@ -167,10 +206,6 @@ class SynthSRPipeline:
         self.use_which_t1w = kwargs.get('use_which_t1w', None)
 
     def check_data_requirements(self):
-        """
-        检查数据需求
-        :return: bool
-        """
         return self.session.get_t1w_files() is not None
 
     def create_workflow(self):

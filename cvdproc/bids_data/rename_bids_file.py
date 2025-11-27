@@ -3,28 +3,26 @@ import re
 
 def rename_bids_file(original_filename, entities, suffix, extension):
     """
-    重命名文件使其符合BIDS要求，自动提取所有实体，允许覆盖原有的实体和后缀。
-
-    :param original_filename: str, 原始文件名（例如：sub-AF1000077_ses-01_T1w.nii.gz）
-    :param entities: 字典，包含 BIDS 中的实体部分（例如：{'subject': 'AF1000077', 'session': '01'}）
-    :param suffix: 后缀（例如：'PVSlabel'）
-    :param extension: 文件扩展名（例如：'nii.gz'）
-
-    :return: 新的符合 BIDS 要求的文件名
+    Rename file to comply with BIDS requirements, automatically extract all entities, and allow overriding existing entities and suffix.
+    :param original_filename: str, original filename (e.g., sub-AF1000077_ses-01_T1w.nii.gz)
+    :param entities: dict, containing BIDS entities (e.g., {'subject': 'AF1000077', 'session': '01'})
+    :param suffix: suffix (e.g., 'PVSlabel')
+    :param extension: file extension (e.g., 'nii.gz')
+    :return: new filename compliant with BIDS requirements
     """
-    # 解析原始文件名
-    basename = os.path.basename(original_filename)  # 获取文件名，不包括路径
-    name, ext = os.path.splitext(basename)  # 分离文件名和扩展名
+    # Parse the original filename
+    basename = os.path.basename(original_filename)  # Get the filename without the path
+    name, ext = os.path.splitext(basename)  # Split the filename and extension
 
-    # 如果文件扩展名包含 .gz，继续分离
+    # If the file extension contains .gz, continue splitting
     if ext == '.gz':
         name, ext2 = os.path.splitext(name)
-        ext = ext2 + ext  # 将 .gz 与前面的扩展名合并为完整的扩展名
+        ext = ext2 + ext  # Combine .gz with the previous extension to form the complete extension
 
-    # 定义正则表达式，用于提取文件名中的实体部分
+    # Define regular expressions to extract entity parts from the filename
     entity_patterns = {
-        'sub': r"sub-([^_]+)",  # 匹配sub后的内容直到第一个下划线
-        'ses': r"ses-([^_]+)",  # 匹配ses后的内容直到第一个下划线
+        'sub': r"sub-([^_]+)",  # Match content after sub until the first underscore
+        'ses': r"ses-([^_]+)",  # Match content after ses until the first underscore
         'sample': r"sample-([^_]+)",
         'task': r"task-([^_]+)",
         'tracksys': r"tracksys-([^_]+)",
@@ -60,16 +58,16 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         'desc': r"desc-([^_]+)"
     }
 
-    # 创建一个字典来存储从文件名中提取的实体
+    # Create a dictionary to store entities extracted from the filename
     extracted_entities = {}
 
-    # 使用正则表达式从文件名中提取每个实体
+    # Use regular expressions to extract each entity from the filename
     for entity, pattern in entity_patterns.items():
         match = re.search(pattern, name)
         if match:
             extracted_entities[entity] = match.group(1)
 
-    # 使用新实体覆盖原实体，如果没有提供则保留原值
+    # Use new entities to override original entities, if not provided, keep the original values
     subject_id = entities.get('sub', extracted_entities.get('sub', None))
     session_id = entities.get('ses', extracted_entities.get('ses', None))
     sample_id = entities.get('sample', extracted_entities.get('sample', None))
@@ -106,10 +104,10 @@ def rename_bids_file(original_filename, entities, suffix, extension):
     param_id = entities.get('param', extracted_entities.get('param', None))
     desc_id = entities.get('desc', extracted_entities.get('desc', None))
 
-    # 生成新的文件名
+    # Generate new filename
     new_filename_parts = []
 
-    # 添加可选的实体部分
+    # Add optional entity parts
     if subject_id:
         new_filename_parts.append(f"sub-{subject_id}")
     if session_id:
@@ -183,19 +181,7 @@ def rename_bids_file(original_filename, entities, suffix, extension):
 
     new_filename_parts.append(f"{suffix}")
 
-    # 拼接新文件名
+    # Join the new filename parts
     new_filename = "_".join(new_filename_parts) + f"{extension}"
 
     return new_filename
-
-if __name__ == '__main__':
-    # 测试代码
-    original_filename = "/mnt/e/Neuroimage/demo_data/TWD_AF/derivatives/wmh_quantification/sub-HC0263/ses-01/sub-HC0263_ses-01_space-FLAIR_desc-truenetThr0p25_PWMHmask.nii.gz"
-    entities = {
-                'space': 'T1w',
-                }
-    suffix = "PWMHmask"
-    extension = ".nii.gz"
-
-    new_filename = rename_bids_file(original_filename, entities, suffix, extension)
-    print(new_filename)

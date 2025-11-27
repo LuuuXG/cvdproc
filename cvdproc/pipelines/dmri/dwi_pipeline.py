@@ -4,86 +4,177 @@ import json
 import nibabel as nib
 import numpy as np
 
-from nipype import Node, Workflow, MapNode
+from nipype import Node, Workflow, MapNode, Function
 from nipype.interfaces.utility import IdentityInterface, Merge
-from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, OrderEddyOutputs, DTIFit, RenameDTIFitOutputs, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters, DTIALPSsimple
+from .fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, OrderEddyOutputs, B0RefAndBrainMask, DTIFit, RenameDTIFitOutputs, PrepareBedpostx, Bedpostx, Tractography, ExtractSurfaceParameters
 from .synb0.synb0_nipype import Synb0
 from ..smri.mirror.mirror_nipype import MirrorMask
 from nipype.interfaces.fsl import FLIRT, ExtractROI, ConvertXFM
 from ..smri.fsl.fsl_anat_nipype import FSLANAT
 from nipype.interfaces.mrtrix3 import Tractography, MRConvert, DWIPreproc
+from cvdproc.pipelines.dmri.alps.alps_nipype import ALPS
+from cvdproc.pipelines.dmri.dsistudio.create_src_nipype import CreateSRC
+from cvdproc.pipelines.dmri.dsistudio.reconstruction_nipype import DSIstudioReconstruction
+from cvdproc.pipelines.dmri.dsistudio.tracking_nipype import DSIstudioTracking
+from cvdproc.pipelines.dmri.pved.pved_nipype import PVeD
 from cvdproc.pipelines.dmri.mrtrix3.tcksample_nipype import TckSampleCommand, CalculateMeanTckSample
 from cvdproc.pipelines.dmri.mrtrix3.denoise_degibbs_nipype import MrtrixDenoise, MrtrixDegibbs
 from cvdproc.pipelines.dmri.stats.dti_scalar_maps import GenerateWMMaskCommandLine, CalculateScalarMaps
 from cvdproc.pipelines.dmri.dipy.dipy_freewater_dti import FreeWaterTensor
+from cvdproc.pipelines.dmri.dipy.dipy_degibbs import DipyDegibbs
 from cvdproc.pipelines.dmri.freewater.single_shell_freewater import SingleShellFW
 from cvdproc.pipelines.dmri.freewater.markvcid_freewater import MarkVCIDFreeWater
+from cvdproc.pipelines.dmri.amico.amico_nipype import AmicoNoddi
 from ..common.mri_synthstrip import MRISynthstripCommandLine
 from cvdproc.pipelines.common.filter_existing import FilterExisting
 from cvdproc.pipelines.common.merge_filename import MergeFilename
 from cvdproc.pipelines.common.pad_dwi import PadDWI
+from cvdproc.pipelines.common.flip_b_table import FlipBTable
 from .psmd.psmd_nipype import PSMDCommandLine
+from cvdproc.pipelines.common.register import Tkregister2fs2t1w
+
+from cvdproc.config.paths import get_package_path
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
 class DWIPipeline:
-    def __init__(self, subject, session, output_path, **kwargs):
+    def __init__(self, 
+                 subject: object, 
+                 session: object, 
+                 output_path: str, 
+                 use_which_dwi: str = None,
+                 use_which_t1w: str = None,
+                 use_which_flair: str = None,
+                 preprocess: bool = False,
+                 output_resolution: float = 2.0,
+                 flip_b_table_axis: list = [],
+                 preprocess_method: str = 'fdt',
+                 synb0: bool = False,
+                 use_which_reverse_b0: str = None,
+                 dti_fit: bool = False,
+                 dsistudio_gqi: bool = False,
+                 dsistudio_qsdr: bool = False,
+                 amico_noddi: bool = False,
+                 tractography: str = '',
+                 seed_mask: str = 'lesion_mask',
+                 use_which_mask: str = None,
+                 tckgen_method: str = 'iFOD2',
+                 use_freesurfer_clinical: bool = False,
+                 dtialps: bool = False,
+                 dtialps_register_method: int = 1,
+                 pved: bool = False,
+                 freewater: list = [],
+                 psmd: bool = False,
+                 psmd_lesion_mask: str = None,
+                 use_which_psmd_lesion_mask: str = None,
+                 visual_pathway_analysis: bool = False,
+                 calculate_dwi_metrics: bool = False,
+                 exclude_seed_mask: bool = True,
+                 exclude_wmh_mask: bool = False,
+                 extract_from: str = None,
+                 **kwargs):
         """
         DWI pipeline
+
+        Args:
+            subject (object): Subject object
+            session (object): Session object
+            output_path (str): Output path
+            use_which_dwi (str, optional): Which DWI file to use. Defaults to None.
+            use_which_t1w (str, optional): Which T1w file to use. Defaults to None.
+            use_which_flair (str, optional): Which FLAIR file to use. Defaults to None.
+            preprocess (bool, optional): Whether to preprocess the DWI data. Defaults to False.
+            output_resolution (float, optional): Output resolution in mm. Defaults to 2.0.
+            flip_b_table_axis (list, optional): List of axes to flip the b-table. Defaults to [].
+            preprocess_method (str, optional): Preprocessing method. 'fdt' or 'mrtrix'. Defaults to 'fdt'.
+            synb0 (bool, optional): Whether to use Synb0 for TOPUP. Defaults to False.
+            use_which_reverse_b0 (str, optional): Which reverse b0 image to use. Defaults to None.
+            dti_fit (bool, optional): Whether to fit DTI model using FSL FDT. Defaults to True.
+            dsistudio_gqi (bool, optional): Whether to fit GQI model using DSI Studio. Defaults to False.
+            dsistudio_qsdr (bool, optional): Whether to fit QSDR model using DSI Studio. Defaults to False.
+            amico_noddi (bool, optional): Whether to fit NODDI model using AMICO. Defaults to False.
+            tractography (str, optional): Tractography method. 'prob' or 'det' or None. Defaults to None.
+            seed_mask (str, optional): Seed mask for tractography. 'lesion_mask', 'wmh_mask', 'custom_mask'. Defaults to 'lesion_mask'.
+            use_which_mask (str, optional): Which mask file to use if seed_mask is 'custom_mask'. Defaults to None.
+            tckgen_method (str, optional): Tractography algorithm. 'iFOD2', 'SD_Stream', etc. Defaults to 'iFOD2'.
+            use_freesurfer_clinical (bool, optional): Whether to use FreeSurfer Clinical directory. Defaults to False.
+            dtialps (bool, optional): Whether to perform DTI-ALPS analysis. Defaults to False.
+            dtialps_register_method (int, optional): Registration method for DTI-ALPS. 1 for FA + FLIRT, 2 for FA + synthmorph.
+            pved (bool, optional): Whether to perform PVeD analysis. Defaults to False.
+            freewater (list, optional): List of freewater estimation methods. 'single_shell', 'markvcid'. Defaults to [].
+            psmd (bool, optional): Whether to perform PSMD analysis. Defaults to False.
+            psmd_lesion_mask (str, optional): Lesion mask for PSMD calculation. Defaults to None.
+            use_which_psmd_lesion_mask (str, optional): Which lesion mask file to use for PSMD calculation. Defaults to None.
+            visual_pathway_analysis (bool, optional): Whether to perform visual pathway analysis. Defaults to False. (An ongoing project!)
+            calculate_dwi_metrics (bool, optional): Whether to calculate DWI scalar maps. Defaults to False.
+            exclude_seed_mask (bool, optional): Whether to exclude seed mask in DWI metrics calculation. Defaults to True.
+            exclude_wmh_mask (bool, optional): Whether to exclude WMH mask in DWI metrics calculation. Defaults to False.
+            extract_from (str, optional): Extract results from 'dti', 'gqi', 'qsdr'. Defaults to None.
         """
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
 
-        self.use_which_dwi = kwargs.get('use_which_dwi', None) # which dwi file to use
-        self.use_which_t1w = kwargs.get('use_which_t1w', None) # which t1w file to use
-        self.use_which_flair = kwargs.get('use_which_flair', None) # which flair file to use
+        self.use_which_dwi = use_which_dwi # which dwi file to use
+        self.use_which_t1w = use_which_t1w # which t1w file to use
+        self.use_which_flair = use_which_flair # which flair file to use
 
         # Preprocessing
-        self.preprocess = kwargs.get('preprocess', False) # whether to preprocess
-        self.preprocess_method = kwargs.get('preprocess_method', ['fdt']) # preprocessing method
-        self.synb0 = kwargs.get('synb0', False) # whether to use synthetic b0 image for TOPUP
-        self.use_which_reverse_b0 = kwargs.get('use_which_reverse_b0', None) # whether to use reverse b0 image for TOPUP. if synb0 is True, this will be ignored
+        self.preprocess = preprocess # whether to preprocess
+        self.output_resolution = output_resolution # output resolution in mm
+        self.flip_b_table_axis = flip_b_table_axis # axes to flip the b-table
+        self.preprocess_method = preprocess_method # preprocessing method
+        self.synb0 = synb0 # whether to use synthetic b0 image for TOPUP
+        self.use_which_reverse_b0 = use_which_reverse_b0 # whether to use reverse b0 image for TOPUP. if synb0 is True, this will be ignored
 
-        # DTI fit
-        self.dti_fit = kwargs.get('dti_fit', True) # whether to fit DTI model
+        # Renconstruction
+        self.dti_fit = dti_fit # whether to fit DTI model using FSL FDT
+        self.dsistudio_gqi = dsistudio_gqi # whether to fit GQI model using DSI Studio
+        self.dsistudio_qsdr = dsistudio_qsdr # whether to fit QSDR model using DSI Studio
+        self.amico_noddi = amico_noddi # whether to fit NODDI model using AMICO
 
         # ROI-based tractography
-        self.tractography = kwargs.get('tractography', None)
-        self.seed_mask = kwargs.get('seed_mask', 'lesion_mask') # seed mask for probabilistic tractography
-        self.use_which_mask = kwargs.get('use_which_mask', None) # which mask to use (in the processed DTI space)
-        self.tckgen_method = kwargs.get('tckgen_method', 'iFOD2')
-        self.use_freesurfer_clinical = kwargs.get('use_freesurfer_clinical', False) # whether to use freesurfer clinical directory. False will use freesurfer
+        self.tractography = tractography
+        self.seed_mask = seed_mask # seed mask for probabilistic tractography
+        self.use_which_mask = use_which_mask # which mask to use (in the processed DTI space)
+        self.tckgen_method = tckgen_method
+        self.use_freesurfer_clinical = use_freesurfer_clinical # whether to use freesurfer clinical directory. False will use freesurfer
 
         # DTI-ALPS
-        self.dtialps = kwargs.get('dtialps', False)
+        self.dtialps = dtialps
+        self.dtialps_register_method = dtialps_register_method # 1 for FA + FLIRT, 2 for T1 + FNIRT, 3 for T1 + Synthmorph
+
+        # PVeD
+        self.pved = pved
 
         # Freewater
-        self.freewater = kwargs.get('freewater', [])
+        self.freewater = freewater
 
         # PSMD
-        self.psmd = kwargs.get('psmd', False)
-        self.psmd_lesion_mask = kwargs.get('psmd_lesion_mask', None) # Mask to exclude in PSMD calculation
-        self.use_which_psmd_lesion_mask = kwargs.get('use_which_psmd_lesion_mask', None)
+        self.psmd = psmd
+        self.psmd_lesion_mask = psmd_lesion_mask # Mask to exclude in PSMD calculation
+        self.use_which_psmd_lesion_mask = use_which_psmd_lesion_mask
+
+        # Visual Pathway Analysis (an ongoing project!)
+        self.visual_pathway_analysis = visual_pathway_analysis
 
         # Calculate scalar maps
-        self.calculate_dwi_metrics = kwargs.get('calculate_dwi_metrics', False) # whether to calculate DWI metrics
-        self.exclude_seed_mask = kwargs.get('exclude_seed_mask', True) # whether to exclude seed mask in DWI metrics calculation
-        self.exclude_wmh_mask = kwargs.get('exclude_wmh_mask', False) # whether to exclude WMH mask in DWI metrics calculation
+        self.calculate_dwi_metrics = calculate_dwi_metrics # whether to calculate DWI metrics
+        self.exclude_seed_mask = exclude_seed_mask # whether to exclude seed mask in DWI metrics calculation
+        self.exclude_wmh_mask = exclude_wmh_mask # whether to exclude WMH mask in DWI metrics calculation
 
         # extract results
-        self.extract_from = kwargs.get('extract_from', None)
+        self.extract_from = extract_from
 
         #### Not user configurable ####
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
         self.script_path2 = os.path.join(base_dir, 'bash', 'fdt_fs_processing.sh') # FreeSurfer processing
-        self.alps_script_path = os.path.join(base_dir, 'external', 'alps', 'alps_custom.sh') # DTI-ALPS
         self.psmd_skeleton_mask = os.path.join(base_dir, 'external', 'psmd', 'skeleton_mask_2019.nii.gz')
 
     def check_data_requirements(self):
         """
-        检查数据需求
+        check if the required data is available
         :return: bool
         """
         return self.session.get_dwi_files() is not None and self.session.get_t1w_files() is not None
@@ -132,7 +223,7 @@ class DWIPipeline:
             dwi_files = first_complete_group
 
         dwi_files_dict = {file['type']: file['path'] for file in dwi_files}
-        print(f"Using DWI files: {dwi_files_dict}")
+        print(f"[DWI Pipeline] Using DWI files: {dwi_files_dict}")
 
         dwi_image = dwi_files_dict['dwi']
         dwi_json = dwi_files_dict['json']
@@ -191,7 +282,7 @@ class DWIPipeline:
             if len(t1w_files) != 1:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
-            print(f"Using T1w: {t1w_file}")
+            print(f"[DWI Pipeline] Using T1w: {t1w_file}")
         else:
             t1w_files = [t1w_files[0]]
             t1w_file = t1w_files[0]
@@ -205,22 +296,35 @@ class DWIPipeline:
                 #raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
                 print(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
             flair_file = flair_files[0]
-            print(f"Using FLAIR: {flair_file}")
+            print(f"[DWI Pipeline] Using FLAIR: {flair_file}")
         else:
             # flair_files = [flair_files[0]]
             # flair_file = flair_files[0]
             print(f"No specific FLAIR file selected. If you want to include a FLAIR file, please specify it.")
 
+        print("[DWI Pipeline] Output resolution set to {} mm.".format(self.output_resolution))
+        print("[DWI Pipeline] Filp b-table axis: {}.".format(self.flip_b_table_axis))
+
         if self.use_freesurfer_clinical:
             fs_output = self.session.freesurfer_clinical_dir
         else:
             fs_output = self.session.freesurfer_dir
+        # if fs_output exists
+        if fs_output is None:
+            fs_subjects_dir = ''
+            fs_subject_id = ''
+        else:
+            fs_subjects_dir = os.path.dirname(fs_output)
+            fs_subject_id = os.path.basename(fs_output)
+        
+        if self.pved:
+            # must run QSDR reconstruction first
+            self.dsistudio_qsdr = True
         
         ################
         # dwi_workflow #
         ################
         dwi_workflow = Workflow(name='dwi_workflow')
-        dwi_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}")
 
         inputnode = Node(IdentityInterface(fields=['bids_dir', 't1w_file',
                                                    'dwi_file', 'bval_file',
@@ -228,6 +332,7 @@ class DWIPipeline:
                                                    'output_path', 
                                                    'phase_encoding_number', 'total_readout_time', 
                                                    'fs_output', 'seed_mask_dtispace',
+                                                   'fs_subjects_dir', 'fs_subject_id',
                                                    'fs_processing_dir']), name="inputnode")
         
         inputnode.inputs.bids_dir = self.subject.bids_dir
@@ -239,6 +344,9 @@ class DWIPipeline:
         inputnode.inputs.output_path = self.output_path
         inputnode.inputs.phase_encoding_number = phase_encoding_direction_dict[phase_encoding_direction]
         inputnode.inputs.total_readout_time = total_readout_time
+        inputnode.inputs.fs_output = fs_output
+        inputnode.inputs.fs_subjects_dir = fs_subjects_dir
+        inputnode.inputs.fs_subject_id = fs_subject_id
 
         ############################################
         #               Prerocessing               #
@@ -251,12 +359,13 @@ class DWIPipeline:
         b0_all_node = Node(IdentityInterface(fields=['b0_all', 'acqparam']), name='b0_all')
 
         # Node to store preprocessed DWI data
-        preproc_dwi_node = Node(IdentityInterface(fields=['preproc_dwi', 'bvec', 'bval', 'dwi_mask']), name='preproc_dwi')
+        preproc_dwi_node = Node(IdentityInterface(fields=['preproc_dwi', 'bvec', 'bval', 'dwi_mask',
+                                                          'b0', 'preproc_t1w']) # These two used for QSIPrep output
+                                                          , name='preproc_dwi')
         
         if self.preprocess:
             # Padding: make sure the slices in the z direction are even
             # If no need to pad, the output will be the same as input
-            # TODO: change to use fslroi
             padding_node = Node(PadDWI(), name='padding')
             dwi_workflow.connect(inputnode, 'dwi_file', padding_node, 'in_dwi')
             dwi_workflow.connect(inputnode, 'bvec_file', padding_node, 'in_bvec')
@@ -271,12 +380,17 @@ class DWIPipeline:
             dwi_workflow.connect(padding_node, 'out_bval', denoise_node, 'dwi_bval')
             denoise_node.inputs.output_dir = preproc_intermediate_dir
 
-            # Degibbs using MRtrix3
-            degibbs_node = Node(MrtrixDegibbs(), name='degibbs')
-            dwi_workflow.connect(denoise_node, 'output_dwi_img', degibbs_node, 'dwi_img')
-            dwi_workflow.connect(denoise_node, 'output_dwi_bvec', degibbs_node, 'dwi_bvec')
-            dwi_workflow.connect(denoise_node, 'output_dwi_bval', degibbs_node, 'dwi_bval')
-            degibbs_node.inputs.output_dir = preproc_intermediate_dir
+            # # Degibbs using MRtrix3
+            # degibbs_node = Node(MrtrixDegibbs(), name='degibbs')
+            # dwi_workflow.connect(denoise_node, 'output_dwi_img', degibbs_node, 'dwi_img')
+            # dwi_workflow.connect(denoise_node, 'output_dwi_bvec', degibbs_node, 'dwi_bvec')
+            # dwi_workflow.connect(denoise_node, 'output_dwi_bval', degibbs_node, 'dwi_bval')
+            # degibbs_node.inputs.output_dir = preproc_intermediate_dir
+
+            # Degibbs using DIPY
+            degibbs_node = Node(DipyDegibbs(), name='degibbs')
+            dwi_workflow.connect(denoise_node, 'output_dwi_img', degibbs_node, 'dwi_file')
+            degibbs_node.inputs.output_dwi = os.path.join(preproc_intermediate_dir, 'dwi_degibbs.nii.gz')
 
             # Get b0 image for TOPUP
             # Need a b0_all image and acqparam.txt file for FSL TOPUP
@@ -332,16 +446,18 @@ class DWIPipeline:
                 dwi_workflow.connect([
                     (extract_b0_node, create_dwi_mask_node, [('roi_file', 'input_file')])
                 ])
-                dwi_mask_filepath = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
+                #dwi_mask_filepath = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
+                dwi_mask_filepath = os.path.join(preproc_intermediate_dir, 'dwi_brain_mask.nii.gz')
                 create_dwi_mask_node.inputs.mask_file = dwi_mask_filepath
 
                 create_index_node = Node(IndexTxt(), name='create_index')
-                dwi_workflow.connect(degibbs_node, 'output_dwi_bval', create_index_node, 'bval_file')
+                dwi_workflow.connect(denoise_node, 'output_dwi_bval', create_index_node, 'bval_file')
                 create_index_node.inputs.output_dir = preproc_intermediate_dir
 
                 eddy_node = Node(EddyCuda(), name='eddy')
                 dwi_workflow.connect([
-                    (degibbs_node, eddy_node, [('output_dwi_img', 'dwi_file'), ('output_dwi_bvec', 'bvec_file'), ('output_dwi_bval', 'bval_file')]),
+                    (degibbs_node, eddy_node, [('output_dwi_img', 'dwi_file')]),
+                    (denoise_node, eddy_node, [('output_dwi_bvec', 'bvec_file'), ('output_dwi_bval', 'bval_file')]),
                     (b0_all_node, eddy_node, [('acqparam', 'acqparam_file')]),
                     (create_index_node, eddy_node, [('index_file', 'index_file')]),
                     (create_dwi_mask_node, eddy_node, [('mask_file', 'mask_file')]),
@@ -352,14 +468,29 @@ class DWIPipeline:
                 order_eddy_outputs_node = Node(OrderEddyOutputs(), name='order_eddy_outputs')
                 dwi_workflow.connect(eddy_node, 'output_filename', order_eddy_outputs_node, 'eddy_output_filename')
                 dwi_workflow.connect(eddy_node, 'bvals', order_eddy_outputs_node, 'bval')
+                order_eddy_outputs_node.inputs.output_resolution = self.output_resolution
                 dwi_workflow.connect(eddy_node, 'eddy_output_dir', order_eddy_outputs_node, 'eddy_output_dir')
                 dwi_workflow.connect(inputnode, 'output_path', order_eddy_outputs_node, 'new_output_dir')
                 order_eddy_outputs_node.inputs.new_output_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '')
 
+                flip_b_table_node = Node(FlipBTable(), name='flip_b_table')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bvec', flip_b_table_node, 'in_bvec')
+                flip_b_table_node.inputs.filp_axis = self.flip_b_table_axis
+                flip_b_table_node.inputs.out_bvec = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bvec'))
+
+                create_b0ref_and_brainmask_node = Node(B0RefAndBrainMask(), name='create_b0ref_and_brainmask')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_dwi', create_b0ref_and_brainmask_node, 'input_dwi')
+                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bval', create_b0ref_and_brainmask_node, 'input_bval')
+                create_b0ref_and_brainmask_node.inputs.output_dir = self.output_path
+                create_b0ref_and_brainmask_node.inputs.output_b0_filename = rename_bids_file(dwi_image, {"space": "preprocdwi"}, 'dwiref', '.nii.gz')
+                create_b0ref_and_brainmask_node.inputs.output_b0_mask_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz')
+
                 dwi_workflow.connect(order_eddy_outputs_node, 'ordered_dwi', preproc_dwi_node, 'preproc_dwi')
-                dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bvec', preproc_dwi_node, 'bvec')
+                dwi_workflow.connect(flip_b_table_node, 'out_bvec', preproc_dwi_node, 'bvec')
                 dwi_workflow.connect(order_eddy_outputs_node, 'ordered_bval', preproc_dwi_node, 'bval')
-                dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')                    
+                dwi_workflow.connect(create_b0ref_and_brainmask_node, 'b0_brain_mask', preproc_dwi_node, 'dwi_mask')
+
+                preproc_dwi_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz')
             elif self.preprocess_method == 'mrtrix3':
                 # Get b0_all.mif
                 convert_b0_all_mif_node = Node(MRConvert(), name='convert_b0_all_mif')
@@ -371,8 +502,8 @@ class DWIPipeline:
                 # Convert denoised and degibbsed DWI to mif
                 convert_denoised_degibbs_mif_node = Node(MRConvert(), name='convert_denoised_degibbs_mif')
                 dwi_workflow.connect(degibbs_node, 'output_dwi_img', convert_denoised_degibbs_mif_node, 'in_file')
-                dwi_workflow.connect(degibbs_node, 'output_dwi_bvec', convert_denoised_degibbs_mif_node, 'in_bvec')
-                dwi_workflow.connect(degibbs_node, 'output_dwi_bval', convert_denoised_degibbs_mif_node, 'in_bval')
+                dwi_workflow.connect(denoise_node, 'output_dwi_bvec', convert_denoised_degibbs_mif_node, 'in_bvec')
+                dwi_workflow.connect(denoise_node, 'output_dwi_bval', convert_denoised_degibbs_mif_node, 'in_bval')
                 convert_denoised_degibbs_mif_node.inputs.out_file = os.path.join(preproc_intermediate_dir, 'dwi_denoise_degibbs.mif')
                 convert_denoised_degibbs_mif_node.inputs.args = '-force'
 
@@ -413,11 +544,57 @@ class DWIPipeline:
                 dwi_workflow.connect(convert_preproc_dwi_node, 'out_bvec', preproc_dwi_node, 'bvec')
                 dwi_workflow.connect(convert_preproc_dwi_node, 'out_bval', preproc_dwi_node, 'bval')
                 dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')
+
+                preproc_dwi_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz')
+        elif not self.preprocess and self.preprocess_method == 'post_qsiprep':
+            # search for preprocessed dwi in qsiprep output
+            qsiprep_dwi_path = os.path.join(self.subject.bids_dir, 'derivatives', 'qsiprep', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", 'dwi')
+            # *space-ACPC_desc-preproc_dwi.nii.gz *space-ACPC_desc-preproc_dwi.bvec *space-ACPC_desc-preproc_dwi.bval *space-ACPC_desc-brain_mask.nii.gz
+            target_dwi = None
+            for file in os.listdir(qsiprep_dwi_path):
+                if file.endswith('_desc-preproc_dwi.nii.gz'):
+                    target_dwi = os.path.join(qsiprep_dwi_path, file)
+                    break
+            if target_dwi is None:
+                raise FileNotFoundError(f"No preprocessed DWI file found in qsiprep output: {qsiprep_dwi_path}")
+            target_bvec = target_dwi.replace('_dwi.nii.gz', '_dwi.bvec')
+            target_bval = target_dwi.replace('_dwi.nii.gz', '_dwi.bval')
+            target_mask = target_dwi.replace('_desc-preproc_dwi.nii.gz', '_desc-brain_mask.nii.gz')
+            if not os.path.exists(target_bvec) or not os.path.exists(target_bval) or not os.path.exists(target_mask):
+                raise FileNotFoundError(f"bvec, bval or brain mask file not found in qsiprep output: {qsiprep_dwi_path}")
+                
+            # search for preprocessed t1w in qsiprep output
+            # situation 1: qsiprep/sub-XXX/anat/sub-XXX_space-ACPC_desc-preproc_T1w.nii.gz (subject-wise)
+            # situation 2: qsiprep/sub-XXX/ses-YYY/anat/sub-XXX_ses-YYY_space-ACPC_desc-preproc_T1w.nii.gz (session-wise)
+            qsiprep_t1w_path1 = os.path.join(self.subject.bids_dir, 'derivatives', 'qsiprep', f"sub-{self.subject.subject_id}", 'anat', f"sub-{self.subject.subject_id}_space-ACPC_desc-preproc_T1w.nii.gz")
+            qsiprep_t1w_path2 = os.path.join(self.subject.bids_dir, 'derivatives', 'qsiprep', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", 'anat', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-ACPC_desc-preproc_T1w.nii.gz")
+            if os.path.exists(qsiprep_t1w_path1):
+                target_t1w = qsiprep_t1w_path1
+            elif os.path.exists(qsiprep_t1w_path2):
+                target_t1w = qsiprep_t1w_path2
+            else:
+                raise FileNotFoundError(f"No preprocessed T1w file found in qsiprep output: {qsiprep_t1w_path1} or {qsiprep_t1w_path2}")
+                
+            # check QSIPrep outputs
+            print(f"[DWI Pipeline] You selected to use QSIPrep preprocessed DWI and T1w images.")
+            print(f"[DWI Pipeline] Found preprocessed DWI: {target_dwi}")
+            print(f"[DWI Pipeline] Found preprocessed T1w: {target_t1w}")
+                
+            preproc_dwi_node.inputs.preproc_dwi = target_dwi
+            preproc_dwi_node.inputs.bvec = target_bvec
+            preproc_dwi_node.inputs.bval = target_bval
+            preproc_dwi_node.inputs.dwi_mask = target_mask
+            preproc_dwi_node.inputs.b0 = target_dwi.replace('_desc-preproc_dwi.nii.gz', '_dwiref.nii.gz')
+            preproc_dwi_node.inputs.preproc_t1w = target_t1w
+
+            preproc_dwi_filename = rename_bids_file(dwi_image, {"space": "ACPC", "desc": "preproc"}, 'dwi', '.nii.gz')
         else:
             preproc_dwi_node.inputs.preproc_dwi = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz'))
             preproc_dwi_node.inputs.bvec = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bvec'))
             preproc_dwi_node.inputs.bval = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.bval'))
             preproc_dwi_node.inputs.dwi_mask = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "brain"}, 'mask', '.nii.gz'))
+
+            preproc_dwi_filename = rename_bids_file(dwi_image, {"space": "preprocdwi", "desc": "preproc"}, 'dwi', '.nii.gz')
 
         ##########################
         #         DTI fit        #
@@ -427,12 +604,12 @@ class DWIPipeline:
         if self.dti_fit:
             dtifit_output_dir = os.path.join(self.output_path, 'dtifit')
 
-            target_fa_output = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "fa"}, 'dwimap', '.nii.gz'))
+            target_fa_output = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "fa"}, 'dwimap', '.nii.gz'))
             if os.path.exists(target_fa_output):
                 print(f"DTI FA image already exists: {target_fa_output}. Skipping DTI fit.")
                 dti_fit_output_node.inputs.fa_img = target_fa_output
-                dti_fit_output_node.inputs.md_img = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "md"}, 'dwimap', '.nii.gz'))
-                dti_fit_output_node.inputs.tensor_img = os.path.join(dtifit_output_dir, rename_bids_file(dwi_image, {"space": "preprocdwi", "model": "tensor", "param": "tensor"}, 'dwimap', '.nii.gz'))
+                dti_fit_output_node.inputs.md_img = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "md"}, 'dwimap', '.nii.gz'))
+                dti_fit_output_node.inputs.tensor_img = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "tensor"}, 'dwimap', '.nii.gz'))
             else:
                 dti_fit_node = Node(DTIFit(), name='dti_fit')
                 dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', dti_fit_node, 'dwi_file')
@@ -443,11 +620,56 @@ class DWIPipeline:
 
                 rename_dtifit_outputs_node = Node(RenameDTIFitOutputs(), name='rename_dtifit_outputs')
                 dwi_workflow.connect(dti_fit_node, 'output_basename', rename_dtifit_outputs_node, 'dtifit_output_basename')
-                dwi_workflow.connect(inputnode, 'dwi_file', rename_dtifit_outputs_node, 'dwi_file')
+                dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', rename_dtifit_outputs_node, 'dwi_file')
 
                 dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_fa', dti_fit_output_node, 'fa_img')
                 dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_md', dti_fit_output_node, 'md_img')
                 dwi_workflow.connect(rename_dtifit_outputs_node, 'dti_tensor', dti_fit_output_node, 'tensor_img')
+        
+        ##############################
+        #  DSI Studio Reconstruction #
+        ##############################
+        if self.dsistudio_gqi or self.dsistudio_qsdr:
+            # first need to convert to .src.gz format
+            os.makedirs(os.path.join(self.output_path, 'dsistudio'), exist_ok=True)
+            create_src_node = Node(CreateSRC(), name='create_src')
+            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', create_src_node, 'source')
+            create_src_node.inputs.output = os.path.join(self.output_path, 'dsistudio', rename_bids_file(preproc_dwi_filename, {"desc": None, "desc": "preproc"}, 'dwi', '.src.gz'))
+
+            if self.dsistudio_gqi:
+                gqi_reconstruction_node = Node(DSIstudioReconstruction(), name='gqi_reconstruction')
+                dwi_workflow.connect(create_src_node, 'out_file', gqi_reconstruction_node, 'source')
+                gqi_reconstruction_node.inputs.method = 4
+                gqi_reconstruction_node.inputs.other_output = 'fa,ad,rd,md,iso,rdi,nrdi,tensor'
+                gqi_reconstruction_node.inputs.output = os.path.join(self.output_path, 'dsistudio', rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "gqi"}, 'dwimap', '.fib.gz'))
+            
+            if self.dsistudio_qsdr:
+                qsdr_reconstruction_node = Node(DSIstudioReconstruction(), name='qsdr_reconstruction')
+                dwi_workflow.connect(create_src_node, 'out_file', qsdr_reconstruction_node, 'source')
+                qsdr_reconstruction_node.inputs.method = 7
+                qsdr_reconstruction_node.inputs.qsdr_reso = 2.0
+                qsdr_reconstruction_node.inputs.other_output = 'fa,ad,rd,md,iso,rdi,nrdi,tensor'
+                qsdr_reconstruction_node.inputs.output = os.path.join(self.output_path, 'dsistudio', rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "qsdr"}, 'dwimap', '.fib.gz'))
+
+        ###############
+        # AMICO NODDI #
+        ###############
+        if self.amico_noddi:
+            amico_output_dir = os.path.join(self.output_path, 'NODDI')
+
+            amico_noddi_node = Node(AmicoNoddi(), name='amico_noddi')
+            dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', amico_noddi_node, 'dwi')
+            dwi_workflow.connect(preproc_dwi_node, 'bval', amico_noddi_node, 'bval')
+            dwi_workflow.connect(preproc_dwi_node, 'bvec', amico_noddi_node, 'bvec')
+            dwi_workflow.connect(preproc_dwi_node, 'dwi_mask', amico_noddi_node, 'mask')
+            amico_noddi_node.inputs.output_dir = amico_output_dir
+            amico_noddi_node.inputs.direction_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'direction'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.icvf_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'icvf'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.isovf_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'isovf'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.od_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'odi'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.modulated_icvf_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'ModulatedICVF'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.modulated_od_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi", 'param': 'ModulatedODI'}, 'dwimap', '.nii.gz')
+            amico_noddi_node.inputs.config_filename = rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "noddi"}, 'config', '.pickle')
 
         #########################################################################
         # 2. Tractography: Designed for lesion-based probabilistic tractography #
@@ -631,20 +853,26 @@ class DWIPipeline:
         ############
         # DTI-ALPS #
         ############
-        if self.dtialps:
-            # script: alps_custom.sh
-            dtialps_output_dir = os.path.join(self.output_path, 'DTI-ALPS')
-            
-            dtialps_node = Node(DTIALPSsimple(), name='dtialps')
-            dtialps_node.inputs.perform_roi_analysis = '1'
-            dtialps_node.inputs.use_templete = '1'
-            dwi_workflow.connect(dti_fit_output_node, 'fa_img', dtialps_node, 'fa_file')
-            dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dtialps_node, 'tensor_file')
-            dwi_workflow.connect(dti_fit_output_node, 'md_img', dtialps_node, 'md_file')
-            dwi_workflow.connect(inputnode, 't1w_file', dtialps_node, 't1w_file')
-            dtialps_node.inputs.alps_input_dir = dtialps_output_dir
-            dtialps_node.inputs.skip_preprocessing = '1'
-            dtialps_node.inputs.alps_script_path = self.alps_script_path
+        if self.dtialps and self.preprocess_method != 'post_qsiprep':
+            dti_alps_node = Node(ALPS(), name='dti_alps')
+            dwi_workflow.connect(dti_fit_output_node, 'fa_img', dti_alps_node, 'fa_img')
+            dti_alps_node.inputs.output_dir = os.path.join(self.output_path, 'DTI-ALPS')
+            dti_alps_node.inputs.alps_dir = get_package_path("pipelines", "external", "alps")
+            # self.dtialps_register_method: 1 for 'flirt', 2 for 'synthmorph'
+            dti_alps_node.inputs.register_method = 'flirt' if self.dtialps_register_method == 1 else 'synthmorph' if self.dtialps_register_method == 2 else 'ants'
+            dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dti_alps_node, 'tensor_img')
+
+        ########
+        # PVeD #
+        ########
+        if self.pved:
+            pved_node = Node(PVeD(), name='pved')
+
+            dwi_workflow.connect(qsdr_reconstruction_node, 'out_file', pved_node, 'qsdr_fib_file')
+            pved_node.inputs.output_dir = os.path.join(self.output_path, 'PVeD')
+            pved_node.inputs.script_path = get_package_path("pipelines", "matlab", "pved", "pved_single.m")
+            pved_node.inputs.spm_path = get_package_path("data", "matlab_toolbox", "spm12")
+            pved_node.inputs.pved_path = get_package_path("data", "matlab_toolbox", "EstPVeD", 'MATLAB', 'pkg_pved_est')
         
         ##########################
         #       Free Water       #
@@ -726,6 +954,96 @@ class DWIPipeline:
 
                 psmd_node.inputs.lesion_mask = psmd_lesion_mask
             psmd_node.inputs.output_dir = psmd_output_dir
+        
+        ###########################
+        # Visual Pathway Analysis #
+        ###########################
+        if self.visual_pathway_analysis:
+            vpa_output_dir = os.path.join(self.output_path, 'visual_pathway_analysis')
+            os.makedirs(vpa_output_dir, exist_ok=True)
+            if self.preprocess_method == 'post_qsiprep':
+                qsirecon_output_dir = self.session._find_output('qsirecon-DSIStudio')
+                gqi_fib = os.path.join(qsirecon_output_dir, 'dwi', rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "gqi"}, 'dwimap', '.fib.gz'))
+                if not os.path.exists(gqi_fib):
+                    raise FileNotFoundError(f"GQI .fib.gz file not found in {qsirecon_output_dir}. Please run QSIRecon with DSIStudio reconstruction first.")
+
+                # 1. Prepare affine transforms (fs->T1w and T1w->T1w_in_DWI)
+                vpa_fs_to_t1w_xfm_node = Node(Tkregister2fs2t1w(), name='vpa_fs_to_t1w_xfm')
+                dwi_workflow.connect(inputnode, 'fs_subjects_dir', vpa_fs_to_t1w_xfm_node, 'fs_subjects_dir')
+                dwi_workflow.connect(inputnode, 'fs_subject_id', vpa_fs_to_t1w_xfm_node, 'fs_subject_id')
+                vpa_fs_to_t1w_xfm_node.inputs.output_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-fs_to-T1w_xfm.mat")
+                vpa_fs_to_t1w_xfm_node.inputs.output_inverse_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-fs_xfm.mat")
+
+                # 2. Prepare ROIs
+                from cvdproc.pipelines.dmri.vp_project.prepare_roi_nipype import PrepareVPROI
+                prepare_vp_roi_node = Node(PrepareVPROI(), name='prepare_vp_roi')
+                dwi_workflow.connect(inputnode, 'fs_output', prepare_vp_roi_node, 'fs_output_dir')
+                dwi_workflow.connect(vpa_fs_to_t1w_xfm_node, 'output_matrix', prepare_vp_roi_node, 'fs_to_orig_mat')
+                dwi_workflow.connect(inputnode, 't1w_file', prepare_vp_roi_node, 't1w_ref')
+                dwi_workflow.connect(preproc_dwi_node, 'preproc_t1w', prepare_vp_roi_node, 'dwi_ref')
+                dwi_workflow.connect(preproc_dwi_node, 'b0', prepare_vp_roi_node, 'dwi_final_ref')
+                prepare_vp_roi_node.inputs.output_dir = os.path.join(vpa_output_dir, 'rois')
+
+                # 3. ROI Tractography
+                raw_track_output_dir = os.path.join(vpa_output_dir, 'raw_tracts')
+                os.makedirs(raw_track_output_dir, exist_ok=True)
+                lh_or_track_node = Node(DSIstudioTracking(), name='lh_or_track')
+                lh_or_track_node.inputs.source = gqi_fib
+                lh_or_track_node.inputs.output = os.path.join(raw_track_output_dir, 'lh_OR.tt.gz')
+                lh_or_track_node.inputs.thread_count = 8
+                lh_or_track_node.inputs.tract_count = 5000
+                lh_or_track_node.inputs.max_length = 125
+                lh_or_track_node.inputs.args = '--tip_iteration=1 --method=1 --seed_count=1000000'
+                dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dil1_roi', lh_or_track_node, 'seed')
+                dwi_workflow.connect(prepare_vp_roi_node, 'lh_v1_roi', lh_or_track_node, 'end')
+
+                rh_or_track_node = Node(DSIstudioTracking(), name='rh_or_track')
+                rh_or_track_node.inputs.source = gqi_fib
+                rh_or_track_node.inputs.output = os.path.join(raw_track_output_dir, 'rh_OR.tt.gz')
+                rh_or_track_node.inputs.thread_count = 8
+                rh_or_track_node.inputs.tract_count = 5000
+                rh_or_track_node.inputs.max_length = 125
+                rh_or_track_node.inputs.args = '--tip_iteration=1 --method=1 --seed_count=1000000'
+                dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dil1_roi', rh_or_track_node, 'seed')
+                dwi_workflow.connect(prepare_vp_roi_node, 'rh_v1_roi', rh_or_track_node, 'end')
+
+                lh_ot_track_node = Node(DSIstudioTracking(), name='lh_ot_track')
+                lh_ot_track_node.inputs.source = gqi_fib
+                lh_ot_track_node.inputs.output = os.path.join(raw_track_output_dir, 'lh_OT.tt.gz')
+                lh_ot_track_node.inputs.thread_count = 8
+                lh_ot_track_node.inputs.tract_count = 1000
+                lh_ot_track_node.inputs.max_length = 60
+                lh_ot_track_node.inputs.args = '--tip_iteration=1 --method=1 --seed_count=1000000'
+                dwi_workflow.connect(prepare_vp_roi_node, 'optic_chiasm_dil1_roi', lh_ot_track_node, 'seed')
+                dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_roi', lh_ot_track_node, 'end')
+
+                rh_ot_track_node = Node(DSIstudioTracking(), name='rh_ot_track')
+                rh_ot_track_node.inputs.source = gqi_fib
+                rh_ot_track_node.inputs.output = os.path.join(raw_track_output_dir, 'rh_OT.tt.gz')
+                rh_ot_track_node.inputs.thread_count = 8
+                rh_ot_track_node.inputs.tract_count = 1000
+                rh_ot_track_node.inputs.max_length = 60
+                rh_ot_track_node.inputs.args = '--tip_iteration=1 --method=1 --seed_count=1000000'
+                dwi_workflow.connect(prepare_vp_roi_node, 'optic_chiasm_dil1_roi', rh_ot_track_node, 'seed')
+                dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_roi', rh_ot_track_node, 'end')
+
+                # 4. Refine tracts with ROIs
+                from cvdproc.pipelines.dmri.vp_project.refine_vp_nipype import RefineVP
+                vp_refine_node = Node(RefineVP(), name='vp_refine')
+                dwi_workflow.connect(lh_or_track_node, 'output', vp_refine_node, 'lh_or')
+                dwi_workflow.connect(lh_ot_track_node, 'output', vp_refine_node, 'lh_ot')
+                dwi_workflow.connect(rh_or_track_node, 'output', vp_refine_node, 'rh_or')
+                dwi_workflow.connect(rh_ot_track_node, 'output', vp_refine_node, 'rh_ot')
+                dwi_workflow.connect(prepare_vp_roi_node, 'optic_chiasm_dil1_roi', vp_refine_node, 'cho_roi')
+                dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dil1_roi', vp_refine_node, 'lh_lgn_roi')
+                dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dil1_roi', vp_refine_node, 'rh_lgn_roi')
+                dwi_workflow.connect(prepare_vp_roi_node, 'lh_v1_roi', vp_refine_node, 'lh_v1_roi')
+                dwi_workflow.connect(prepare_vp_roi_node, 'rh_v1_roi', vp_refine_node, 'rh_v1_roi')
+                vp_refine_node.inputs.output_dir = os.path.join(vpa_output_dir)
+                vp_refine_node.inputs.output_lh_ot = 'lh_OT_final.tt.gz'
+                vp_refine_node.inputs.output_rh_ot = 'rh_OT_final.tt.gz'
+                vp_refine_node.inputs.output_lh_or = 'lh_OR_final.tt.gz'
+                vp_refine_node.inputs.output_rh_or = 'rh_OR_final.tt.gz'
         
         #########################
         # Calculate DWI metrics #

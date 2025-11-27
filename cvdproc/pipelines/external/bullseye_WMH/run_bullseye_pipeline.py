@@ -89,7 +89,7 @@ def main():
     if args.debug:
         bullseye_pipeline.write_graph(graph2use='colored', simple_form=True)
 
-    bullseye_pipeline.run(plugin='MultiProc', plugin_args={'n_procs' : args.processes})
+    bullseye_pipeline.run(plugin='Linear', plugin_args={'n_procs' : args.processes})
 
 
     print('Done bullseye pipeline!!!')

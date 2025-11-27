@@ -20,7 +20,7 @@ class AutoAIFFromPWIInputSpec(BaseInterfaceInputSpec):
     output_aif_vec = File(mandatory=True, desc='Output path for the AIF vector file')
     output_aif_roi = File(mandatory=True, desc='Output path for the AIF ROI file')
     baseline_range = Either(
-        (list, tuple), None, mandatory=True, desc='Range of baseline values for AIF selection, e.g., [0, 10]')
+        (list, tuple), None, mandatory=False, desc='Range of baseline values for AIF selection, e.g., [0, 10]')
 
 class AutoAIFFromPWIOutputSpec(TraitedSpec):
     #output_conc = File(exists=True, desc='Path to the output concentration image')

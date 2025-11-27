@@ -28,7 +28,8 @@ dependencies = [
     "scienceplots>=1.0.9",
     "rich",
     "openpyxl",
-    "pydicom"
+    "pydicom",
+    "pytest"
 ]
 
 [project.scripts]

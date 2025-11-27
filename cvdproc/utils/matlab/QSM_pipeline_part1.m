@@ -11,7 +11,7 @@ gpuDevice() % must see the GPU info by gpuDevice()
 
 % 2: Download onnxconverter Add-on, and then install it.
 % Deep Learning Toolbox Converter for ONNX Model Format (https://kr.mathworks.com/matlabcentral/fileexchange/67296-deep-learning-toolbox-converter-for-onnx-model-format)
-% I have put the install file in [cvdproc_dir]/cvdproc/data/matlab_toolbox/onnxconverter.mlpkginstall
+% I have put the install file in <cvdproc_dir>/cvdproc/data/matlab_toolbox/onnxconverter.mlpkginstall
 % open it in matlab to install it.
 
 % 3: functions and toolbox have been packaged in cvdproc
@@ -20,19 +20,20 @@ gpuDevice() % must see the GPU info by gpuDevice()
 % 4: Input data: in BIDS format (such as described in: https://sepia-documentation.readthedocs.io/en/latest/getting_started/Data-preparation.html)
 %% All parameters needed to define by users
 % paths
-bids_root_dir = 'F:/BIDS/7T_SVD';
-subject_id = 'SVD7TNEW02';
-session_id = '01';
+bids_root_dir = 'F:/BIDS/WCH_AF_Project';
+subject_id = 'HC0261';
+session_id = 'baseline';
 cvdproc_dir = 'E:/Codes/cvdproc';
 FS_HOME = '/usr/local/freesurfer/7-dev';
 ants_path = ""; % currently not used
 
 % process settings
-phase_image_correction = true; % set to true For GE phase data
-reverse_phase = 1; % set to 1 For GE phase data
+phase_image_correction = false; % set to true For GE phase data
+reverse_phase = 0; % set to 1 For GE phase data
 
 %% ----------------------00 Load Funtions---------------------------
 chisep_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'Chisep_Toolbox_v1.2');
+vesselseg_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'Chisep_Toolbox_v1.2', 'models');
 sepia_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'sepia');
 sti_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'STISuite_V3.0');
 medi_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'MEDI_toolbox');
@@ -52,6 +53,7 @@ addpath(genpath(segue_path));
 addpath(genpath(mrisc_path));
 addpath(genpath(fansi_path));
 addpath(genpath(chisep_path));
+addpath(genpath(vesselseg_path));
 
 if ispc
     mritools_path = mritools_win_path;
@@ -472,7 +474,7 @@ end
 
 unwrapped_phase_average_data = weightedSum / TE_eff * (TE_s(2)-TE_s(1)) .* brain_mask_data;
 unwrapped_phase_average = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_part-phase_unwrapped_weighted_average.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, unwrapped_phase_average, unwrapped_phase_average_data);
+save_nii_img_only(unwrapped_phase_raw, unwrapped_phase_average, unwrapped_phase_average_data);
 
 % ------------------------02 backgroud field remove------------------------
 info = niftiinfo(unwrapped_phase_average);
@@ -483,9 +485,9 @@ local_field_hz_data = double(local_field_data) / (2*pi*delta_TE);
 local_field = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_localfield.nii.gz', subject_id, session_id));
 local_field_hz = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_localfield_hz.nii.gz', subject_id, session_id));
 mask_qsm = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_QSM.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, local_field, local_field_data);
-save_nii_img_only(brain_mask, local_field_hz, local_field_hz_data);
-save_nii_img_only(brain_mask, mask_qsm, brain_mask_new_data);
+save_nii_img_only(unwrapped_phase_raw, local_field, local_field_data);
+save_nii_img_only(unwrapped_phase_raw, local_field_hz, local_field_hz_data);
+save_nii_img_only(unwrapped_phase_raw, mask_qsm, brain_mask_new_data);
 
 % -----------------------------03 raw QSM----------------------------------
 pad_size = [12, 12, 12];
@@ -501,7 +503,7 @@ QSM_data = QSM_iLSQR( ...
 );
 
 QSM = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-raw_Chimap.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, QSM, QSM_data);
+save_nii_img_only(unwrapped_phase_raw, QSM, QSM_data);
 
 % -----------------------------04 ChiSep-----------------------------------
 RunOptions = struct();
@@ -563,6 +565,7 @@ Data.x_dia(Data.x_dia < 0) = 0;
 Data.r2p_map(Data.r2p_map < 0) = 0;
 
 % % vessel seg
+[Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
 % % Params for vessel enhancement filter (MFAT, Default)
 % params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
 % params.spacing = Data.VoxelSize;
@@ -605,28 +608,28 @@ chidia_old = fullfile(qsm_output_dir, 'ChiDia.nii');
 chipara_old = fullfile(qsm_output_dir, 'ChiPara.nii');
 chitotal_old = fullfile(qsm_output_dir, 'ChiTot.nii');
 chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
-% vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
-% vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
+vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
+vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
 
 chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
 chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
 chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
-chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-Chisep_Chimap.nii.gz', subject_id, session_id));
-% vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
-% vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
+chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-QSMnet_Chimap.nii.gz', subject_id, session_id));
+vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
+vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
 
 convert_nii_to_gz(chidia_old,   chidia);
 convert_nii_to_gz(chipara_old,  chipara);
 convert_nii_to_gz(chitotal_old, chitotal);
 convert_nii_to_gz(chimap_old,   chimap);
-% convert_nii_to_gz(vesseldia_old,   vesseldia);
-% convert_nii_to_gz(vesselpara_old,   vesselpara);
+convert_nii_to_gz(vesseldia_old,   vesseldia);
+convert_nii_to_gz(vesselpara_old,   vesselpara);
 
 delete(chidia_old);
 delete(chipara_old);
 delete(chitotal_old);
 delete(chimap_old);
-% delete(vesseldia_old);
-% delete(vesselpara_old);
+delete(vesseldia_old);
+delete(vesselpara_old);
 
 % all done !

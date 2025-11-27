@@ -8,12 +8,14 @@ import pandas as pd
 from nipype import Node, Workflow
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
 from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool, Int, Str
+from traits.api import Bool, Int, Str, List
 
 from scipy.ndimage import label, sum
 
 from cvdproc.utils.python.basic_image_processor import extract_roi_from_image, calculate_volume
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
+
+from cvdproc.config.paths import get_package_path
 
 '''
 Different methods of WMH location quantification
@@ -465,28 +467,52 @@ class Bullseyes(CommandLine):
 
         return outputs
 
+#############
+# Bullseye2 #
+#############
+# https://github.com/JoanBalado/WMH_Bullseye
+
+class Bullseye2InputSpec(CommandLineInputSpec):
+    subject_id = Str(mandatory=True, desc="Subject ID", argstr='%s', position=0)
+    source_dir = Str(mandatory=True, desc="Path to the source directory", argstr='%s', position=1)
+    subjects_dir = Str(mandatory=True, desc="Path to the FreeSurfer subjects directory", argstr='%s', position=2)
+    output_dir = Str(mandatory=True, desc="Path to the output directory", argstr='%s', position=3)
+
+class Bullseye2OutputSpec(TraitedSpec):
+    bullseye_wmparc = Str(desc="Path to the Bullseye WMParc file")
+    bullseye_wmparc_bis = Str(desc="Path to the Bullseye WMParc bis file")
+    lobar_wmparc = Str(desc="Path to the Lobar WMParc file")
+    lobar_wmparc_bis = Str(desc="Path to the Lobar WMParc bis file")
+
+    file_list = List(Str, desc="List of output files")
+
+class Bullseye2(CommandLine):
+    input_spec = Bullseye2InputSpec
+    output_spec = Bullseye2OutputSpec
+    _cmd = 'bash ' + get_package_path('pipelines', 'external', 'WMH_Bullseye', 'bullseye_pipeline_custom.sh')
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['bullseye_wmparc'] = os.path.abspath(os.path.join(self.inputs.output_dir, f'bullseye_parcellation.nii.gz'))
+        outputs['bullseye_wmparc_bis'] = os.path.abspath(os.path.join(self.inputs.output_dir, f'bullseye_parcellation_bis.nii.gz'))
+        outputs['lobar_wmparc'] = os.path.abspath(os.path.join(self.inputs.output_dir, f'lobar_aseg_masked.nii.gz'))
+        outputs['lobar_wmparc_bis'] = os.path.abspath(os.path.join(self.inputs.output_dir, f'lobar_aseg_masked_bis.nii.gz'))
+
+        outputs['file_list'] = [
+            outputs['bullseye_wmparc'],
+            outputs['bullseye_wmparc_bis'],
+            outputs['lobar_wmparc'],
+            outputs['lobar_wmparc_bis']
+        ]
+
+        return outputs
+
 if __name__ == "__main__":
-    # bullseyes = Bullseyes()
-    # bullseyes.inputs.fs_output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/freesurfer/sub-TAOHC0261'
-    # bullseyes.inputs.fs_subject_id = 'ses-baseline'
-    # bullseyes.inputs.output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
-    # bullseyes.inputs.work_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
-    # bullseyes.inputs.threads = 1
-    # res = bullseyes.run()
-    from cvdproc.pipelines.external.bullseye_WMH.bullseye_pipeline import create_bullseye_pipeline
+    bullseye_node = Node(Bullseye2(), name='bullseye_node')
+    bullseye_node.inputs.subject_id = 'ses-baseline'
+    bullseye_node.inputs.source_dir = '/mnt/e/codes/cvdproc/cvdproc/pipelines/external/WMH_Bullseye'
+    bullseye_node.inputs.subjects_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/freesurfer/sub-AFib0241'
+    bullseye_node.inputs.output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/wmh_quantification/sub-AFib0241/ses-baseline/bullseye'
 
-    bullseye_wmh_workflow = create_bullseye_pipeline(
-        scans_dir='/mnt/f/BIDS/demo_BIDS/derivatives/freesurfer/sub-TAOHC0261',
-        work_dir='/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261',
-        outputdir='/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261',
-        subject_ids=None)
-    print("Inputs:\n", bullseye_wmh_workflow.inputs.inputnode)
-
-    test_wf = Workflow(name='test_bullseye_wmh')
-    inputnode = Node(IdentityInterface(fields=['fs_subject_id']), name='inputnode')
-    inputnode.inputs.fs_subject_id = 'ses-baseline'
-
-    test_wf.connect(inputnode, 'fs_subject_id', bullseye_wmh_workflow, 'inputnode.subject_ids')
-
-    test_wf.base_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/anat_seg/sub-TAOHC0261/ses-baseline/synthseg'
-    res = test_wf.run()
+    res = bullseye_node.run()
+    print(res.outputs)

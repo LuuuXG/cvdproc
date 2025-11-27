@@ -157,3 +157,35 @@ class TwoStepNormalization(CommandLine):
         outputs['outputs_in_struct'] = outputs_in_t1w
         outputs['outputs_in_mni'] = outputs_in_mni
         return outputs
+
+###############
+# tkregister2 #
+###############
+
+# tkregister2 --mov "${FS_OUTPUT}/mri/orig.mgz" \
+#             --targ "${FS_OUTPUT}/mri/rawavg.mgz" \
+#             --regheader \
+#             --reg junk \
+#             --fslregout "${OUTPUT_DIR}/freesurfer2struct.mat" \
+#             --noedit
+
+class Tkregister2fs2t1wInputSpec(CommandLineInputSpec):
+    fs_subjects_dir = Directory(exists=True, desc="Freesurfer SUBJECTS_DIR", argstr="%s", mandatory=True, position=0)
+    fs_subject_id = Str(desc="Freesurfer subject ID", argstr="%s", mandatory=True, position=1)
+    output_matrix = Str(desc="Output matrix filename (.mat)", argstr="%s", mandatory=True, position=2)
+    output_inverse_matrix = Str(desc="Output inverse matrix filename (.mat)", argstr="%s", mandatory=True, position=3)
+
+class Tkregister2fs2t1wOutputSpec(TraitedSpec):
+    output_matrix = File(desc="Output matrix filename (.mat)")
+    output_inverse_matrix = File(desc="Output inverse matrix filename (.mat)")
+
+class Tkregister2fs2t1w(CommandLine):
+    _cmd = 'bash ' + os.path.join(os.path.dirname(__file__), '..', 'bash', 'freesurfer', 'tkregister2fs2t1w.sh')
+    input_spec = Tkregister2fs2t1wInputSpec
+    output_spec = Tkregister2fs2t1wOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_matrix'] = os.path.abspath(self.inputs.output_matrix)
+        outputs['output_inverse_matrix'] = os.path.abspath(self.inputs.output_inverse_matrix)
+        return outputs

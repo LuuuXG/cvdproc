@@ -10,6 +10,7 @@ nav:
   - Pipelines: 
       - Overview: pipelines/index.md
       - Structural MRI (sMRI) Pipelines: 
+          - Freesurfer Pipeline: pipelines/sMRI/freesurfer.md
           - Anatomical Segmentation: pipelines/sMRI/anat_seg.md
           - WMH Quantification: pipelines/sMRI/wmh_quantification.md
           - PVS Quantification: pipelines/sMRI/pvs_quantification.md

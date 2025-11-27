@@ -280,7 +280,7 @@
   
   
   <span class="md-ellipsis">
-    DCM2BIDS
+    Dicom2BIDS
     
   </span>
   
@@ -291,7 +291,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
-            DCM2BIDS
+            Dicom2BIDS
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -524,12 +524,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../pipelines/sMRI/pvs_quantification/" class="md-nav__link">
+      <a href="../../pipelines/sMRI/anat_seg/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    PVS Quantification
+    Anatomical Segmentation
     
   </span>
   
@@ -553,6 +553,29 @@
   
   <span class="md-ellipsis">
     WMH Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/sMRI/pvs_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PVS Quantification
     
   </span>
   
@@ -685,6 +708,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/qMRI/sepia_qsm/" class="md-nav__link">
         
   
@@ -781,6 +827,28 @@
           </ul>
         </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Containers
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -913,9 +981,18 @@
 <div class="highlight"><pre><span></span><code># You need to specify the BIDS root folder here
 bids_dir: /mnt/f/BIDS/demo_wmh
 ## You need to specify the dcm2bids configuration file here
-dcm2bids: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
+dcm2bids: 
+  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
 </code></pre></div>
-<p>Remember to change the <code>bids_dir</code> and <code>dcm2bids</code> paths to your own paths. The <code>bids_dir</code> is the root folder of your BIDS dataset, and the <code>dcm2bids</code> is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the <code>sourcedata</code> folder of the BIDS root directory. For example, if you have a folder named <code>DICOM_01</code> containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to <code>/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01</code>. The final folder structure should look like this:</p>
+<p>Remember to change the <code>bids_dir</code> and <code>config_file</code> paths to your own paths. The <code>bids_dir</code> is the root folder of your BIDS dataset, and the <code>config_file</code> is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the <code>sourcedata</code> folder of the BIDS root directory. For example, if you have a folder named <code>DICOM_01</code> containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to <code>/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01</code>. The final folder structure should look like this:</p>
+<div class="highlight"><pre><span></span><code>/mnt/f/BIDS/demo_wmh
+├── code
+│   ├── config.yml
+│   └── dcm2bids_config.json
+├── sourcedata
+│   └── DICOM_01
+└── .bidsignore
+</code></pre></div>
 <div class="admonition info dicom folder">
 <p class="admonition-title">Info</p>
 <p>Because the original DICOM images obtained in actual research may have different structures, the file structure under the subject's DICOM folder may vary. However, it should be noted that there is no need to preprocess the subfolders under the DICOM folder in advance (for example, a common practice is to make one subfolder correspond to one scanning sequence). This is because <code>dcm2bids</code> will convert all DICOM files found under the folder, even if only a few sequences are specified in the json file (so, for example, when EPI sequences with DWI or multi-echo GRE sequences are included, the conversion time may take several minutes, but fortunately, theoretically, such conversion only needs to be done once).</p>

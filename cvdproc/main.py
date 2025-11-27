@@ -61,55 +61,26 @@ def main():
         bids_dir = args.bids_dir
         processor = Dcm2BidsProcessor(bids_dir)
         processor.initialize()
-        print("BIDS initialization completed.")
 
-        subjects_info_json = os.path.join(bids_dir, 'participants.json')
-        subjects_info = os.path.join(bids_dir, 'participants.tsv')
-
-        participants_json_content = {
-            "subject": {
-                "LongName": "",
-                "Description": "subject ID (with 'sub-' prefix)"
-            },
-            "session": {
-                "LongName": "",
-                "Description": "session ID (with 'ses-' prefix)"
-            },
-            "name": {
-                "LongName": "",
-                "Description": "name of the participant (Extract from DICOM tag 'Patient's Name')"
-            },
-            "id": {
-                "LongName": "",
-                "Description": "identifier of the participant (Extract from DICOM tag 'Patient's ID')"
-            },
-            "date": {
-                "LongName": "",
-                "Description": "study date of the participant (Extract from DICOM tag 'Study Date')"
-            },
-            "age": {
-                "LongName": "",
-                "Description": "age of the participant (Extract from DICOM tag 'Patient's Age')"
-            },
-            "sex": {
-                "LongName": "",
-                "Description": "sex of the participant (Extract from DICOM tag 'Patient's Sex')",
-                "Levels": {
-                    "M": "male",
-                    "F": "female"
-                }
-            }
-        }
-
-        with open(subjects_info_json, 'w') as f:
-            json.dump(participants_json_content, f, indent=4)
-        print("participants.json file created.")
-
-        # overwrite participants.tsv with header only
-        # the subjects_info file should contain columns: subject, session, age, sex.
-        with open(subjects_info, 'w') as f:
-            f.write("subject\tsession\tname\tid\tdate\tage\tsex\n")
-        print("participants.tsv file created with header only.")
+        # add .bidsignore with additional common ignores
+        bidsignore_file = os.path.join(bids_dir, '.bidsignore')
+        additional_ignores = [
+            "tmp_dcm2bids/",
+            "sub-*/ses-*/swi/",
+            "sub-*/ses-*/qsm/",
+            "sub-*/ses-*/pwi/",
+            "sub-*/ses-*/dwimap/"
+        ]
+        if os.path.exists(bidsignore_file):
+            with open(bidsignore_file, 'r') as f:
+                existing_ignores = f.read().splitlines()
+        else:
+            existing_ignores = []
+        with open(bidsignore_file, 'a') as f:
+            for ignore in additional_ignores:
+                if ignore not in existing_ignores:
+                    f.write(ignore + '\n')
+        print(".bidsignore file updated.")
 
     # === DICOM to BIDS ===
     if args.run_dcm2bids:
@@ -145,7 +116,9 @@ def main():
                 config_file=dcm2bids_config["config_file"],
                 dicom_directory=dicom_dir,
                 subject_id=subject_id,
-                session_id=session_id
+                session_id=session_id,
+                ignore_patterns=dcm2bids_config.get("ignore", []),
+                keep_temp=dcm2bids_config.get("keep_filtered_dicom", False),
             )
 
             # --- Update: Extract the first DICOM file and update participants.tsv ---
@@ -159,9 +132,23 @@ def main():
             fix_config = dcm2bids_config.get("dwi_fix_bvecbval", [])
             if fix_config:
                 processor.fix_dwi_bvec_bval(subject_id, session_id, fix_config)
+            
+            # Optional: fix aslcontext
+            aslcontext_config = dcm2bids_config.get("perf_fix_aslcontext", [])
+            if aslcontext_config:
+                processor.fix_perf_aslcontext(subject_id, session_id, aslcontext_config)
 
-            # Optional: fix IntendedFor
-            #processor.fix_intendedfor_for_subject_session(subject_id, session_id)
+            # Optional: deface anat images
+            # if dcm2bids_config 'deface_anat' is set to True
+            deface_anat = dcm2bids_config.get("deface_anat", False)
+            if deface_anat:
+                processor.deface_anat(subject_id, session_id, suffix_list=['T1w', 'T2w', 'FLAIR'])
+
+            # Optional: fix IntendedFor (for nipreps)
+            # if dcm2bids_config 'fix_intendedfor' is set to True
+            fix_intendedfor = dcm2bids_config.get("fix_intendedfor", False)
+            if fix_intendedfor:
+                processor.fix_intendedfor_for_subject_session(subject_id, session_id)
 
         print("DICOM to BIDS conversion completed.") 
     
@@ -228,7 +215,7 @@ def main():
 
             # Set output path
             output_path = os.path.join(output_base, args.pipeline, f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-            #os.makedirs(output_path, exist_ok=True)
+            os.makedirs(output_path, exist_ok=True)
 
             # Get pipeline object and create workflow
             manager = PipelineManager()

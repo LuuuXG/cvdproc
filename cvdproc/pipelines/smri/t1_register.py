@@ -66,7 +66,6 @@ class T1RegisterPipeline:
         inputnode.inputs.t1_mni_out = os.path.join(self.output_path, rename_bids_file(t1w_file, {'space': 'MNI'}, 'T1w', '.nii.gz'))
         inputnode.inputs.t1_2_mni_warp = os.path.join(self.output_path, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI_warp.nii.gz')
         inputnode.inputs.mni_2_t1_warp = os.path.join(self.output_path, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
-        inputnode.inputs.t1_stripped = False
 
         register_node = Node(SynthmorphNonlinear(), name='synthmorph_register')
         t1_register_wf.connect(inputnode, 't1', register_node, 't1')
@@ -74,7 +73,6 @@ class T1RegisterPipeline:
         t1_register_wf.connect(inputnode, 't1_mni_out', register_node, 't1_mni_out')
         t1_register_wf.connect(inputnode, 't1_2_mni_warp', register_node, 't1_2_mni_warp')
         t1_register_wf.connect(inputnode, 'mni_2_t1_warp', register_node, 'mni_2_t1_warp')
-        t1_register_wf.connect(inputnode, 't1_stripped', register_node, 't1_stripped')
         t1_register_wf.connect(inputnode, 'register_between_stripped', register_node, 'register_between_stripped')
 
         return t1_register_wf

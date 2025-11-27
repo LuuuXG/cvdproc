@@ -32,7 +32,7 @@ The detailed parameters for each pipeline can be found in the respective documen
 ## Currently Available Pipelines
 
 ### Structural MRI (sMRI) Pipelines
-- [x] Freesurfer recon-all (freesurfer)
+- [x] Freesurfer recon-all ([freesurfer](./sMRI/freesurfer.md))
 - [x] FSL anat (fsl_anat)
 - [x] T1w Registration to MNI space (t1_register)
 - [x] Anatomical Segmentation ([anat_seg](./sMRI/anat_seg.md))

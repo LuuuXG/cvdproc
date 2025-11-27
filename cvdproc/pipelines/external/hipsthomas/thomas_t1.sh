@@ -1,7 +1,7 @@
 #!/bin/bash
 # Wrapper for running HIPS THOMAS in docker container for T1 MPRAGE or SPGR files.
 #
-DK_IMG=anagrammarian/sthomas
+DK_IMG=anagrammarian/sthomas:latest
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 T1-input-image"
