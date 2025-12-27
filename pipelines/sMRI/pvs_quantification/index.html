@@ -12,7 +12,7 @@
         <link rel="prev" href="../wmh_quantification/">
       
       
-        <link rel="next" href="../../dMRI/lqt_pipeline/">
+        <link rel="next" href="../../dMRI/dwi_pipeline/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -433,6 +433,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../freesurfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Freesurfer Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../anat_seg/" class="md-nav__link">
         
   
@@ -488,6 +511,19 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    PVS Quantification
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -499,6 +535,58 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      PVSSegmentationPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PVSSegmentationPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -550,6 +638,29 @@
             Diffusion MRI (dMRI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dMRI/dwi_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DWI Preprocessing and Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -772,6 +883,28 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../publications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -792,6 +925,47 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      PVSSegmentationPipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PVSSegmentationPipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -807,6 +981,293 @@
 
 
 <h1 id="pvs_quantification">pvs_quantification</h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline" class="doc doc-heading">
+            <code>PVSSegmentationPipeline</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.__init__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__init__</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>PVS Segmentation Pipeline</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>subject</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BIDSSubject object</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>session</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>BIDSSession object</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>output directory for the pipeline</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_t1w</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>specific string to select T1w image, e.g. 'acq-highres'. If None, use the first T1w image found.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_flair</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>specific string to select FLAIR image, e.g. 'acq-highres'. If None, use the first FLAIR image found.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>'SHIVA' or 'segcsvd'</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;segcsvd&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>modality</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>'T1w' or 'T1w+FLAIR'. Applicable when method is 'SHIVA'.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;T1w&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>shiva_config</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>path to SHIVA configuration file. Applicable when method is 'SHIVA'.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_wmh</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to use existing WMH segmentation for PVS segmentation. Applicable when method is 'segcsvd'.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>extract_from</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>path to the output directory from which to extract results. (Currently only for 'segcsvd' outputs)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline.PVSSegmentationPipeline.check_data_requirements" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">check_data_requirements</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>:return: bool</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div><hr />
+<h1 id="a-more-detailed-description">A more detailed description:</h1>
 <p>Current SHiVAi pipeline (2025-06) seems to have problem handling html/pdf reports (for example, when facing NaN value). A workaround is to modify the code in <code>post.py</code> to simply skip the report generation step, which is not critical for the pipeline to run.</p>
 <div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SummaryReport</span><span class="p">(</span><span class="n">BaseInterface</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Make a summary report of preprocessing and prediction&quot;&quot;&quot;</span>

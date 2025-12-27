@@ -9,10 +9,8 @@
       
       
       
-        <link rel="prev" href="../installation/">
+        <link rel="prev" href="../containers/">
       
-      
-        <link rel="next" href="../dcm2bids/dcm2bids/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -20,7 +18,7 @@
     
     
       
-        <title>Usage - cvdproc</title>
+        <title>Publications - cvdproc</title>
       
     
     
@@ -64,7 +62,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#usage" class="md-skip">
+        <a href="#publications" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +98,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Usage
+              Publications
             
           </span>
         </div>
@@ -237,19 +235,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
         
   
   
@@ -260,7 +249,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -818,10 +806,32 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../publications/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Publications
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -832,6 +842,35 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-choroidal-vascular-volume-white-matter-hyperintensity-and-their-interaction-with-cognitive-function-in-aging-adults" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Choroidal Vascular Volume, White Matter Hyperintensity, and Their Interaction With Cognitive Function in Aging Adults
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -856,6 +895,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-choroidal-vascular-volume-white-matter-hyperintensity-and-their-interaction-with-cognitive-function-in-aging-adults" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Choroidal Vascular Volume, White Matter Hyperintensity, and Their Interaction With Cognitive Function in Aging Adults
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -870,16 +926,11 @@
 
 
 
-<h1 id="usage">Usage</h1>
-<p><strong>Please refer to the different pages for specific functions:</strong></p>
-<p>If you need to create a BIDS dataset from DICOM files, please refer to:</p>
-<ul>
-<li><a href="../dcm2bids/dcm2bids/">dcm2bids</a>: Create BIDS dataset from DICOM files.</li>
-</ul>
-<p>Or if you already have a dataset in BIDS format, you can use the following functions:</p>
-<ul>
-<li><a href="../pipelines/">Pipelines</a>: Different pipelines for MRI preprocessing and analysis.</li>
-</ul>
+<h1 id="publications">Publications</h1>
+<h2 id="1-choroidal-vascular-volume-white-matter-hyperintensity-and-their-interaction-with-cognitive-function-in-aging-adults">1. Choroidal Vascular Volume, White Matter Hyperintensity, and Their Interaction With Cognitive Function in Aging Adults</h2>
+<p><a href="https://www.ahajournals.org/doi/10.1161/JAHA.124.039369">Choroidal Vascular Volume, White Matter Hyperintensity, and Their Interaction With Cognitive Function in Aging Adults</a></p>
+<p>The idea of this study was inspired by SMART-MR series studies (e.g., <a href="https://alz-journals.onlinelibrary.wiley.com/doi/10.1002/alz.13345">Keller et al.</a>, <a href="https://www.neurology.org/doi/10.1212/WNL.0000000000011827">Ghaznawi et al.</a>). Their work found that shape features of WMH better reflect cognitive decline than traditional volume metrics. We wondered whether the microvascular condition of the eye (assessed by OCTA imaging) is also associated with the shape features of WMH and reflects cognitive function.</p>
+<p>The code is now implemented in the <a href="../pipelines/sMRI/wmh_quantification/">wmh_quantification</a> pipeline. For WMH segmention, we used the LST-LPA method with FLAIR images. For shape features, the source code is in <a href="../cvdproc/pipelines/smri/csvd_quantification/wmh/wmh_shape_nipype.py">wmh_shape_nipype.py</a>.</p>
 
 
 
