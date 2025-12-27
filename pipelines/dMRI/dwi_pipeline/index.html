@@ -1990,9 +1990,15 @@
 <p>FSL FDT <code>dtifit</code> is used to fit the diffusion tensor model and calculate DTI-derived metrics, including FA, MD, AD, RD, and tensor mode.</p>
 <h4 id="free-water-elimination-dti-model-fitting">Free Water Elimination DTI Model Fitting</h4>
 <p>Three available options:
- - Set 'markvcid_freewater' in <code>freewater</code> (<strong>Recommended</strong>): <a href="https://markvcid.partners.org/sites/default/files/markvcid2/protocols/MarkVCID_FW_Kit_Protocol_v6.12.23.pdf">MarkVCID2 MRI Free Water (FW)</a>. As it has been validated on MarkVCID2 study [^maillard2022mri] and external datasets [^lin2025longitudinal].
- - Set 'single_shell_freewater' in <code>freewater</code>: <a href="https://github.com/sameerd/DiffusionTensorImaging">Single Shell Free Water Elimination Diffusion Tensor Model</a>
- - Set 'dti_freewater' in <code>freewater</code>: <a href="https://docs.dipy.org/stable/examples_built/reconstruction/reconst_fwdti.html">DIPY free water elimination model</a>. Multi-shell DWI data is required for this method. For our clinical analysis, we mainly focus on the free water component rather than the free water-corrected DTI metrics, this method is not that practical as multi-shell DWI can directly use NODDI model to characterize extracellular water distribution (ISO/FW).</p>
+- Set 'markvcid_freewater' in <code>freewater</code> (<strong>Recommended</strong>): <a href="https://markvcid.partners.org/sites/default/files/markvcid2/protocols/MarkVCID_FW_Kit_Protocol_v6.12.23.pdf">MarkVCID2 MRI Free Water (FW)</a>. As it has been validated on MarkVCID2 study <sup id="fnref:maillard2022mri"><a class="footnote-ref" href="#fn:maillard2022mri">1</a></sup> and external datasets <sup id="fnref:lin2025longitudinal"><a class="footnote-ref" href="#fn:lin2025longitudinal">2</a></sup>.</p>
+<ul>
+<li>
+<p>Set 'single_shell_freewater' in <code>freewater</code>: <a href="https://github.com/sameerd/DiffusionTensorImaging">Single Shell Free Water Elimination Diffusion Tensor Model</a></p>
+</li>
+<li>
+<p>Set 'dti_freewater' in <code>freewater</code>: <a href="https://docs.dipy.org/stable/examples_built/reconstruction/reconst_fwdti.html">DIPY free water elimination model</a>. Multi-shell DWI data is required for this method. For our clinical analysis, we mainly focus on the free water component rather than the free water-corrected DTI metrics, this method is not that practical as multi-shell DWI can directly use NODDI model to characterize extracellular water distribution (ISO/FW).</p>
+</li>
+</ul>
 <h4 id="noddi-model-fitting">NODDI Model Fitting</h4>
 <p><a href="https://github.com/daducci/AMICO">AMICO</a> (Accelerated Microstructure Imaging via Convex Optimization) is used to fit the NODDI model and calculate NODDI-derived metrics, including ICVF, ISOVF, and ODI.</p>
 <h4 id="dsi-model-fitting">DSI Model Fitting</h4>
@@ -2003,12 +2009,12 @@
 <p>If corresponding Freesurfer <code>recon-all</code> results are available, some extra processing will be performed for possible subsequent connectome analysis (see below).</p>
 <h3 id="dwi-derived-metrics">DWI-derived Metrics</h3>
 <h4 id="psmd">PSMD</h4>
-<p>PSMD (Peak Width of Skeletonized Mean Diffusivity), considered a marker of white matter injury, is calculated using <a href="https://github.com/isdneuroimaging/psmd">psmd</a> script [^zanon2023peak]. We use a previous version of the script, while the latest version prefers a Docker-based implementation.</p>
+<p>PSMD (Peak Width of Skeletonized Mean Diffusivity), considered a marker of white matter injury, is calculated using <a href="https://github.com/isdneuroimaging/psmd">psmd</a> script <sup id="fnref:zanon2023peak"><a class="footnote-ref" href="#fn:zanon2023peak">3</a></sup>. We use a previous version of the script, while the latest version prefers a Docker-based implementation.</p>
 <h4 id="dti-alps">DTI-ALPS</h4>
 <p>DTI-ALPS (Diffusion Tensor Image Analysis along the Perivascular Space) is calculated using a customized <a href="https://github.com/gbarisano/alps">script</a>.</p>
-<p>The original method was proposed in [^taoka2017evaluation]. It is important to note that multiple studies have suggested that DTI-ALPS should not be simply interpreted as a reflection of glymphatic function. Instead, DTI-ALPS likely reflects complex changes in brain microstructure, pointing to a more comprehensive neurodegenerative mechanism [^li2025microstructural].</p>
+<p>The original method was proposed in <sup id="fnref:taoka2017evaluation"><a class="footnote-ref" href="#fn:taoka2017evaluation">4</a></sup>. It is important to note that multiple studies have suggested that DTI-ALPS should not be simply interpreted as a reflection of glymphatic function. Instead, DTI-ALPS likely reflects complex changes in brain microstructure, pointing to a more comprehensive neurodegenerative mechanism <sup id="fnref:li2025microstructural"><a class="footnote-ref" href="#fn:li2025microstructural">5</a></sup>.</p>
 <h4 id="pved">PVeD</h4>
-<p>periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain [^chen2025periventricular]. It is calculated using the official <a href="https://github.com/ChangleChen/EstPVeD">EstPVeD</a> script.</p>
+<p>periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain <sup id="fnref:chen2025periventricular"><a class="footnote-ref" href="#fn:chen2025periventricular">6</a></sup>. It is calculated using the official <a href="https://github.com/ChangleChen/EstPVeD">EstPVeD</a> script.</p>
 <p>Things to concern: A region growing method is used to determine the periventricular region. However, if there are lesions (such as lacunar infarcts with high MD values) in this region, these lesion areas will be ignored, leading to variability in the periventricular region among subjects.</p>
 <h3 id="connectome-analysis">Connectome Analysis</h3>
 <div class="admonition note">
@@ -2044,12 +2050,29 @@
 </li>
 </ol>
 <h3 id="references">References</h3>
-<p>[^maillard2022mri]: Pauline Maillard, Laura J Hillmer, Hanzhang Lu, Konstantinos Arfanakis, Brian T Gold, Christopher E Bauer, Joel H Kramer, Adam M Staffaroni, Lara Stables, Danny JJ Wang, and others. Mri free water as a biomarker for cognitive performance: validation in the markvcid consortium. <em>Alzheimer's &amp; Dementia: Diagnosis, Assessment &amp; Disease Monitoring</em>, 14(1):e12362, 2022.
-[^lin2025longitudinal]: Miao Lin, Shuyue Wang, Hui Hong, Yao Zhang, Linyun Xie, Lei Cui, Lingyun Liu, Yeerfan Jiaerken, Xinfeng Yu, Minming Zhang, and others. Longitudinal changes in white matter free water in cerebral small vessel disease: relationship to cerebral blood flow and white matter fiber alterations. <em>Journal of Cerebral Blood Flow &amp; Metabolism</em>, 45(5):932–944, 2025.
-[^zanon2023peak]: Maria Clara Zanon Zotin, Pinar Yilmaz, Lukas Sveikata, Dorothee Schoemaker, Susanne J van Veluw, Mark R Etherton, Andreas Charidimou, Steven M Greenberg, Marco Duering, and Anand Viswanathan. Peak width of skeletonized mean diffusivity: a neuroimaging marker for white matter injury. <em>Radiology</em>, 306(3):e212780, 2023.
-[^taoka2017evaluation]: Toshiaki Taoka, Yoshitaka Masutani, Hisashi Kawai, Toshiki Nakane, Kiwamu Matsuoka, Fumihiko Yasuno, Toshifumi Kishimoto, and Shinji Naganawa. Evaluation of glymphatic system activity with the diffusion mr technique: diffusion tensor image analysis along the perivascular space (dti-alps) in alzheimer’s disease cases. <em>Japanese journal of radiology</em>, 35(4):172–178, 2017.
-[^li2025microstructural]: Sihui Li, Ruike Chen, Zuozhen Cao, Qinfeng Zhu, Yihan Ma, Keqing Zhu, Zixuan Lin, Dan Wu, and Alzheimer’s Disease Neuroimaging Initiative. Microstructural bias in the assessment of periventricular flow as revealed in postmortem brains. <em>Radiology</em>, 316(3):e250753, 2025.
-[^chen2025periventricular]: Chang-Le Chen, Sang Joon Son, Noah Schweitzer, Hecheng Jin, Jinghang Li, Linghai Wang, Shaolin Yang, Chang Hyung Hong, Hyun Woong Roh, Bumhee Park, and others. Periventricular diffusivity reflects apoe $\varepsilon $4–modulated amyloid accumulation and cognitive impairment in the alzheimer's disease continuum. <em>Alzheimer's &amp; Dementia</em>, 21(9):e70659, 2025.</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:maillard2022mri">
+<p>Pauline Maillard, Laura J Hillmer, Hanzhang Lu, Konstantinos Arfanakis, Brian T Gold, Christopher E Bauer, Joel H Kramer, Adam M Staffaroni, Lara Stables, Danny JJ Wang, and others. Mri free water as a biomarker for cognitive performance: validation in the markvcid consortium. <em>Alzheimer's &amp; Dementia: Diagnosis, Assessment &amp; Disease Monitoring</em>, 14(1):e12362, 2022.&#160;<a class="footnote-backref" href="#fnref:maillard2022mri" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:lin2025longitudinal">
+<p>Miao Lin, Shuyue Wang, Hui Hong, Yao Zhang, Linyun Xie, Lei Cui, Lingyun Liu, Yeerfan Jiaerken, Xinfeng Yu, Minming Zhang, and others. Longitudinal changes in white matter free water in cerebral small vessel disease: relationship to cerebral blood flow and white matter fiber alterations. <em>Journal of Cerebral Blood Flow &amp; Metabolism</em>, 45(5):932–944, 2025.&#160;<a class="footnote-backref" href="#fnref:lin2025longitudinal" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:zanon2023peak">
+<p>Maria Clara Zanon Zotin, Pinar Yilmaz, Lukas Sveikata, Dorothee Schoemaker, Susanne J van Veluw, Mark R Etherton, Andreas Charidimou, Steven M Greenberg, Marco Duering, and Anand Viswanathan. Peak width of skeletonized mean diffusivity: a neuroimaging marker for white matter injury. <em>Radiology</em>, 306(3):e212780, 2023.&#160;<a class="footnote-backref" href="#fnref:zanon2023peak" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+<li id="fn:taoka2017evaluation">
+<p>Toshiaki Taoka, Yoshitaka Masutani, Hisashi Kawai, Toshiki Nakane, Kiwamu Matsuoka, Fumihiko Yasuno, Toshifumi Kishimoto, and Shinji Naganawa. Evaluation of glymphatic system activity with the diffusion mr technique: diffusion tensor image analysis along the perivascular space (dti-alps) in alzheimer’s disease cases. <em>Japanese journal of radiology</em>, 35(4):172–178, 2017.&#160;<a class="footnote-backref" href="#fnref:taoka2017evaluation" title="Jump back to footnote 4 in the text">&#8617;</a></p>
+</li>
+<li id="fn:li2025microstructural">
+<p>Sihui Li, Ruike Chen, Zuozhen Cao, Qinfeng Zhu, Yihan Ma, Keqing Zhu, Zixuan Lin, Dan Wu, and Alzheimer’s Disease Neuroimaging Initiative. Microstructural bias in the assessment of periventricular flow as revealed in postmortem brains. <em>Radiology</em>, 316(3):e250753, 2025.&#160;<a class="footnote-backref" href="#fnref:li2025microstructural" title="Jump back to footnote 5 in the text">&#8617;</a></p>
+</li>
+<li id="fn:chen2025periventricular">
+<p>Chang-Le Chen, Sang Joon Son, Noah Schweitzer, Hecheng Jin, Jinghang Li, Linghai Wang, Shaolin Yang, Chang Hyung Hong, Hyun Woong Roh, Bumhee Park, and others. Periventricular diffusivity reflects apoe $\varepsilon $4–modulated amyloid accumulation and cognitive impairment in the alzheimer's disease continuum. <em>Alzheimer's &amp; Dementia</em>, 21(9):e70659, 2025.&#160;<a class="footnote-backref" href="#fnref:chen2025periventricular" title="Jump back to footnote 6 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
