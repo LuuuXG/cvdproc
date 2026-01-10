@@ -7,7 +7,9 @@ ARGS=()
 INPUT_FILE=""
 OUTPUT_FILE=""
 MASK_FILE=""
+REF_FILE=""
 TMP_3D_INPUT=""
+CLEANUP_TMP=0
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
@@ -27,6 +29,10 @@ while [[ "$#" -gt 0 ]]; do
             MASK_FILE="$2"
             shift
             ;;
+        -ref)
+            REF_FILE="$2"
+            shift
+            ;;
         *)
             ARGS+=("$1")
             ;;
@@ -40,8 +46,15 @@ if [[ $USE_4D -eq 1 ]]; then
         exit 1
     fi
 
-    # Create temporary 3D image for the first volume
-    TMP_3D_INPUT=$(mktemp /tmp/synthstrip_input_XXXXXX.nii.gz)
+    # Determine 3D reference volume path
+    if [[ -n "$REF_FILE" ]]; then
+        TMP_3D_INPUT="$REF_FILE"
+        CLEANUP_TMP=0
+    else
+        TMP_3D_INPUT=$(mktemp /tmp/synthstrip_input_XXXXXX.nii.gz)
+        CLEANUP_TMP=1
+    fi
+
     echo "Extracting first volume from 4D image: $INPUT_FILE"
     fslroi "$INPUT_FILE" "$TMP_3D_INPUT" 0 1
 
@@ -54,10 +67,16 @@ if [[ $USE_4D -eq 1 ]]; then
         fslmaths "$INPUT_FILE" -mas "$MASK_FILE" "$OUTPUT_FILE"
     fi
 
-    rm -f "$TMP_3D_INPUT"
+    # Remove temporary 3D file only if it was created by mktemp
+    if [[ $CLEANUP_TMP -eq 1 && -n "$TMP_3D_INPUT" ]]; then
+        rm -f "$TMP_3D_INPUT"
+    fi
 
 else
     # Non -4d mode: pass through all arguments as-is
     exec "$FREESURFER_HOME/bin/fspython" "$FREESURFER_HOME/python/scripts/mri_synthstrip" \
-        -i "$INPUT_FILE" ${OUTPUT_FILE:+-o "$OUTPUT_FILE"} ${MASK_FILE:+-m "$MASK_FILE"} "${ARGS[@]}"
+        -i "$INPUT_FILE" \
+        ${OUTPUT_FILE:+-o "$OUTPUT_FILE"} \
+        ${MASK_FILE:+-m "$MASK_FILE"} \
+        "${ARGS[@]}"
 fi

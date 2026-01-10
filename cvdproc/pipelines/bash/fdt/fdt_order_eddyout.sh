@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Order fdt eddy output files to another directory
 
 process_subject() {
@@ -24,7 +26,9 @@ process_subject() {
 
     # Copy eddy corrected files to new output directory (if new files do not exist)
     if [[ ! -f "${new_dwi}" ]]; then
-        #cp "${eddy_dwi}" "${new_dwi}"
+        echo "Resampling DWI to isotropic ${output_resolution} mm..."
+
+        # Report original spacing
         dx=$(fslval "${eddy_dwi}" pixdim1)
         dy=$(fslval "${eddy_dwi}" pixdim2)
         dz=$(fslval "${eddy_dwi}" pixdim3)
@@ -35,20 +39,71 @@ process_subject() {
         echo "Resampling to spacing: ${spacing_str} (BSpline)"
 
         ResampleImage 4 "${eddy_dwi}" "${new_dwi}" "${spacing_str}" 0 4
+
+        # # Temporary directories
+        # dwi_split_dir="${new_output_dir}/dwi_split_temp"
+        # dwi_resampled_dir="${new_output_dir}/dwi_resampled_temp"
+        # mkdir -p "${dwi_split_dir}" "${dwi_resampled_dir}"
+
+        # # 1) Split 4D DWI into 3D volumes
+        # echo "Splitting 4D DWI into 3D volumes..."
+        # fslsplit "${eddy_dwi}" "${dwi_split_dir}/dwi_vol_" -t
+
+        # # 2) Create a 2mm reference image from the first volume
+        # first_vol=$(ls "${dwi_split_dir}"/dwi_vol_*.nii.gz | sort | head -n 1)
+        # if [[ -z "${first_vol}" ]]; then
+        #     echo "Error: no split volumes found in ${dwi_split_dir}"
+        #     exit 1
+        # fi
+
+        # ref_image="${new_output_dir}/ref_${output_resolution}mm.nii.gz"
+        # echo "Creating reference image ${ref_image} with ${output_resolution} mm isotropic voxels..."
+        # ResampleImage 3 \
+        #     "${first_vol}" \
+        #     "${ref_image}" \
+        #     "${output_resolution}x${output_resolution}x${output_resolution}" \
+        #     0 \
+        #     1
+
+        # # 3) Resample each 3D volume to the reference grid using BSpline interpolation
+        # echo "Resampling each 3D volume with antsApplyTransforms (BSpline)..."
+        # for vol in "${dwi_split_dir}"/dwi_vol_*.nii.gz; do
+        #     fname=$(basename "${vol}")
+        #     antsApplyTransforms \
+        #         -d 3 \
+        #         -i "${vol}" \
+        #         -r "${ref_image}" \
+        #         -n BSpline[3] \
+        #         -o "${dwi_resampled_dir}/${fname}" \
+        #         --float \
+        #         --default-value 0
+        # done
+
+        # # 4) Merge resampled 3D volumes back into 4D DWI
+        # echo "Merging resampled volumes into 4D DWI: ${new_dwi}"
+        # fslmerge -t "${new_dwi}" "${dwi_resampled_dir}"/dwi_vol_*.nii.gz
+
+        # # Optional: clean up temporary directories
+        # rm -rf "${dwi_split_dir}" "${dwi_resampled_dir}"
+        # rm "${ref_image}"
+        # echo "Resampling completed: ${new_dwi}"
     else
         echo "File ${new_dwi} already exists, skipping resampling."
     fi
+
     if [[ ! -f "${new_bvec}" ]]; then
         cp "${eddy_bvec}" "${new_bvec}"
     else
         echo "File ${new_bvec} already exists, skipping copy."
     fi
+
     if [[ ! -f "${new_bval}" ]]; then
         cp "${eddy_bval}" "${new_bval}"
     else
         echo "File ${new_bval} already exists, skipping copy."
     fi
 }
+
 
 # Call the function with the provided paths
 process_subject $1 $2 $3 $4 $5 $6

@@ -122,23 +122,3 @@ class SingleShellFW(BaseInterface):
         outputs['output_fw_fa'] = os.path.join(output_directory, 'freewater_fa.nii.gz')
         outputs['output_fw_md'] = os.path.join(output_directory, 'freewater_md.nii.gz')
         return outputs
-
-if __name__ == "__main__":
-    single_shell_fw = SingleShellFW()
-
-    fdwi = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/eddy_corrected_data.nii.gz'
-    fmask = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/dwi_b0_brain_mask.nii.gz'
-    fbval = '/mnt/f/BIDS/SVD_BIDS/sub-SVD0035/ses-02/dwi/sub-SVD0035_ses-02_acq-DTIb1000_dwi.bval'
-    fbvec = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/eddy_corrected_data.eddy_rotated_bvecs'
-    working_directory = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/'
-    output_directory = '/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/'
-
-    single_shell_fw.inputs.fdwi = fdwi
-    single_shell_fw.inputs.fbval = fbval
-    single_shell_fw.inputs.fbvec = fbvec
-    single_shell_fw.inputs.mask_file = fmask
-    single_shell_fw.inputs.working_directory = working_directory
-    single_shell_fw.inputs.output_directory = output_directory
-    single_shell_fw.inputs.crop_shells = True  # default is True, but explicit here
-
-    single_shell_fw.run()

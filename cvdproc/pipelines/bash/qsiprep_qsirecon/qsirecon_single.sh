@@ -8,9 +8,9 @@ session_id=$3
 
 qsirecon_dsistudio_dir=$bids_dir/derivatives/qsirecon-DSIStudio/sub-${subject_id}/ses-${session_id}/dwi
 # Search for *space-ACPC_model-gqi_dwimap.fib.gz
-fib_file=$(find $qsirecon_dsistudio_dir -type f -name "*space-ACPC_model-gqi_dwimap.fib.gz" | head -n 1)
+fib_file=$(find $qsirecon_dsistudio_dir -type f -name "*space-ACPC_connectivity.mat" | head -n 1)
 if [ -z "$fib_file" ]; then
-  echo "No .fib.gz file found for subject ${subject_id}, session ${session_id} in qsirecon-DSIStudio output."
+  echo "No .mat file found for subject ${subject_id}, session ${session_id} in qsirecon-DSIStudio output."
   # so we need to run qsirecon
 
   docker run -ti --rm \
@@ -31,7 +31,7 @@ if [ -z "$fib_file" ]; then
     --input-type qsiprep \
     --work-dir /work
 else
-  echo ".fib.gz file already exists for subject ${subject_id}, session ${session_id} in qsirecon-DSIStudio output. Skipping qsirecon."
+  echo ".mat file already exists for subject ${subject_id}, session ${session_id} in qsirecon-DSIStudio output. Skipping qsirecon."
 fi
 
 qsiprep_dwi_dir=$bids_dir/derivatives/qsiprep/sub-${subject_id}/ses-${session_id}/dwi
@@ -59,3 +59,14 @@ fi
 # copy to qsirecon folder
 qsirecon_dsistudio_dir=$bids_dir/derivatives/qsirecon-DSIStudio/sub-${subject_id}/ses-${session_id}/dwi
 cp $src_file $qsirecon_dsistudio_dir/
+
+#F:\BIDS\WCH_AF_Project\derivatives\workflows\sub-HC0059\ses-baseline\qsirecon_1_0_wf\sub-HC0059_dsistudio_pipeline\sub_HC0059_ses_baseline_acq_DSIb4000_dir_AP_space_ACPC_desc_preproc_recon_wf\tractography\tracking
+tracking_dir=$bids_dir/derivatives/workflows/sub-${subject_id}/ses-${session_id}/qsirecon_1_0_wf/sub-${subject_id}_dsistudio_pipeline/$recon_foldername/tractography/tracking
+#sub-HC0059_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.src.gz.odf.gqi.1.25.fib.trk.gz
+trk_file=$(find $tracking_dir -type f -name "*space-ACPC_desc-preproc_dwi.src.gz.odf.gqi.1.25.fib.trk.gz" | head -n 1)
+if [ -z "$trk_file" ]; then
+  echo "No .trk.gz file found for subject ${subject_id}, session ${session_id} in qsirecon output. Exiting."
+  exit 1
+fi
+# copy .trk.gz file to qsirecon folder
+cp $trk_file $qsirecon_dsistudio_dir/'sub-'${subject_id}'_ses-'${session_id}'_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_streamlines.trk.gz'

@@ -20,7 +20,8 @@ cp "$input_t1w" "${input_temp_dir}/T1w.nii.gz"
 docker_image="kilianhett/chp_seg:1.0.1"
 
 echo "Running CHP Segmentation with Docker image: $docker_image"
-docker run --rm --init \
+docker run -ti --rm \
+  --gpus all \
   -v "$input_temp_dir":/data/in \
   -v "$output_dir":/data/out \
   "$docker_image" \

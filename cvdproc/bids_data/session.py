@@ -24,6 +24,7 @@ class BIDSSession:
         self.dwi_files = self._find_files('dwi')
         self.func_files = self._find_files('func')
         self.fmap_files = self._find_files('fmap')
+        self.perf_files = self._find_files('perf')
         #### Non-standard ####
         self.swi_files = self._find_files('swi')
         self.qsm_files = self._find_files('qsm')
@@ -50,6 +51,9 @@ class BIDSSession:
         elif modality == 'fmap':
             # return all files
             return sorted(glob.glob(os.path.join(modality_dir, '*')))
+        elif modality == 'perf':
+            # return nifti and tsv files
+            return sorted(glob.glob(os.path.join(modality_dir, '*.nii*')) + glob.glob(os.path.join(modality_dir, '*.tsv')))
         else:
             return sorted(glob.glob(os.path.join(modality_dir, '*.nii*')))
     
@@ -141,3 +145,10 @@ class BIDSSession:
         :return: list, PWI file paths
         """
         return self.pwi_files
+
+    def get_perf_files(self):
+        """
+        Return Perfusion file paths.
+        :return: list, Perfusion file paths
+        """
+        return self.perf_files

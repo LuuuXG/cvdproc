@@ -1,91 +1,245 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-preproc_dwi=$1
-preproc_bvec=$2
-preproc_bval=$3
-dwi_mask=$4
-fs_subjects_dir=$5
-fs_subject_id=$6
-fs_to_t1w_mat=$7
-t1w_to_dwi_mat=$8
-output_dir=$9
-preproc_dwiref=${10}
-aseg_nifti=${11}
+# ------------------------ Usage & argument parsing ------------------------ #
 
-mkdir -p ${output_dir}
-
-# replace preproc_dwi .nii.gz with .mif (same directory and filename)
-preproc_dwi_mif=${preproc_dwi/.nii.gz/.mif}
-mrconvert ${preproc_dwi} ${preproc_dwi_mif} -fslgrad ${preproc_bvec} ${preproc_bval} -force
-mrconvert ${dwi_mask} ${output_dir}/mask.mif
-
-# ---- Auto-detect whether DWI is multi-shell ----
-unique_nonzero_bvals=$(awk '
-  {
-    for (i=1; i<=NF; i++) if ($i > 50) a[int($i)] = 1
-  }
-  END {
-    n = 0
-    for (k in a) n++
-    print n
-  }' "${preproc_bval}")
-
-echo "[INFO] Number of non-zero unique b-values: ${unique_nonzero_bvals}"
-
-if [ "${unique_nonzero_bvals}" -gt 1 ]; then
-    echo "[INFO] Detected multi-shell data -> using dwi2response dhollander"
-    dwi2response dhollander \
-      "${preproc_dwi_mif}" \
-      "${output_dir}/wm_response.txt" \
-      "${output_dir}/gm_response.txt" \
-      "${output_dir}/csf_response.txt" \
-      -voxels "${output_dir}/voxels.mif"
-
-    dwi2fod msmt_csd \
-      "${preproc_dwi_mif}" \
-      -mask "${output_dir}/mask.mif" \
-      "${output_dir}/wm_response.txt"  "${output_dir}/wm_fod.mif" \
-      "${output_dir}/gm_response.txt"  "${output_dir}/gm_fod.mif" \
-      "${output_dir}/csf_response.txt" "${output_dir}/csf_fod.mif"
-
-    mtnormalise ${output_dir}/wm_fod.mif ${output_dir}/wm_fod_norm.mif ${output_dir}/gm_fod.mif ${output_dir}/gm_fod_norm.mif ${output_dir}/csf_fod.mif ${output_dir}/csf_fod_norm.mif -mask ${output_dir}/mask.mif
-
-else
-    echo "[INFO] Detected single-shell data -> using dwi2response tournier + single-shell CSD"
-    dwi2response tournier \
-      "${preproc_dwi_mif}" \
-      "${output_dir}/wm_response.txt" \
-      -voxels "${output_dir}/voxels.mif"
-
-    dwi2fod csd \
-      "${preproc_dwi_mif}" \
-      "${output_dir}/wm_response.txt" \
-      "${output_dir}/wm_fod.mif" \
-      -mask "${output_dir}/mask.mif"
-
-    mtnormalise ${output_dir}/wm_fod.mif ${output_dir}/wm_fod_norm.mif -mask ${output_dir}/mask.mif
-
+if [ "$#" -ne 19 ]; then
+  echo "Usage: $0 \\"
+  echo "  <preproc_dwi.mif> <dwi_mask.mif> <fs_to_dwi.mat> <output_dir> <aseg.nii.gz> \\"
+  echo "  <wm_response.mif> <wm_fod.mif> <wm_fod_norm.mif> \\"
+  echo "  <gm_response.mif> <gm_fod.mif> <gm_fod_norm.mif> \\"
+  echo "  <csf_response.mif> <csf_fod.mif> <csf_fod_norm.mif> \\"
+  echo "  <sift_mu.txt> <aseg_dwi.nii.gz> <five_tt_dwi.mif> <gmwmSeed_dwi.mif> <streamlines.tck> <sift_weights.txt>"
+  exit 1
 fi
 
-# concatenate transforms: fs_to_t1w_mat and t1w_to_dwi_mat
-fs_to_dwi_mat=${output_dir}/fs_to_dwi.mat
-convert_xfm -omat ${fs_to_dwi_mat} -concat ${t1w_to_dwi_mat} ${fs_to_t1w_mat}
+preproc_dwi_mif=$1
+dwi_mask_mif=$2
+output_dir=$3
+aseg_dwi_nifti=$4
 
-# transform aparc+aseg to DWI space
-flirt -in ${aseg_nifti} -ref ${preproc_dwiref} -out ${output_dir}/aparc_aseg_dwi.nii.gz -applyxfm -init ${fs_to_dwi_mat} -interp nearestneighbour
+output_wm_response=$5
+output_wm_fod=$6
+output_wm_fod_norm=$7
 
-5ttgen freesurfer ${output_dir}/aparc_aseg_dwi.nii.gz ${output_dir}/5tt_dwi.mif
-5tt2gmwmi ${output_dir}/5tt_dwi.mif ${output_dir}/gmwmSeed_dwi.mif
+output_gm_response=${8}
+output_gm_fod=${9}
+output_gm_fod_norm=${10}
 
-tckgen -act ${output_dir}/5tt_dwi.mif -backtrack -seed_gmwmi ${output_dir}/gmwmSeed_dwi.mif -select 1000000 -cutoff 0.06 ${output_dir}/wm_fod_norm.mif ${output_dir}/tracks_1M.tck -maxlength 250 -nthreads 4
+output_csf_response=${11}
+output_csf_fod=${12}
+output_csf_fod_norm=${13}
+output_sift_mu=${14}
+five_tt_dwi=${15}
+gmwmSeed_dwi=${16}
+streamlines_tck=${17}
+output_sift_weights=${18}
 
-tcksift2 -act ${output_dir}/5tt_dwi.mif -out_coeffs ${output_dir}/sift2_coeffs.txt -out_mu ${output_dir}/sift2_mu.txt ${output_dir}/tracks_1M.tck ${output_dir}/wm_fod_norm.mif ${output_dir}/sift2_weights.txt -nthreads 4
+mkdir -p "${output_dir}"
 
-mrtrix3_path=$(dirname $(which mrconvert))/..
-fs_default_text=${mrtrix3_path}/share/mrtrix3/labelconvert/fs_default.txt
+# Resolve full paths for MRtrix outputs
+wm_resp_path="${output_dir}/${output_wm_response}"
+wm_fod_path="${output_dir}/${output_wm_fod}"
+wm_fod_norm_path="${output_dir}/${output_wm_fod_norm}"
 
-labelconvert ${output_dir}/aparc_aseg_dwi.nii.gz $FREESURFER_HOME/FreeSurferColorLUT.txt ${fs_default_text} ${output_dir}/aparc_aseg_dwi_parcel.mif
+gm_resp_path="${output_dir}/${output_gm_response}"
+gm_fod_path="${output_dir}/${output_gm_fod}"
+gm_fod_norm_path="${output_dir}/${output_gm_fod_norm}"
 
-tck2connectome -symmetric -zero_diagonal -scale_invnodevol -tck_weights_in ${output_dir}/sift2_weights.txt ${output_dir}/tracks_1M.tck ${output_dir}/aparc_aseg_dwi_parcel.mif ${output_dir}/connectome.csv
+csf_resp_path="${output_dir}/${output_csf_response}"
+csf_fod_path="${output_dir}/${output_csf_fod}"
+csf_fod_norm_path="${output_dir}/${output_csf_fod_norm}"
+
+sift_mu_path="${output_dir}/${output_sift_mu}"
+aseg_dwi_path="${output_dir}/${output_aseg_dwi}"
+five_tt_dwi_path="${output_dir}/${five_tt_dwi}"
+gmwmSeed_dwi_path="${output_dir}/${gmwmSeed_dwi}"
+streamlines_tck_path="${output_dir}/${streamlines_tck}"
+sift_weights_path="${output_dir}/${output_sift_weights}"
+
+# ------------------------ Helper functions ------------------------ #
+
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
+check_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "[ERROR] Command '$1' not found in PATH."
+    exit 1
+  fi
+}
+
+# Count unique non-zero shells using mrinfo -shell_bvalues
+count_unique_nonzero_shells_from_mif() {
+  local mif_file=$1
+  local shell_bvals
+  shell_bvals=$(mrinfo "${mif_file}" -shell_bvalues 2>/dev/null || true)
+
+  if [ -z "${shell_bvals}" ]; then
+    echo "[ERROR] Failed to read shell b-values from MIF: ${mif_file}" >&2
+    exit 1
+  fi
+
+  echo "${shell_bvals}" | awk '
+    {
+      for (i=1; i<=NF; i++) {
+        x=$i
+        gsub(/[^0-9.]/, "", x)
+        if (x != "" && x+0 > 50) a[int(x+0)] = 1
+      }
+    }
+    END {
+      n = 0
+      for (k in a) n++
+      print n
+    }'
+}
+
+# ------------------------ Check dependencies ------------------------ #
+
+for cmd in mrinfo dwi2response dwi2fod mtnormalise flirt 5ttgen 5tt2gmwmi tckgen tcksift2; do
+  check_cmd "${cmd}"
+done
+
+# ------------------------ Basic input checks ------------------------ #
+
+if [ ! -f "${preproc_dwi_mif}" ]; then
+  echo "[ERROR] preproc_dwi.mif not found: ${preproc_dwi_mif}"
+  exit 1
+fi
+
+if [ ! -f "${dwi_mask_mif}" ]; then
+  echo "[ERROR] dwi_mask.mif not found: ${dwi_mask_mif}"
+  exit 1
+fi
+
+if [ ! -f "${aseg_dwi_nifti}" ]; then
+  echo "[ERROR] aseg.nii.gz not found: ${aseg_dwi_nifti}"
+  exit 1
+fi
+
+# ------------------------ Check outputs ------------------------ #
+# streamline and sift weights
+if [ -f "${streamlines_tck_path}" ] && [ -f "${sift_weights_path}" ]; then
+  log "Outputs already exist. Exiting."
+  exit 0
+fi
+
+# ------------------------ Detect shell type ------------------------ #
+
+unique_nonzero_shells=$(count_unique_nonzero_shells_from_mif "${preproc_dwi_mif}")
+log "Number of non-zero unique shells (b>50): ${unique_nonzero_shells}"
+
+# ------------------------ Response functions & FODs ------------------------ #
+
+if [ "${unique_nonzero_shells}" -gt 1 ]; then
+  log "Detected multi-shell data -> using dwi2response dhollander + msmt_csd."
+
+  # WM / GM / CSF response
+  dwi2response dhollander \
+    "${preproc_dwi_mif}" \
+    "${wm_resp_path}" \
+    "${gm_resp_path}" \
+    "${csf_resp_path}" \
+    -mask "${dwi_mask_mif}" \
+    -nthreads 4 \
+    -force
+
+  # Multi-shell multi-tissue CSD
+  dwi2fod msmt_csd \
+    "${preproc_dwi_mif}" \
+    -mask "${dwi_mask_mif}" \
+    "${wm_resp_path}"  "${wm_fod_path}" \
+    "${gm_resp_path}"  "${gm_fod_path}" \
+    "${csf_resp_path}" "${csf_fod_path}" \
+    -nthreads 4 \
+    -force
+
+  # Multi-tissue normalisation (WM + GM + CSF)
+  log "Running mtnormalise for WM/GM/CSF FODs."
+  mtnormalise \
+    "${wm_fod_path}"  "${wm_fod_norm_path}" \
+    "${gm_fod_path}"  "${gm_fod_norm_path}" \
+    "${csf_fod_path}" "${csf_fod_norm_path}" \
+    -mask "${dwi_mask_mif}" \
+    -force
+
+else
+  log "Detected single-shell data -> using dwi2response tournier + single-shell CSD (WM only)."
+  log "GM/CSF response and FOD outputs will NOT be generated in this mode."
+
+  # Single-shell WM response
+  dwi2response tournier \
+    "${preproc_dwi_mif}" \
+    "${wm_resp_path}" \
+    -mask "${dwi_mask_mif}" \
+    -nthreads 4 \
+    -force
+
+  # Single-shell CSD (WM only)
+  dwi2fod csd \
+    "${preproc_dwi_mif}" \
+    "${wm_resp_path}" \
+    "${wm_fod_path}" \
+    -mask "${dwi_mask_mif}" \
+    -nthreads 4 \
+    -force
+
+  # Normalisation only for WM FOD
+  log "Running mtnormalise for WM FOD only."
+  mtnormalise \
+    "${wm_fod_path}" "${wm_fod_norm_path}" \
+    -mask "${dwi_mask_mif}" \
+    -force
+fi
+
+# ------------------------ Segmentation to DWI space & ACT preparation ------------------------ #
+
+# log "Transforming aseg to DWI space with FLIRT."
+# flirt \
+#   -in "${aseg_nifti}" \
+#   -ref "${preproc_dwiref}" \
+#   -out "${aseg_dwi_path}" \
+#   -applyxfm -init "${fs_to_dwi_mat}" \
+#   -interp nearestneighbour
+
+log "Generating 5TT image from aseg (FreeSurfer-based)."
+5ttgen freesurfer \
+  "${aseg_dwi_nifti}" \
+  "${five_tt_dwi_path}" \
+  -force
+
+log "Generating GM-WM interface (gmwmi) seed."
+5tt2gmwmi \
+  "${five_tt_dwi_path}" \
+  "${gmwmSeed_dwi_path}" \
+  -force
+
+# ------------------------ Tractography & SIFT2 ------------------------ #
+
+log "Running ACT-based tractography with tckgen."
+tckgen \
+  -act "${five_tt_dwi_path}" \
+  -backtrack \
+  -seed_gmwmi "${gmwmSeed_dwi_path}" \
+  -select 1000000 \
+  -cutoff 0.06 \
+  -maxlength 250 \
+  -nthreads 4 \
+  "${wm_fod_norm_path}" \
+  "${streamlines_tck_path}" \
+  -force
+
+log "Running SIFT2."
+tcksift2 \
+  -act "${five_tt_dwi_path}" \
+  -out_mu "${sift_mu_path}" \
+  -nthreads 4 \
+  "${streamlines_tck_path}" \
+  "${wm_fod_norm_path}" \
+  "${sift_weights_path}" \
+  -force
+
+log "Pipeline finished successfully."

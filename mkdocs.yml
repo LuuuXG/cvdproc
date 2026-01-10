@@ -10,27 +10,34 @@ nav:
   - Pipelines: 
       - Overview: pipelines/index.md
       - Structural MRI (sMRI) Pipelines: 
+          - Lesion Analysis: pipelines/sMRI/lesion_analysis.md
+          - T1w Registration to MNI space: pipelines/sMRI/t1_register.md
           - Freesurfer Pipeline: pipelines/sMRI/freesurfer.md
           - Anatomical Segmentation: pipelines/sMRI/anat_seg.md
           - WMH Quantification: pipelines/sMRI/wmh_quantification.md
           - PVS Quantification: pipelines/sMRI/pvs_quantification.md
       - Diffusion MRI (dMRI) Pipelines:
+          - DWI Preprocessing and Analysis: pipelines/dMRI/dwi_pipeline.md
           - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
       - Quantification MRI (qMRI) Pipelines:
           - QSM Pipeline: pipelines/qMRI/qsm_pipeline.md
           - Sepia QSM: pipelines/qMRI/sepia_qsm.md
       - Perfusion MRI (PWI) Pipelines:
           - PWI Pipeline: pipelines/pwi/pwi_pipeline.md
-  - Containers: containers.md
+  - Containers Used: containers.md
+  - Publications: publications.md
 
 markdown_extensions:
   - admonition
+  - footnotes
   - pymdownx.superfences
   - pymdownx.details
   - pymdownx.tasklist
 
 plugins:
   - search
+  - bibtex:
+      bib_file: docs/references.bib
   - mkdocstrings:
       default_handler: python
       handlers:

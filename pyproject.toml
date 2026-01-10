@@ -29,7 +29,8 @@ dependencies = [
     "rich",
     "openpyxl",
     "pydicom",
-    "pytest"
+    "pytest",
+    "fsqc"
 ]
 
 [project.scripts]

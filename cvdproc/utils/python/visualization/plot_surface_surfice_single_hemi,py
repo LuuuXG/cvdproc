@@ -1,0 +1,57 @@
+import gl
+
+gl.resetdefaults()
+
+# =========================
+# User inputs (edit these)
+# =========================
+base_image = r"E:\Codes\cvdproc\cvdproc\data\standard\fsaverage\lh.white"  # background mesh or image
+overlay_image = r"E:\Neuroimage\FTD_lh.thickness.fwhm5.fsaverage.mgh"             # overlay map
+
+# Overlay value range (edit to your data)
+overlay_min = -3.0
+overlay_max =  3.0
+
+# =========================
+# Global render settings
+# =========================
+gl.backcolor(255, 255, 255)
+gl.meshcolor(240, 240, 240)
+gl.shadername("matcap")
+gl.shadermatcap("mc01")
+
+gl.colorbarvisible(1)
+gl.colorbarposition(4)
+
+# Save at higher resolution
+gl.bmpzoom(2)
+
+# =========================
+# Load background + overlay
+# =========================
+gl.meshload(base_image)
+gl.overlaycloseall()
+gl.overlayload(overlay_image)
+
+# Overlay appearance
+gl.overlayminmax(1, overlay_min, overlay_max)
+gl.overlaycolor(1, 0, 0, 255, 255, 0, 0)   # blue -> red (customize if needed)
+gl.overlayopacity(1, 100)
+
+# =========================
+# Views: lateral vs medial
+# Convention here:
+# - lateral view: look at outer surface (left: camera from left; right: camera from right)
+# - medial view:  look at inner surface  (left: camera from right; right: camera from left)
+# =========================
+
+# ---- Lateral: both hemispheres, capture a combined view
+gl.meshhemisphere(0)  # both
+gl.hemispheredistance(0.25)
+
+# Lateral: a "standard" lateral camera angle
+# (This is the typical Surfice convention; adjust if you want a different aesthetic.)
+gl.azimuthelevation(90, 10)     # rotate for lateral exposure
+
+# ---- Medial: rotate 180 degrees to see medial wall
+gl.azimuthelevation(270, 10)    # opposite side -> medial exposure

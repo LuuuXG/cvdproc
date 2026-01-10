@@ -9,6 +9,7 @@ brain_mask_out=""
 t1_2_mni_warp=""
 mni_2_t1_warp=""
 t1_stripped=""
+t1_stripped_out=""
 register_between_stripped=false
 
 # Parse arguments
@@ -43,6 +44,10 @@ while [[ $# -gt 0 ]]; do
       t1_stripped="$2"
       shift; shift
       ;;
+    -t1_stripped_out)
+      t1_stripped_out="$2"
+      shift; shift
+      ;;
     -register_between_stripped)
       register_between_stripped=true
       shift
@@ -55,6 +60,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 # sanity check
+if [[ -z "$t1" && -z "$t1_stripped" ]]; then
+  echo "Usage: $0 -t1 <T1w> -mni_template <MNI> -t1_mni_out <output.nii.gz> -t1_2_mni_warp <warp.nii.gz> -mni_2_t1_warp <warp.nii.gz> [options]"
+  echo "Error: either -t1 or -t1_stripped must be provided."
+  exit 1
+fi
+
 if [[ -z "$mni_template" || -z "$t1_mni_out" || -z "$t1_2_mni_warp" || -z "$mni_2_t1_warp" ]]; then
   echo "Usage: $0 -t1 <T1w> -mni_template <MNI> -t1_mni_out <output.nii.gz> -t1_2_mni_warp <warp.nii.gz> -mni_2_t1_warp <warp.nii.gz> [options]"
   exit 1
@@ -64,18 +75,43 @@ fi
 temp_dir=$(dirname "$t1_mni_out")/synthmorph_temp
 mkdir -p "$temp_dir"
 
-# Determine which T1 to use
+# Determine which T1 to use and whether to run SynthStrip
 if [[ -n "$t1_stripped" ]]; then
+  # Pre-stripped T1 provided: use it directly for registration
   t1_input="$t1_stripped"
-elif [[ "$register_between_stripped" == true ]]; then
-  t1_input="$temp_dir/t1w_brain.nii.gz"
-  if [[ -z "$brain_mask_out" ]]; then
-    brain_mask_out="$temp_dir/t1w_brain_mask.nii.gz"
-  fi
-  echo "Running SynthStrip on $t1 ..."
-  mri_synthstrip -i "$t1" -o "$t1_input" -m "$brain_mask_out"
+
 else
-  t1_input="$t1"
+  # Decide if we need to run SynthStrip:
+  # 1) user wants an output stripped T1 (-t1_stripped_out), or
+  # 2) user wants to register between stripped images (-register_between_stripped)
+  if [[ -n "$t1_stripped_out" || "$register_between_stripped" == true ]]; then
+
+    # Path for brain-extracted T1
+    if [[ -n "$t1_stripped_out" ]]; then
+      t1_brain="$t1_stripped_out"
+    else
+      t1_brain="$temp_dir/t1w_brain.nii.gz"
+    fi
+
+    # Path for brain mask
+    if [[ -z "$brain_mask_out" ]]; then
+      brain_mask_out="$temp_dir/t1w_brain_mask.nii.gz"
+    fi
+
+    echo "Running SynthStrip on $t1 ..."
+    mri_synthstrip -i "$t1" -o "$t1_brain" -m "$brain_mask_out" --no-csf
+
+    # Decide which image to use for registration
+    if [[ "$register_between_stripped" == true ]]; then
+      t1_input="$t1_brain"
+    else
+      t1_input="$t1"
+    fi
+
+  else
+    # No SynthStrip needed, register on original T1
+    t1_input="$t1"
+  fi
 fi
 
 # Run registration

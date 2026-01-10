@@ -2,7 +2,7 @@ from nipype import Node, Workflow
 from nipype.interfaces import fsl
 from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine
 from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool, Str
+from traits.api import Bool, Str, Either
 import os
 
 #####################################
@@ -16,6 +16,7 @@ class SynthmorphNonlinearInputSpec(CommandLineInputSpec):
     t1_2_mni_warp = Str(mandatory=True, argstr='-t1_2_mni_warp %s', desc='Output warp field from T1 to MNI')
     mni_2_t1_warp = Str(mandatory=True, argstr='-mni_2_t1_warp %s', desc='Output warp field from MNI to T1')
     t1_stripped = File(argstr='-t1_stripped %s', desc='Stripped T1-weighted image')
+    t1_stripped_out = Str(argstr='-t1_stripped_out %s', desc='Output stripped T1-weighted image')
     register_between_stripped = Bool(False, argstr='-register_between_stripped', desc='If set, indicates that both T1 and MNI template are skull-stripped')
     brain_mask_out = Str(mandatory=False, argstr='-brain_mask_out %s', esc='Output brain mask in T1 space')
 
@@ -23,6 +24,7 @@ class SynthmorphNonlinearOutputSpec(TraitedSpec):
     t1_mni_out = Str(desc='Output T1 image in MNI space')
     t1_2_mni_warp = Str(desc='Output warp field from T1 to MNI')
     mni_2_t1_warp = Str(desc='Output warp field from MNI to T1')
+    t1_stripped_out = Either(Str, None, desc='Output stripped T1-weighted image')
 
 class SynthmorphNonlinear(CommandLine):
     _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bash', 'freesurfer', 'mri_synthmorph_single.sh'))
@@ -35,6 +37,7 @@ class SynthmorphNonlinear(CommandLine):
         outputs['t1_mni_out'] = self.inputs.t1_mni_out
         outputs['t1_2_mni_warp'] = self.inputs.t1_2_mni_warp
         outputs['mni_2_t1_warp'] = self.inputs.mni_2_t1_warp
+        outputs['t1_stripped_out'] = self.inputs.t1_stripped_out if self.inputs.t1_stripped_out else None
         return outputs
 
 ################

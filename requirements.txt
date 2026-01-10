@@ -16,3 +16,4 @@ dcm2niix
 dcm2bids
 openpyxl
 pydicom
+fsqc

@@ -524,6 +524,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../pipelines/sMRI/freesurfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Freesurfer Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../pipelines/sMRI/anat_seg/" class="md-nav__link">
         
   
@@ -631,6 +654,29 @@
             Diffusion MRI (dMRI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipelines/dMRI/dwi_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DWI Preprocessing and Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -853,6 +899,28 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../publications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Publications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -980,10 +1048,29 @@
 <p>Create a <code>config.yml</code> file in the <code>code</code> folder (note that we use the yaml format), and the content is as follows:</p>
 <div class="highlight"><pre><span></span><code># You need to specify the BIDS root folder here
 bids_dir: /mnt/f/BIDS/demo_wmh
-## You need to specify the dcm2bids configuration file here
 dcm2bids: 
-  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
+  config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json # You need to specify the dcm2bids configuration file here
+  # And there are other parameters you can specify:
+  # You can skip these parameters (left as empty) to do nothing additional
+  dwi_fix_bvecbval:
+    - match: &quot;acq-NODDIb2500_&quot;
+      bvec: &quot;/mnt/f/BIDS/demo_wmh/code/bvec.bvec&quot;
+      bval: &quot;/mnt/f/BIDS/demo_wmh/code/bval.bval&quot;
+    - match: &quot;another_keyword&quot;
+      bvec: &quot;/path/to/another/bvec.bvec&quot;
+      bval: &quot;/path/to/another/bval.bval&quot;
+  perf_fix_aslcontext:
+    - match: &quot;asl&quot;
+      aslcontext: &quot;/mnt/f/BIDS/demo_wmh/code/aslcontext.tsv&quot;
+    - match: &quot;another_keyword&quot;
+      aslcontext: &quot;/path/to/another/aslcontext.tsv&quot;
+  deface_anat: true
+  fix_intendedfor: true
 </code></pre></div>
+<p><code>dwi_fix_bvecbval</code>: It is used in case the bvec and bval information in the DICOM files are incorrect. You can specify multiple matching criteria and corresponding bvec and bval files. The <code>match</code> field is a keyword that will be matched with the file names of the converted NIfTI files (for example, if the DWI sequence has <code>acq-NODDIb2500_</code> in its file name, it will use the specified bvec and bval files to replace the original ones).</p>
+<p><code>perf_fix_aslcontext</code>: Similar to <code>dwi_fix_bvecbval</code>, it is used when dcm2niix does not generate the correct <code>*_aslcontext.tsv</code> file for ASL images. You can specify multiple matching criteria and corresponding aslcontext files. The <code>match</code> field is a keyword that will be matched with the file names of the converted NIfTI files (for example, if the ASL sequence has <code>asl</code> in its file name, it will use the specified aslcontext file to replace the original one).</p>
+<p><code>deface_anat</code>: Whether to deface the anatomical images (T1w, T2w, and FLAIR) using FSL. Default is false.</p>
+<p><code>fix_intendedfor</code>: Whether to fix the <code>IntendedFor</code> field in all .json files. Default is false. This is useful for running nipreps. It will change the <code>IntendedFor</code> field to relative paths (start from ses-<session_id>). Although it is deprecated in the latest BIDS specification (now, BIDS URI is needed), many nipreps still require it (see <a href="https://github.com/nipreps/sdcflows/issues/336">this</a>).</p>
 <p>Remember to change the <code>bids_dir</code> and <code>config_file</code> paths to your own paths. The <code>bids_dir</code> is the root folder of your BIDS dataset, and the <code>config_file</code> is the path to the dcm2bids configuration file you just created. And then you need to move or copy the folder containing the DICOM files for a single subject into the <code>sourcedata</code> folder of the BIDS root directory. For example, if you have a folder named <code>DICOM_01</code> containing the DICOM files for a single subject's baseline acquisition, you need to move or copy it to <code>/mnt/f/BIDS/demo_wmh/sourcedata/DICOM_01</code>. The final folder structure should look like this:</p>
 <div class="highlight"><pre><span></span><code>/mnt/f/BIDS/demo_wmh
 ├── code

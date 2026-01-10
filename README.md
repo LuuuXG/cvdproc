@@ -5,6 +5,10 @@
 > This package is intended for research purposes only, to facilitate reproducibility of neuroimaging analyses in our center.
 > The authors do **NOT** guarantee the correctness or clinical validity of all processing workflows.
 
+Here is the documentation for processing codes used in various research projects.
+
+----
+
 ## About
 Brain Imaging Processing for the Cerebrovascular Disease Research Cohort of the Department of Neurology, West China Hospital, Sichuan University (Stroke, Cerebral Small Vessel Disease, Atrial Fibrillation, Community Cohort, etc.)
 
@@ -62,4 +66,4 @@ Please refer to the [documentation](https://LuuuXG.github.io/cvdproc) (🚧 unde
 If you are interested in reproducing our analysis process, we recommend starting from DICOM data. This is because the handling of BIDS format in the code may not be fully standard and compliant (for example, we require a session level and include non-standard suffixes).
 
 ## Citation
-If you use the code in this repository for analysis, please follow the citation instructions in the [documentation](https://LuuuXG.github.io/cvdproc) for the corresponding references.
+Please cite the corresponding papers mentioned in the documentation when using this package for your research.

@@ -1,5 +1,11 @@
 # pvs_quantification
 
+::: cvdproc.pipelines.smri.csvd_quantification.pvs_pipeline
+
+----
+
+# A more detailed description:
+
 Current SHiVAi pipeline (2025-06) seems to have problem handling html/pdf reports (for example, when facing NaN value). A workaround is to modify the code in `post.py` to simply skip the report generation step, which is not critical for the pipeline to run.
 
 ```python

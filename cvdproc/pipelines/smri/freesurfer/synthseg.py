@@ -3,6 +3,8 @@ import shutil
 from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine, BaseInterfaceInputSpec, BaseInterface
 from traits.api import Str, Int, Directory, Bool, Either
 
+from cvdproc.config.paths import get_package_path
+
 # usage: mri_synthseg [-h] [--i I] [--o O] [--parc] [--robust] [--fast] [--ct] [--vol VOL] [--qc QC] [--post POST]
 #                     [--resample RESAMPLE] [--crop CROP [CROP ...]] [--autocrop] [--threads THREADS] [--cpu] [--v1]
 #                     [--keepgeom] [--addctab] [--noaddctab] [--photo PHOTO] [--model MODEL]
@@ -72,4 +74,21 @@ class SynthSeg(CommandLine):
         outputs['vol'] = os.path.abspath(self.inputs.vol) if self.inputs.vol else None
         outputs['qc'] = os.path.abspath(self.inputs.qc) if self.inputs.qc else None
 
+        return outputs
+
+class SynthSegPostProcessInputSpec(CommandLineInputSpec):
+    synthseg_input = Str(mandatory=True, desc="Input SynthSeg segmentation file.", argstr="%s", position=0)
+    wm_output = Str(mandatory=True, desc="Output white matter mask file.", argstr="%s", position=1)
+
+class SynthSegPostProcessOutputSpec(TraitedSpec):
+    wm_output = Str(desc="Output white matter mask file.")
+
+class SynthSegPostProcess(CommandLine):
+    input_spec = SynthSegPostProcessInputSpec
+    output_spec = SynthSegPostProcessOutputSpec
+    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'freesurfer', 'mri_synthseg_post.sh')
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['wm_output'] = os.path.abspath(self.inputs.wm_output)
         return outputs

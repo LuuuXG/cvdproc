@@ -36,6 +36,12 @@ class PipelineManager:
             # replace 't1_register' in ouput_path to 'xfm'
             output_path = output_path.replace('t1_register', 'xfm')
             return T1RegisterPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "lesion_analysis":
+            from ..pipelines.smri.lesion_analysis_pipeline import LesionAnalysisPipeline
+            return LesionAnalysisPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "scn":
+            from ..pipelines.smri.scn_pipeline import SCNPipeline
+            return SCNPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "freesurfer":
             from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline
             return FreesurferPipeline(subject, session, output_path=output_path, **kwargs)
@@ -66,6 +72,12 @@ class PipelineManager:
         elif pipeline_name.lower() == "lqt_pipeline":
             from ..pipelines.dmri.lqt_pipeline import LQTPipeline
             return LQTPipeline(subject, session, output_path=output_path, **kwargs)
+        
+        #### Perfusion MRI ####
+        elif pipeline_name.lower() == "asl_pipeline":
+            from ..pipelines.perfusion.asl_pipeline import ASLPipeline
+            return ASLPipeline(subject, session, output_path=output_path, **kwargs)
+        #######################
         
         #### Quantiative MRI ####
         elif pipeline_name.lower() == "sepia_qsm":

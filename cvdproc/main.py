@@ -18,8 +18,21 @@ from nipype.interfaces.utility import IdentityInterface, Function
 from nipype.interfaces.io import DataSink
 from .pipelines.dcm2bids.dcm2bids_processor import Dcm2BidsProcessor
 from .bids_data.subject import BIDSSubject
-from .pipelines.common.input_for_pipeline import pipeline_input
 from .controllers.pipeline_manager import PipelineManager
+
+from cvdproc.bids_data.subject import BIDSSubject
+from cvdproc.bids_data.session import BIDSSession
+
+# as a function
+def pipeline_input(bids_dir, subject_id, session_id, output_path):
+    from cvdproc.bids_data.subject import BIDSSubject
+    from cvdproc.bids_data.session import BIDSSession
+
+    subject = BIDSSubject(subject_id, bids_dir)
+
+    session = next((s for s in subject.get_all_sessions() if s.session_id == session_id), None) if session_id else None
+
+    return subject, session, output_path
 
 def load_config(config_file):
     """Load a YAML configuration file"""
@@ -69,7 +82,8 @@ def main():
             "sub-*/ses-*/swi/",
             "sub-*/ses-*/qsm/",
             "sub-*/ses-*/pwi/",
-            "sub-*/ses-*/dwimap/"
+            "sub-*/ses-*/dwimap/",
+            "sub-*/ses-*/**/*desc-XXX*"
         ]
         if os.path.exists(bidsignore_file):
             with open(bidsignore_file, 'r') as f:
@@ -215,7 +229,8 @@ def main():
 
             # Set output path
             output_path = os.path.join(output_base, args.pipeline, f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-            os.makedirs(output_path, exist_ok=True)
+            if 't1_register' not in output_path and 'lesion_analysis' not in output_path:
+                os.makedirs(output_path, exist_ok=True)
 
             # Get pipeline object and create workflow
             manager = PipelineManager()

@@ -30,6 +30,7 @@ DOCKER_IMAGE="segcsvd_rc03:latest"
 
 echo "Running segcsvd container..."
 docker run --rm \
+    --gpus all \
     -v "${temp_dir}:/indir" \
     -v "${output_dir}:/outdir" \
     -w / \

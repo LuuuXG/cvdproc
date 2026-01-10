@@ -2,8 +2,9 @@
 
 The containers used in cvdproc are listed below:
 
-## Docker Images:
+## Docker Images
 
+- deepmi/lit:0.5.0
 - kilianhett/chp_seg:1.0.1
 - leonyichencai/synb0-disco:v3.1
 - nipreps/fmriprep:v25.1.4

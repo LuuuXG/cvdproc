@@ -26,7 +26,7 @@ class PadDWI(CommandLine):
     """
     input_spec = PadDWIInputSpec
     output_spec = PadDWIOutputSpec
-    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bash', 'pad_dwi.sh'))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bash', 'fdt', 'pad_dwi.sh'))
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

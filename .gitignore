@@ -23,3 +23,6 @@ cvdproc/trash/
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Slides
+slides/

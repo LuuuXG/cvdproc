@@ -9,7 +9,7 @@ from nipype.interfaces.base import (
 class FlipBTableInputSpec(BaseInterfaceInputSpec):
     in_bvec = File(exists=True, mandatory=True, desc='Input bvec file to be flipped')
     out_bvec = Str(mandatory=True, desc='Output flipped bvec file path')
-    filp_axis = traits.List(traits.Int, mandatory=True, desc='List of axes to flip (0 for x, 1 for y, 2 for z)')
+    flip_axis = traits.List(traits.Int, mandatory=True, desc='List of axes to flip (0 for x, 1 for y, 2 for z)')
 
 class FlipBTableOutputSpec(TraitedSpec):
     out_bvec = File(desc='Output flipped bvec file path')
@@ -26,7 +26,7 @@ class FlipBTable(BaseInterface):
         bvecs = np.loadtxt(self.inputs.in_bvec)
 
         # Flip the specified axes
-        for axis in self.inputs.filp_axis:
+        for axis in self.inputs.flip_axis:
             if axis in [0, 1, 2]:
                 bvecs[axis, :] = -bvecs[axis, :]
 
@@ -43,7 +43,7 @@ class FlipBTable(BaseInterface):
 # example usage:
 if __name__ == "__main__":
     flip_btable = FlipBTable()
-    flip_btable.inputs.in_bvec = '/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0181/ses-F1/sub-SSI0181_ses-F1_acq-NODDIb2500_dir-AP_space-preprocdwi_desc-preproc_dwi.bvec'
-    flip_btable.inputs.out_bvec = '/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0181/ses-F1/output_flipped.bvec'
-    flip_btable.inputs.filp_axis = []  # flip y axes
+    flip_btable.inputs.in_bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
+    flip_btable.inputs.out_bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
+    flip_btable.inputs.flip_axis = [1]  # flip y axes
     flip_btable.run()

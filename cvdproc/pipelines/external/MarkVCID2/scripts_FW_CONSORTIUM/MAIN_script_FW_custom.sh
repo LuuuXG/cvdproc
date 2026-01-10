@@ -15,6 +15,8 @@ BINFSL=${FSL_PATH}/bin
 DATAFW_PATH=$5
 FWMRN_PATH=$6
 
+OUTPUT_FW_IMG=$7
+
 echo ${DATAFW_PATH}
 
 MASKWM_PATH=${FWMRN_PATH}/FMRIB58_FA_1mm_thr  
@@ -57,3 +59,6 @@ rm  ${BVEC_FILE}
 rm ${DATAFW_PATH}/*log
 rm ${DATAFW_PATH}/*MD*
 
+DEFAULT_OUTPUT_FW_IMG="${DATAFW_PATH}/wls_dti_FW.nii.gz"
+# Copy to final output location
+cp "${DEFAULT_OUTPUT_FW_IMG}" "${OUTPUT_FW_IMG}"

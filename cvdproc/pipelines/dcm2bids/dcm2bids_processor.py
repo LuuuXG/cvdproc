@@ -501,9 +501,11 @@ class Dcm2BidsProcessor:
                             self.BIDS_root_folder, "derivatives", derivatives_name,
                             f"sub-{subject}", f"ses-{session}"
                         )
+                        # add files to filepaths, but no strictly to only .nii.gz. And not use suffix
                         if os.path.exists(derivatives_dir):
-                            pattern = os.path.join(derivatives_dir, criteria)
-                            filepaths = glob.glob(pattern, recursive=True)
+                            for root, _, files in os.walk(derivatives_dir):
+                                for f in files:
+                                        filepaths.append(os.path.join(root, f))
 
                     # ---------------- Matching logic ----------------
                     match_found = False

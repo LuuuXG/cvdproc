@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
 from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool, Int, Str, Float
+from traits.api import Bool, Int, Str, Float, List, Dict
+
+from cvdproc.config.paths import get_package_path
 
 ####################################
 # Generate b0_all and acqparam.txt #
@@ -276,95 +278,157 @@ class B0RefAndBrainMask(CommandLine):
         outputs['b0_brain_mask'] = os.path.join(self.inputs.output_dir, self.inputs.output_b0_mask_filename)
         return outputs
 
-###########
-# DTI fit #
-###########
-class DTIFitInputSpec(CommandLineInputSpec):
+###########################
+# DTIFit with BIDS rename #
+###########################
+class DTIFitBIDSInputSpec(CommandLineInputSpec):
     dwi_file = File(exists=True, mandatory=True, desc="Path to the DWI image", argstr="-k %s")
     bval_file = File(exists=True, mandatory=True, desc="Path to the .bval file", argstr="-b %s")
     bvec_file = File(exists=True, mandatory=True, desc="Path to the .bvec file", argstr="-r %s")
     mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask", argstr="-m %s")
-    output_basename = Str(desc="Path to the output basename", argstr="-o %s")
 
-class DTIFitOutputSpec(TraitedSpec):
+    # This is the dtifit "-o" basename. We still use it as a temporary basename.
+    output_basename = Str(mandatory=True, desc="Path to the output basename", argstr="-o %s")
+
+    # Whether to rename outputs into BIDS style after dtifit
+    bids_rename = traits.Bool(True, usedefault=True, desc="Rename outputs to BIDS style after dtifit")
+
+    # Safety option: overwrite destination files if exist
+    overwrite = traits.Bool(False, usedefault=True, desc="Overwrite destination files if they already exist")
+
+
+class DTIFitBIDSOutputSpec(TraitedSpec):
     output_dir = Directory(desc="Path to the output directory")
     output_basename = Str(desc="Path to the output basename")
+
     dti_fa = File(desc="Path to the FA image")
     dti_md = File(desc="Path to the MD image")
     dti_mo = File(desc="Path to the MO image")
     dti_tensor = File(desc="Path to the tensor image")
 
-class DTIFit(CommandLine):
-    _cmd = 'dtifit'
-    input_spec = DTIFitInputSpec
-    output_spec = DTIFitOutputSpec
-    terminal_output = 'allatonce'
+    dti_l1 = File(desc="Path to the L1 image")
+    dti_l2 = File(desc="Path to the L2 image")
+    dti_l3 = File(desc="Path to the L3 image")
 
-    def _run_interface(self, runtime):
-        # Ensure output directory exists
-        output_dir = os.path.abspath(os.path.dirname(self.inputs.output_basename))
-        os.makedirs(output_dir, exist_ok=True)
+    dti_v1 = File(desc="Path to the V1 image")
+    dti_v2 = File(desc="Path to the V2 image")
+    dti_v3 = File(desc="Path to the V3 image")
 
-        # Continue with default command execution
-        return super()._run_interface(runtime)
+    dti_s0 = File(desc="Path to the S0 image")
 
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['dti_fa'] = os.path.abspath(self.inputs.output_basename + "_FA.nii.gz")
-        outputs['dti_md'] = os.path.abspath(self.inputs.output_basename + "_MD.nii.gz")
-        outputs['dti_mo'] = os.path.abspath(self.inputs.output_basename + "_MO.nii.gz")
-        outputs['dti_tensor'] = os.path.abspath(self.inputs.output_basename + "_tensor.nii.gz")
-        outputs['output_dir'] = os.path.abspath(os.path.dirname(self.inputs.output_basename))
-        outputs['output_basename'] = self.inputs.output_basename
+class DTIFitBIDS(CommandLine):
+    """
+    Run FSL dtifit and (optionally) rename outputs to BIDS style.
+    """
+    _cmd = "dtifit"
+    input_spec = DTIFitBIDSInputSpec
+    output_spec = DTIFitBIDSOutputSpec
+    terminal_output = "allatonce"
 
-        return outputs
+    def _ensure_outdir(self):
+        out_dir = os.path.abspath(os.path.dirname(self.inputs.output_basename))
+        os.makedirs(out_dir, exist_ok=True)
+        return out_dir
 
-#########################
-# rename dtifit outputs #
-#########################
-class RenameDTIFitOutputsInputSpec(BaseInterfaceInputSpec):
-    dtifit_output_basename = Str(desc="Base name for the dtifit output files")
-    dwi_file = Str(desc="Path to the DWI image")
+    def _dtifit_expected_files(self):
+        """
+        dtifit uses uppercase suffixes for most outputs:
+          <base>_FA.nii.gz, <base>_MD.nii.gz, <base>_MO.nii.gz,
+          <base>_L1.nii.gz, <base>_L2.nii.gz, <base>_L3.nii.gz,
+          <base>_V1.nii.gz, <base>_V2.nii.gz, <base>_V3.nii.gz,
+          <base>_S0.nii.gz, <base>_tensor.nii.gz
+        """
+        base = os.path.abspath(self.inputs.output_basename)
+        mapping = {
+            "fa": f"{base}_FA.nii.gz",
+            "md": f"{base}_MD.nii.gz",
+            "mo": f"{base}_MO.nii.gz",
+            "l1": f"{base}_L1.nii.gz",
+            "l2": f"{base}_L2.nii.gz",
+            "l3": f"{base}_L3.nii.gz",
+            "v1": f"{base}_V1.nii.gz",
+            "v2": f"{base}_V2.nii.gz",
+            "v3": f"{base}_V3.nii.gz",
+            "s0": f"{base}_S0.nii.gz",
+            "tensor": f"{base}_tensor.nii.gz",
+        }
+        return mapping
 
-class RenameDTIFitOutputsOutputSpec(TraitedSpec):
-    dti_fa = File(desc="Path to the renamed FA image")
-    dti_md = File(desc="Path to the renamed MD image")
-    dti_mo = File(desc="Path to the renamed MO image")
-    dti_tensor = File(desc="Path to the renamed tensor image")
-    dti_l1 = File(desc="Path to the renamed L1 image")
-    dti_l2 = File(desc="Path to the renamed L2 image")
-    dti_l3 = File(desc="Path to the renamed L3 image")
-    dti_v1 = File(desc="Path to the renamed V1 image")
-    dti_v2 = File(desc="Path to the renamed V2 image")
-    dti_v3 = File(desc="Path to the renamed V3 image")
-    dti_s0 = File(desc="Path to the renamed S0 image")
-
-class RenameDTIFitOutputs(BaseInterface):
-    input_spec = RenameDTIFitOutputsInputSpec
-    output_spec = RenameDTIFitOutputsOutputSpec
-
-    def _run_interface(self, runtime):
+    def _bids_dest_files(self):
         from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
-        params = ['fa', 'md', 'mo', 'tensor', 'l1', 'l2', 'l3', 'v1', 'v2', 'v3', 's0']
-        for param in params:
-            old_file = f"{self.inputs.dtifit_output_basename}_{param.upper()}.nii.gz"
-            new_file = os.path.join(os.path.dirname(self.inputs.dtifit_output_basename), rename_bids_file(self.inputs.dwi_file, {"desc": None, 'model': 'tensor', 'param': param}, 'dwimap', '.nii.gz'))
-            
-            shutil.move(old_file, new_file)
-        
+        out_dir = os.path.abspath(os.path.dirname(self.inputs.output_basename))
+        dest = {}
+        for param in ["fa", "md", "mo", "tensor", "l1", "l2", "l3", "v1", "v2", "v3", "s0"]:
+            fname = rename_bids_file(
+                self.inputs.dwi_file,
+                {"desc": None, "model": "tensor", "param": param},
+                "dwimap",
+                ".nii.gz",
+            )
+            dest[param] = os.path.join(out_dir, fname)
+        return dest
+
+    def _run_interface(self, runtime):
+        self._ensure_outdir()
+
+        # 1) Run dtifit
+        runtime = super()._run_interface(runtime)
+
+        # 2) Rename/move outputs into BIDS style
+        if bool(self.inputs.bids_rename):
+            src = self._dtifit_expected_files()
+            dst = self._bids_dest_files()
+
+            for param, src_path in src.items():
+                if not os.path.exists(src_path):
+                    raise FileNotFoundError(f"dtifit output not found: {src_path}")
+
+                dst_path = dst[param]
+                if os.path.exists(dst_path):
+                    if bool(self.inputs.overwrite):
+                        os.remove(dst_path)
+                    else:
+                        raise FileExistsError(f"Destination exists: {dst_path}")
+
+                shutil.move(src_path, dst_path)
+
         return runtime
 
     def _list_outputs(self):
-        from cvdproc.bids_data.rename_bids_file import rename_bids_file
         outputs = self.output_spec().get()
-        params = ['fa', 'md', 'mo', 'tensor', 'l1', 'l2', 'l3', 'v1', 'v2', 'v3', 's0']
-        
-        for param in params:
-            outputs[f'dti_{param}'] = os.path.join(os.path.dirname(self.inputs.dtifit_output_basename), rename_bids_file(self.inputs.dwi_file, {"desc": None, 'model': 'tensor', 'param': param}, 'dwimap', '.nii.gz'))
-        
-        return outputs
+        outputs["output_dir"] = os.path.abspath(os.path.dirname(self.inputs.output_basename))
+        outputs["output_basename"] = self.inputs.output_basename
 
+        if bool(self.inputs.bids_rename):
+            dst = self._bids_dest_files()
+            outputs["dti_fa"] = dst["fa"]
+            outputs["dti_md"] = dst["md"]
+            outputs["dti_mo"] = dst["mo"]
+            outputs["dti_tensor"] = dst["tensor"]
+            outputs["dti_l1"] = dst["l1"]
+            outputs["dti_l2"] = dst["l2"]
+            outputs["dti_l3"] = dst["l3"]
+            outputs["dti_v1"] = dst["v1"]
+            outputs["dti_v2"] = dst["v2"]
+            outputs["dti_v3"] = dst["v3"]
+            outputs["dti_s0"] = dst["s0"]
+        else:
+            src = self._dtifit_expected_files()
+            outputs["dti_fa"] = src["fa"]
+            outputs["dti_md"] = src["md"]
+            outputs["dti_mo"] = src["mo"]
+            outputs["dti_tensor"] = src["tensor"]
+            outputs["dti_l1"] = src["l1"]
+            outputs["dti_l2"] = src["l2"]
+            outputs["dti_l3"] = src["l3"]
+            outputs["dti_v1"] = src["v1"]
+            outputs["dti_v2"] = src["v2"]
+            outputs["dti_v3"] = src["v3"]
+            outputs["dti_s0"] = src["s0"]
+
+        return outputs
+    
 ############
 # bedpostx #
 ############
@@ -375,6 +439,7 @@ class PrepareBedpostxInputSpec(BaseInterfaceInputSpec):
     bval = File(exists=True, desc='Bval file')
     mask = File(exists=True, desc='Mask file')
     output_dir = Directory(exists=True, desc='Output directory')
+    use_symlinks = Bool(True, desc='Use symlinks instead of copying files')
 
 class PrepareBedpostxOutputSpec(TraitedSpec):
     bedpostx_input_dir = Directory(desc='Bedpostx input directory')
@@ -394,11 +459,18 @@ class PrepareBedpostx(BaseInterface):
         bedpostx_input_dir = output_dir
         os.makedirs(bedpostx_input_dir, exist_ok=True)
 
-        # Copy the files to the bedpostx input directory
-        shutil.copy(dwi_img, os.path.join(bedpostx_input_dir, 'data.nii.gz'))
-        shutil.copy(bvec, os.path.join(bedpostx_input_dir, 'bvecs'))
-        shutil.copy(bval, os.path.join(bedpostx_input_dir, 'bvals'))
-        shutil.copy(mask, os.path.join(bedpostx_input_dir, 'nodif_brain_mask.nii.gz'))
+        if self.inputs.use_symlinks:
+            # Create symlinks to the files in the bedpostx input directory
+            os.symlink(os.path.abspath(dwi_img), os.path.join(bedpostx_input_dir, 'data.nii.gz'))
+            os.symlink(os.path.abspath(bvec), os.path.join(bedpostx_input_dir, 'bvecs'))
+            os.symlink(os.path.abspath(bval), os.path.join(bedpostx_input_dir, 'bvals'))
+            os.symlink(os.path.abspath(mask), os.path.join(bedpostx_input_dir, 'nodif_brain_mask.nii.gz'))
+        else:
+            # Copy the files to the bedpostx input directory
+            shutil.copy(dwi_img, os.path.join(bedpostx_input_dir, 'data.nii.gz'))
+            shutil.copy(bvec, os.path.join(bedpostx_input_dir, 'bvecs'))
+            shutil.copy(bval, os.path.join(bedpostx_input_dir, 'bvals'))
+            shutil.copy(mask, os.path.join(bedpostx_input_dir, 'nodif_brain_mask.nii.gz'))
 
         self._bedpostx_input_dir = bedpostx_input_dir
 
@@ -417,7 +489,8 @@ class BedpostxOutputSpec(TraitedSpec):
     output_dir = Str(desc='Output directory')
 
 class Bedpostx(CommandLine):
-    _cmd = 'bedpostx_gpu'
+    #_cmd = 'bedpostx_gpu'
+    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'fdt', 'bedpostx_gpu_custom.sh')
     input_spec = BedpostxInputSpec
     output_spec = BedpostxOutputSpec
     terminal_output = 'allatonce'
@@ -428,68 +501,197 @@ class Bedpostx(CommandLine):
 
         return outputs
 
-################
-# Tractography #
-################
-class TractographyInputSpec(BaseInterfaceInputSpec):
-    fs_output = Directory(exists=True, desc='Freesurfer output directory')
-    seed_mask_dtispace = File(exists=True, desc='Seed mask') # Currently only in DTI space
-    fs_processing_dir = Directory(desc='Freesurfer processing directory')
-    t1w_file = File(exists=True, desc='T1w file')
-    fa_file = File(exists=True, desc='FA file')
-    script_path_fspreprocess = Str(desc='Path to the script') # Freesurfer post-processing
-    skip_fs_preprocess = Bool(False, desc='Skip freesurfer preprocessing')
-    seed_mask_fsspace = File(desc='Seed mask in Freesurfer space')
-    bedpostx_output_dir = Directory(desc='Bedpostx output directory')
-    probtrackx_output_dir1 = Directory(desc='Probtrackx output directory 1 (Default)')
-    probtrackx_output_dir2 = Directory(desc='Probtrackx output directory 2 (Corrected for path length)')
+class BedpostxGPUCustomInputSpec(CommandLineInputSpec):
+    # Required inputs
+    dwi_img = File(
+        exists=True,
+        mandatory=True,
+        desc="Path to DWI image (4D)",
+        argstr="--dwi %s",
+    )
+    bvec = File(
+        exists=True,
+        mandatory=True,
+        desc="Path to bvecs",
+        argstr="--bvec %s",
+    )
+    bval = File(
+        exists=True,
+        mandatory=True,
+        desc="Path to bvals",
+        argstr="--bval %s",
+    )
+    mask = File(
+        exists=True,
+        mandatory=True,
+        desc="Path to nodif_brain_mask image",
+        argstr="--mask %s",
+    )
+    out_dir = Directory(
+        mandatory=True,
+        desc="Output directory (final results; no .bedpostX suffix)",
+        argstr="--out-dir %s",
+    )
 
-class TractographyOutputSpec(TraitedSpec):
-    seed_mask_fsspace = File(desc='Seed mask in Freesurfer space')
-    cortex_mask = File(desc='Cortex mask')
-    fs_processing_dir = Directory(desc='Freesurfer processing directory')
-    fs_orig = Directory(desc='orig.nii.gz')
-    fs_to_fa_xfm = File(desc='Transform from fs to FA space')
-    t1w_to_fa_xfm = File(desc='Transform from T1w to FA space')
-    # BELOW: The masks are in fsaverage space
-    lh_unconn_mask = File(desc='Unconnected mask')
-    rh_unconn_mask = File(desc='Unconnected mask')
-    lh_unconn_corrected_mask = File(desc='Unconnected mask corrected for path length')
-    rh_unconn_corrected_mask = File(desc='Unconnected mask corrected for path length')
-    lh_low_conn_mask = File(desc='Low connectivity mask')
-    rh_low_conn_mask = File(desc='Low connectivity mask')
-    lh_low_conn_corrected_mask = File(desc='Low connectivity mask corrected for path length')
-    rh_low_conn_corrected_mask = File(desc='Low connectivity mask corrected for path length')
-    lh_medium_conn_mask = File(desc='Medium connectivity mask')
-    rh_medium_conn_mask = File(desc='Medium connectivity mask')
-    lh_medium_conn_corrected_mask = File(desc='Medium connectivity mask corrected for path length')
-    rh_medium_conn_corrected_mask = File(desc='Medium connectivity mask corrected for path length')
-    lh_high_conn_mask = File(desc='High connectivity mask')
-    rh_high_conn_mask = File(desc='High connectivity mask')
-    lh_high_conn_corrected_mask = File(desc='High connectivity mask corrected for path length')
-    rh_high_conn_corrected_mask = File(desc='High connectivity mask corrected for path length')
+    # Optional bedpostx-like options supported by your script
+    njobs = Int(
+        4,
+        usedefault=True,
+        desc="Number of jobs/parts",
+        argstr="-NJOBS %d",
+    )
+    nfibres = Int(
+        3,
+        usedefault=True,
+        desc="Number of fibres per voxel",
+        argstr="-n %d",
+    )
+    fudge = Float(
+        1.0,
+        usedefault=True,
+        desc="ARD weight/fudge",
+        argstr="-w %f",
+    )
+    burnin = Int(
+        1000,
+        usedefault=True,
+        desc="Burnin",
+        argstr="-b %d",
+    )
+    njumps = Int(
+        1250,
+        usedefault=True,
+        desc="Number of jumps",
+        argstr="-j %d",
+    )
+    sampleevery = Int(
+        25,
+        usedefault=True,
+        desc="Sample every",
+        argstr="-s %d",
+    )
+    model = Int(
+        2,
+        usedefault=True,
+        desc="Model: 1 sticks, 2 sticks+range, 3 zeppelins",
+        argstr="-model %d",
+    )
 
-class Tractography(BaseInterface):
-    input_spec = TractographyInputSpec
-    output_spec = TractographyOutputSpec
+    # Gradient nonlinearity support (only if you implemented --grad-dev in the script)
+    grad_dev = File(
+        exists=True,
+        mandatory=False,
+        desc="Path to grad_dev image (optional)",
+        argstr="--grad-dev %s",
+    )
 
-    def _merge_wmgm_boundary_gifti(self, gii_mesh_path, gii_data_path, output_gii):
-        """
-        Use the mesh information of gii_mesh_path
-        Use the data information of gii_data_path (here we binarize the data to create a mask)
-        Merge the data information with the mesh information to create a new GIFTI file
-        """
-        gii_mesh = nib.load(gii_mesh_path)
-        gii_data = nib.load(gii_data_path)
-        
-        vertices = gii_mesh.darrays[0].data
-        faces = gii_mesh.darrays[1].data
-        values = gii_data.darrays[0].data
+    # Additional xfibres options to pass through, e.g. ["--noard", "--cnonlinear"]
+    # Nipype's CommandLine supports "args" as a raw string, so we provide an explicit field.
+    extra_args = Str(
+        "",
+        usedefault=True,
+        desc="Extra arguments passed to xfibres_gpu/bedpostx (raw string)",
+        argstr="%s",
+    )
+
+
+class BedpostxGPUCustomOutputSpec(TraitedSpec):
+    out_dir = Directory(desc="Output directory (final bedpostx results)")
+    eye_mat = File(desc="Identity transform matrix")
+    diff_parts_dir = Directory(desc="diff_parts directory")
+    logs_dir = Directory(desc="logs directory")
+    xfms_dir = Directory(desc="xfms directory")
+    source_for_probtrackx = Str(desc="Source string for probtrackx input (-s argument)")
+    mask_for_probtrackx = Str(desc="Mask string for probtrackx input (-m argument)")
+
+class BedpostxGPUCustom(CommandLine):
+    """
+    Run modified bedpostx_gpu_custom.sh that accepts explicit input files and a user-defined output directory.
+    """
+    _cmd = "bash " + get_package_path("pipelines", "bash", "fdt", "bedpostx_gpu_custom.sh")
+    input_spec = BedpostxGPUCustomInputSpec
+    output_spec = BedpostxGPUCustomOutputSpec
+    terminal_output = "allatonce"
+
+    def _run_interface(self, runtime):
+        # Ensure output directory exists before execution (script also does, but safe here)
+        out_dir = os.path.abspath(self.inputs.out_dir)
+        os.makedirs(out_dir, exist_ok=True)
+        return super()._run_interface(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        out_dir = os.path.abspath(self.inputs.out_dir)
+
+        outputs["out_dir"] = out_dir
+        outputs["eye_mat"] = os.path.join(out_dir, "xfms", "eye.mat")
+        outputs["diff_parts_dir"] = os.path.join(out_dir, "diff_parts")
+        outputs["logs_dir"] = os.path.join(out_dir, "logs")
+        outputs["xfms_dir"] = os.path.join(out_dir, "xfms")
+        outputs["source_for_probtrackx"] = os.path.join(out_dir, "merged")
+        outputs["mask_for_probtrackx"] = os.path.join(out_dir, "nodif_brain_mask.nii.gz")
+
+        return outputs
+
+##############
+# Probtrackx #
+##############
+class ProbtrackxInputSpec(CommandLineInputSpec):
+    source = Str(argstr='-s %s', desc='Source bedpostx output', mandatory=True)
+    dwi_mask = File(argstr='-m %s', desc='DWI brain mask', mandatory=True)
+    seed_mask = File(argstr='-x %s', desc='Seed mask', mandatory=True)
+    seed_to_dwi_xfm = File(argstr='--xfm=%s', desc='Transform from seed to DWI space', mandatory=True)
+    seed_ref = File(argstr='--seedref=%s', desc='Seed reference image', mandatory=True)
+    waypoints = Str(argstr='--waypoints=%s', desc='Waypoints file', mandatory=False)
+    path_length_correction = Bool(False, argstr='--pd', desc='Enable path length correction', mandatory=False)
+    output_dir = Str(argstr='--dir=%s', desc='Output directory', mandatory=True)
+    nsmamples = Int(5000, argstr='--nsamples=%d', desc='Number of samples', mandatory=False)
+    args = Str(argstr='%s', desc='Additional arguments', mandatory=False)
+
+class ProbtrackxOutputSpec(TraitedSpec):
+    output_dir = Str(desc='Output directory')
+    fdt_paths = File(desc='FDT paths file')
+
+class Probtrackx(CommandLine):
+    # use gpu
+    _cmd = 'probtrackx2_gpu'
+    input_spec = ProbtrackxInputSpec
+    output_spec = ProbtrackxOutputSpec
+    terminal_output = 'allatonce'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_dir'] = os.path.abspath(self.inputs.output_dir)
+        outputs['fdt_paths'] = os.path.abspath(os.path.join(self.inputs.output_dir, 'fdt_paths.nii.gz'))
+        return outputs
+
+###############    
+# Merge GIFTI #
+###############
+class MergeGiftiInputSpec(BaseInterfaceInputSpec):
+    gii_mesh = File(exists=True, desc='GIFTI mesh file (for vertices and faces)')
+    gii_data = File(exists=True, desc='GIFTI data file (for data values)')
+    output_gii = File(desc='Output GIFTI file')
+
+class MergeGiftiOutputSpec(TraitedSpec):
+    output_gii = File(desc='Output GIFTI file')
+
+class MergeGifti(BaseInterface):
+    input_spec = MergeGiftiInputSpec
+    output_spec = MergeGiftiOutputSpec
+
+    def _run_interface(self, runtime):
+        gii_mesh_path = self.inputs.gii_mesh
+        gii_data_path = self.inputs.gii_data
+        output_gii = self.inputs.output_gii
+
+        # rewrite _merge_wmgm_boundary_gifti
+        vertices = nib.load(gii_mesh_path).darrays[0].data
+        faces = nib.load(gii_mesh_path).darrays[1].data
+        values = nib.load(gii_data_path).darrays[0].data
 
         num_vertices = vertices.shape[0]
         assert values.shape[0] == num_vertices, "Error: Measure and mesh vertex counts do not match!"
-
-        vertex_values = (values > 0).astype(np.float32)
 
         new_gii = nib.gifti.GiftiImage()
         new_gii.add_gifti_data_array(nib.gifti.GiftiDataArray(
@@ -499,15 +701,40 @@ class Tractography(BaseInterface):
             faces, intent=nib.nifti1.intent_codes['NIFTI_INTENT_TRIANGLE']
         ))
         new_gii.add_gifti_data_array(nib.gifti.GiftiDataArray(
-            vertex_values, intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE']
+            values, intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE']
         ))
 
         nib.save(new_gii, output_gii)
-        print(f"Fixed GIFTI file saved as {output_gii}")
+        print(f"Merged GIFTI file saved as {output_gii}")
 
-        return output_gii
+        self._output_gii = output_gii
+
+        return runtime
     
-    def _apply_gii_mask_to_mgh(self, measure_mgh_path, mask_gii_path, output_mgh_path):
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_gii'] = self._output_gii
+
+        return outputs
+
+###########################
+# Apply GIFTI mask to MGH #
+###########################
+class ApplyGiiMaskToMghInputSpec(BaseInterfaceInputSpec):
+    measure_mgh = File(exists=True, desc='Measure MGH file')
+    mask_gii = File(exists=True, desc='Mask GIFTI file')
+    output_mgh = File(desc='Output masked MGH file')
+class ApplyGiiMaskToMghOutputSpec(TraitedSpec):
+    output_mgh = File(desc='Output masked MGH file')
+class ApplyGiiMaskToMgh(BaseInterface):
+    input_spec = ApplyGiiMaskToMghInputSpec
+    output_spec = ApplyGiiMaskToMghOutputSpec
+
+    def _run_interface(self, runtime):
+        measure_mgh_path = self.inputs.measure_mgh
+        mask_gii_path = self.inputs.mask_gii
+        output_mgh_path = self.inputs.output_mgh
+
         measure_img = nib.load(measure_mgh_path)
         measure_data = measure_img.get_fdata().squeeze()
 
@@ -519,345 +746,133 @@ class Tractography(BaseInterface):
             mask_data = np.where(mask_data > 0, 1, mask_data)
         
         masked_data = measure_data * mask_data
-        masked_img = nib.MGHImage(masked_data.astype(np.float32), measure_img.affine, measure_img.header)
+        masked_img = nib.MGHImage(masked_data, measure_img.affine, measure_img.header)
         nib.save(masked_img, output_mgh_path)
+        print(f"Masked MGH file saved as {output_mgh_path}")
 
-        return masked_data
+        self._output_mgh = output_mgh_path
+
+        return runtime
     
-    def _generate_surface_masks(self, lh_path, rh_path, output_files, divisor, ignore_value=3.8e-5):
-        """
-        Generate High, Medium, Low, and Other surface masks from LH/RH MGH files.
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_mgh'] = self._output_mgh
 
-        Parameters:
-        - lh_path: str, path to left hemisphere .mgh file
-        - rh_path: str, path to right hemisphere .mgh file
-        - output_files: dict, expected keys: 
-            'lh_High', 'lh_Medium', 'lh_Low', 'lh_Other',
-            'rh_High', 'rh_Medium', 'rh_Low', 'rh_Other'
-        - divisor: float, normalize surface values
-        - ignore_value: float, ignore values below this threshold
+        return outputs
 
-        Returns:
-        - Tuple of 8 file paths to the generated masks (LH/RH for each category)
-        """
+###########################
+# Define Connection-level #
+###########################
+class DefineConnectionLevelInputSpec(BaseInterfaceInputSpec):
+    lh_mgh = File(exists=True, desc='Left hemisphere MGH file')
+    rh_mgh = File(exists=True, desc='Right hemisphere MGH file')
+    output_files = Dict(desc='Dictionary of output file paths for each connection level, should contain: \'lh_unconn\', \'rh_unconn\', \'lh_lowconn\', \'rh_lowconn\', \'lh_medconn\', \'rh_medconn\', \'lh_highconn\', \'rh_highconn\'')
+    low_threshold = Float(desc='Low threshold value')
+    divisor = Float(1, desc='Divisor for normalization')
 
-        lh_img = nib.load(lh_path)
-        rh_img = nib.load(rh_path)
+class DefineConnectionLevelOutputSpec(TraitedSpec):
+    output_files = List(File, desc='List of output files for each connection level')
+    lh_unconn_mask = File(desc='Left hemisphere unconnected mask')
+    rh_unconn_mask = File(desc='Right hemisphere unconnected mask')
+    lh_lowconn_mask = File(desc='Left hemisphere low connectivity mask')
+    rh_lowconn_mask = File(desc='Right hemisphere low connectivity mask')
+    lh_medconn_mask = File(desc='Left hemisphere medium connectivity mask')
+    rh_medconn_mask = File(desc='Right hemisphere medium connectivity mask')
+    lh_highconn_mask = File(desc='Left hemisphere high connectivity mask')
+    rh_highconn_mask = File(desc='Right hemisphere high connectivity mask')
 
-        lh_data = lh_img.get_fdata().squeeze() / divisor
-        rh_data = rh_img.get_fdata().squeeze() / divisor
+class DefineConnectionLevel(BaseInterface):
+    input_spec = DefineConnectionLevelInputSpec
+    output_spec = DefineConnectionLevelOutputSpec
 
-        # Combine and threshold
-        combined_data = np.concatenate([lh_data, rh_data])
-        filtered_data = combined_data[combined_data > ignore_value]
+    def _run_interface(self, runtime):
+        lh_mgh_path = self.inputs.lh_mgh
+        rh_mgh_path = self.inputs.rh_mgh
+        output_files = self.inputs.output_files
+        low_threshold = self.inputs.low_threshold
+        divisor = self.inputs.divisor
+
+        # Load data
+        lh_data = nib.load(lh_mgh_path).get_fdata().squeeze()
+        rh_data = nib.load(rh_mgh_path).get_fdata().squeeze()
+
+        # Normalize data
+        lh_data_norm = lh_data / divisor
+        rh_data_norm = rh_data / divisor
+
+        combined_data = np.concatenate((lh_data_norm, rh_data_norm))
+        filtered_data = combined_data[combined_data > low_threshold]
         sorted_values = np.sort(filtered_data)
 
-        # Percentile thresholds
-        thresh_High = sorted_values[int(len(sorted_values) * 0.75)]
-        thresh_Medium = sorted_values[int(len(sorted_values) * 0.50)]
-        thresh_Low = sorted_values[int(len(sorted_values) * 0.25)]
+        # Percentage thresholds
+        medium_threshold = np.percentile(sorted_values, 50)
+        high_threshold = np.percentile(sorted_values, 75)
 
-        def create_mask(data, threshold):
-            return (data >= threshold).astype(int)
+        lh_unconn_mask = (lh_data_norm <= low_threshold).astype(np.float32)
+        rh_unconn_mask = (rh_data_norm <= low_threshold).astype(np.float32)
+        lh_lowconn_mask = (lh_data_norm > low_threshold).astype(np.float32)
+        rh_lowconn_mask = (rh_data_norm > low_threshold).astype(np.float32)
+        lh_medconn_mask = (lh_data_norm > medium_threshold).astype(np.float32)
+        rh_medconn_mask = (rh_data_norm > medium_threshold).astype(np.float32)
+        lh_highconn_mask = (lh_data_norm > high_threshold).astype(np.float32)
+        rh_highconn_mask = (rh_data_norm > high_threshold).astype(np.float32)
 
-        # Create masks
-        lh_mask_High = create_mask(lh_data, thresh_High)
-        lh_mask_Medium = create_mask(lh_data, thresh_Medium)
-        lh_mask_Low = create_mask(lh_data, thresh_Low)
-
-        rh_mask_High = create_mask(rh_data, thresh_High)
-        rh_mask_Medium = create_mask(rh_data, thresh_Medium)
-        rh_mask_Low = create_mask(rh_data, thresh_Low)
-
-        # Other masks = not in Low
-        lh_mask_Unconn = (lh_mask_Low == 0).astype(int)
-        rh_mask_Unconn = (rh_mask_Low == 0).astype(int)
-
-        # Save function
         def save_mgh(data, ref_img, filename):
             img = nib.MGHImage(data.astype(np.float32), ref_img.affine, ref_img.header)
             nib.save(img, filename)
-
-        # Save all masks
-        save_mgh(lh_mask_High, lh_img, output_files["lh_High"])
-        save_mgh(lh_mask_Medium, lh_img, output_files["lh_Medium"])
-        save_mgh(lh_mask_Low, lh_img, output_files["lh_Low"])
-        save_mgh(lh_mask_Unconn, lh_img, output_files["lh_Unconn"])
-
-        save_mgh(rh_mask_High, rh_img, output_files["rh_High"])
-        save_mgh(rh_mask_Medium, rh_img, output_files["rh_Medium"])
-        save_mgh(rh_mask_Low, rh_img, output_files["rh_Low"])
-        save_mgh(rh_mask_Unconn, rh_img, output_files["rh_Unconn"])
-
-        return (
-            output_files["lh_High"], output_files["rh_High"],
-            output_files["lh_Medium"], output_files["rh_Medium"],
-            output_files["lh_Low"], output_files["rh_Low"],
-            output_files["lh_Unconn"], output_files["rh_Unconn"]
-        )
-
-    def _run_interface(self, runtime):
-        fs_output = self.inputs.fs_output
-        seed_mask_dtispace = self.inputs.seed_mask_dtispace
-        fs_processing_dir = self.inputs.fs_processing_dir
-        t1w_file = self.inputs.t1w_file
-        fa_file = self.inputs.fa_file
-        script_path_fspreprocess = self.inputs.script_path_fspreprocess
-        bedpostx_output_dir = self.inputs.bedpostx_output_dir
-        probtrackx_output_dir1 = self.inputs.probtrackx_output_dir1
-        probtrackx_output_dir2 = self.inputs.probtrackx_output_dir2
-
-        # Part I: Freesurfer processing
-        if self.inputs.skip_fs_preprocess:
-            # must provide seed_mask_fsspace
-            self._seed_mask_fsspace = self.inputs.seed_mask_fsspace
-            self._cortex_mask = os.path.join(fs_processing_dir, 'cortical_GM.nii.gz')
-            if not os.path.exists(self._seed_mask_fsspace):
-                raise ValueError("Seed mask in Freesurfer space is not provided. Please provide a valid seed mask.")
-            
-            lh_cortex_gii = os.path.join(fs_processing_dir, 'lh.cortex.gii')
-            rh_cortex_gii = os.path.join(fs_processing_dir, 'rh.cortex.gii')
-
-            lh_cortex_fsaverage_gii = os.path.join(fs_processing_dir, 'lh.cortex_fsaverage.gii')
-            rh_cortex_fsaverage_gii = os.path.join(fs_processing_dir, 'rh.cortex_fsaverage.gii')
-        else:
-            subprocess.run([
-                'bash', script_path_fspreprocess,
-                fs_output, t1w_file,
-                fa_file, seed_mask_dtispace, fs_processing_dir
-            ])
-
-            subprocess.run(['mris_convert', os.path.join(fs_output, 'surf', 'lh.white'), os.path.join(fs_processing_dir, 'lh.white.gii')])
-            subprocess.run(['mris_convert', os.path.join(fs_output, 'surf', 'rh.white'), os.path.join(fs_processing_dir, 'rh.white.gii')])
-            subprocess.run(['mris_convert', '--annot', os.path.join(fs_output, 'label', 'lh.aparc.annot'), 
-                            os.path.join(fs_output, 'surf', 'lh.white'), os.path.join(fs_processing_dir, 'lh.aparc.label.gii')])
-            subprocess.run(['mris_convert', '--annot', os.path.join(fs_output, 'label', 'rh.aparc.annot'),
-                            os.path.join(fs_output, 'surf', 'rh.white'), os.path.join(fs_processing_dir, 'rh.aparc.label.gii')])
-                        
-            lh_cortex_gii = self._merge_wmgm_boundary_gifti(os.path.join(fs_processing_dir, 'lh.white.gii'), os.path.join(fs_processing_dir, 'lh.aparc.label.gii'), os.path.join(fs_processing_dir, 'lh.cortex.gii'))
-            rh_cortex_gii = self._merge_wmgm_boundary_gifti(os.path.join(fs_processing_dir, 'rh.white.gii'), os.path.join(fs_processing_dir, 'rh.aparc.label.gii'), os.path.join(fs_processing_dir, 'rh.cortex.gii'))
-
-            # delete the intermediate files
-            files_to_delete = [os.path.join(fs_processing_dir, 'lh.white.gii'), os.path.join(fs_processing_dir, 'rh.white.gii'),
-                            os.path.join(fs_processing_dir, 'lh.aparc.label.gii'), os.path.join(fs_processing_dir, 'rh.aparc.label.gii')]
-            for file in files_to_delete:
-                os.remove(file)
-
-            # apply the same to generate rh.white_fsaverage.gii and lh.white_fsaverage.gii
-            fsaverage_dir = os.path.join(os.environ.get("FREESURFER_HOME"), 'subjects', 'fsaverage')
-            subprocess.run(['mris_convert', os.path.join(fsaverage_dir, 'surf', 'lh.white'), os.path.join(fs_processing_dir, 'lh.white_fsaverage.gii')])
-            subprocess.run(['mris_convert', os.path.join(fsaverage_dir, 'surf', 'rh.white'), os.path.join(fs_processing_dir, 'rh.white_fsaverage.gii')])
-            subprocess.run(['mris_convert', '--annot', os.path.join(fsaverage_dir, 'label', 'lh.aparc.annot'),
-                            os.path.join(fsaverage_dir, 'surf', 'lh.white'), os.path.join(fs_processing_dir, 'lh.aparc_fsaverage.label.gii')])
-            subprocess.run(['mris_convert', '--annot', os.path.join(fsaverage_dir, 'label', 'rh.aparc.annot'),
-                            os.path.join(fsaverage_dir, 'surf', 'rh.white'), os.path.join(fs_processing_dir, 'rh.aparc_fsaverage.label.gii')])
-            
-            lh_cortex_fsaverage_gii = self._merge_wmgm_boundary_gifti(os.path.join(fs_processing_dir, 'lh.white_fsaverage.gii'), os.path.join(fs_processing_dir, 'lh.aparc_fsaverage.label.gii'), os.path.join(fs_processing_dir, 'lh.cortex_fsaverage.gii'))
-            rh_cortex_fsaverage_gii = self._merge_wmgm_boundary_gifti(os.path.join(fs_processing_dir, 'rh.white_fsaverage.gii'), os.path.join(fs_processing_dir, 'rh.aparc_fsaverage.label.gii'), os.path.join(fs_processing_dir, 'rh.cortex_fsaverage.gii'))
-
-            # delete the intermediate files
-            files_to_delete = [os.path.join(fs_processing_dir, 'lh.white_fsaverage.gii'), os.path.join(fs_processing_dir, 'rh.white_fsaverage.gii'),
-                                os.path.join(fs_processing_dir, 'lh.aparc_fsaverage.label.gii'), os.path.join(fs_processing_dir, 'rh.aparc_fsaverage.label.gii')]
-            for file in files_to_delete:
-                os.remove(file)
-
-            # the txt file is used for FDT probtrackx2
-            # Currently not used!
-            stop_txt_path = os.path.join(fs_processing_dir, "stop.txt")
-
-            with open(stop_txt_path, "w") as f:
-                f.write(lh_cortex_gii + "\n")
-
-            with open(stop_txt_path, "a") as f:
-                f.write(rh_cortex_gii + "\n")
-            
-            self._seed_mask_fsspace = os.path.join(fs_processing_dir, 'seed_mask_in_fs.nii.gz')
-            self._cortex_mask = os.path.join(fs_processing_dir, 'cortical_GM.nii.gz')
-
-        # Part II: Probtrackx
-        if not os.path.exists(os.path.join(probtrackx_output_dir1, 'fdt_paths.nii.gz')):
-            subprocess.run(['probtrackx2_gpu',
-                                '-s', os.path.join(bedpostx_output_dir, 'merged'),
-                                '-m', os.path.join(bedpostx_output_dir, 'nodif_brain_mask.nii.gz'),
-                                '-x', self._seed_mask_fsspace,
-                                f"--xfm={os.path.join(fs_processing_dir, 'freesurfer2fa.mat')}",
-                                f"--seedref={os.path.join(fs_processing_dir, 'orig.nii.gz')}",
-                                '-l', '--forcedir', '--opd', '--nsamples=10000', '--ompl',
-                                #'--pd',
-                                f"--dir={probtrackx_output_dir1}",
-                                f"--waypoints={os.path.join(fs_processing_dir, 'cortical_GM.nii.gz')}"], check=True)
-        else:
-            print("Probtrackx has already been run. Skip the process.")
-
-        if not os.path.exists(os.path.join(probtrackx_output_dir2, 'fdt_paths.nii.gz')):
-            subprocess.run(['probtrackx2_gpu',
-                                '-s', os.path.join(bedpostx_output_dir, 'merged'),
-                                '-m', os.path.join(bedpostx_output_dir, 'nodif_brain_mask.nii.gz'),
-                                '-x', self._seed_mask_fsspace,
-                                f"--xfm={os.path.join(fs_processing_dir, 'freesurfer2fa.mat')}",
-                                f"--seedref={os.path.join(fs_processing_dir, 'orig.nii.gz')}",
-                                '-l', '--forcedir', '--opd', '--nsamples=10000', '--ompl',
-                                '--pd', # Correct for path length
-                                f"--dir={probtrackx_output_dir2}",
-                                f"--waypoints={os.path.join(fs_processing_dir, 'cortical_GM.nii.gz')}"], check=True)
-        else:
-            print("Probtrackx has already been run. Skip the process.")
         
-        subjects_dir_temp = os.path.dirname(fs_output)
-        subject_id = os.path.basename(fs_output)
-
-        seed_mask_img = nib.load(self._seed_mask_fsspace)
-        seed_mask_data = seed_mask_img.get_fdata()
-        seed_number = np.count_nonzero(seed_mask_data)
-        divisor = 10000 * seed_number
-
-        # set the environment variable SUBJECTS_DIR
-        os.environ["SUBJECTS_DIR"] = subjects_dir_temp
-        
-        probtrackx_output_dirs = [probtrackx_output_dir1, probtrackx_output_dir2]
-        for probtrackx_output_dir in probtrackx_output_dirs:
-
-            subprocess.run([
-                'mri_vol2surf',
-                '--mov', os.path.join(probtrackx_output_dir, 'fdt_paths.nii.gz'),
-                '--regheader', subject_id,
-                '--hemi', 'lh',
-                '--o', os.path.join(probtrackx_output_dir, 'lh.fdt_paths.mgh'),
-                '--projfrac', '0.5'
-            ], check=True)
-
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'lh.fdt_paths.mgh'), lh_cortex_gii, os.path.join(probtrackx_output_dir, 'lh.fdt_paths.mgh'))
-
-            subprocess.run([
-                'mri_vol2surf',
-                '--mov', os.path.join(probtrackx_output_dir, 'fdt_paths.nii.gz'),
-                '--regheader', subject_id,
-                '--hemi', 'rh',
-                '--o', os.path.join(probtrackx_output_dir, 'rh.fdt_paths.mgh'),
-                '--projfrac', '0.5'
-            ], check=True)
-
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'rh.fdt_paths.mgh'), rh_cortex_gii, os.path.join(probtrackx_output_dir, 'rh.fdt_paths.mgh'))
-
-            output_files_subject = {
-                "lh_High": os.path.join(probtrackx_output_dir, 'lh.HighConn.mgh'),
-                "rh_High": os.path.join(probtrackx_output_dir, 'rh.HighConn.mgh'),
-                "lh_Medium": os.path.join(probtrackx_output_dir, 'lh.MediumConn.mgh'),
-                "rh_Medium": os.path.join(probtrackx_output_dir, 'rh.MediumConn.mgh'),
-                "lh_Low": os.path.join(probtrackx_output_dir, 'lh.LowConn.mgh'),
-                "rh_Low": os.path.join(probtrackx_output_dir, 'rh.LowConn.mgh'),
-                "lh_Unconn": os.path.join(probtrackx_output_dir, 'lh.UnConn.mgh'),
-                "rh_Unconn": os.path.join(probtrackx_output_dir, 'rh.UnConn.mgh')
-            }
-
-            self._generate_surface_masks(
-                os.path.join(probtrackx_output_dir, 'lh.fdt_paths.mgh'),
-                os.path.join(probtrackx_output_dir, 'rh.fdt_paths.mgh'),
-                output_files_subject,
-                divisor,
-                ignore_value=3.8e-5
-            )
-
-            # apply mask to unconn mask
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'lh.UnConn.mgh'), lh_cortex_gii, os.path.join(probtrackx_output_dir, 'lh.UnConn.mgh'))
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'rh.UnConn.mgh'), rh_cortex_gii, os.path.join(probtrackx_output_dir, 'rh.UnConn.mgh'))
-
-            subprocess.run([
-                'mri_vol2surf',
-                '--mov', os.path.join(probtrackx_output_dir, 'fdt_paths.nii.gz'),
-                '--regheader', subject_id,
-                '--hemi', 'lh',
-                '--o', os.path.join(probtrackx_output_dir, 'lh.fdt_paths_fsaverage.mgh'),
-                '--projfrac', '0.5',
-                '--trgsubject', 'fsaverage'
-            ], check=True)
-
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'lh.fdt_paths_fsaverage.mgh'), lh_cortex_fsaverage_gii, os.path.join(probtrackx_output_dir, 'lh.fdt_paths_fsaverage.mgh'))
-
-            subprocess.run([
-                'mri_vol2surf',
-                '--mov', os.path.join(probtrackx_output_dir, 'fdt_paths.nii.gz'),
-                '--regheader', subject_id,
-                '--hemi', 'rh',
-                '--o', os.path.join(probtrackx_output_dir, 'rh.fdt_paths_fsaverage.mgh'),
-                '--projfrac', '0.5',
-                '--trgsubject', 'fsaverage'
-            ], check=True)
-
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'rh.fdt_paths_fsaverage.mgh'), rh_cortex_fsaverage_gii, os.path.join(probtrackx_output_dir, 'rh.fdt_paths_fsaverage.mgh'))
-
-            output_files_fsaverage = {
-                "lh_High": os.path.join(probtrackx_output_dir, 'lh.HighConn_fsaverage.mgh'),
-                "rh_High": os.path.join(probtrackx_output_dir, 'rh.HighConn_fsaverage.mgh'),
-                "lh_Medium": os.path.join(probtrackx_output_dir, 'lh.MediumConn_fsaverage.mgh'),
-                "rh_Medium": os.path.join(probtrackx_output_dir, 'rh.MediumConn_fsaverage.mgh'),
-                "lh_Low": os.path.join(probtrackx_output_dir, 'lh.LowConn_fsaverage.mgh'),
-                "rh_Low": os.path.join(probtrackx_output_dir, 'rh.LowConn_fsaverage.mgh'),
-                "lh_Unconn": os.path.join(probtrackx_output_dir, 'lh.UnConn_fsaverage.mgh'),
-                "rh_Unconn": os.path.join(probtrackx_output_dir, 'rh.UnConn_fsaverage.mgh')
-            }
-
-            self._generate_surface_masks(
-                os.path.join(probtrackx_output_dir, 'lh.fdt_paths_fsaverage.mgh'),
-                os.path.join(probtrackx_output_dir, 'rh.fdt_paths_fsaverage.mgh'),
-                output_files_fsaverage,
-                divisor,
-                ignore_value=3.8e-5
-            )
-
-            # apply mask to unconn mask
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'lh.UnConn_fsaverage.mgh'), lh_cortex_fsaverage_gii, os.path.join(probtrackx_output_dir, 'lh.UnConn_fsaverage.mgh'))
-            self._apply_gii_mask_to_mgh(os.path.join(probtrackx_output_dir, 'rh.UnConn_fsaverage.mgh'), rh_cortex_fsaverage_gii, os.path.join(probtrackx_output_dir, 'rh.UnConn_fsaverage.mgh'))
-
-        self._fs_processing_dir = fs_processing_dir
-        self._fs_orig = os.path.join(fs_processing_dir, 'orig.nii.gz')
-        self._fs_to_fa_xfm = os.path.join(fs_processing_dir, 'freesurfer2fa.mat')
-        self._t1w_to_fa_xfm = os.path.join(fs_processing_dir, 'struct2fa.mat')
-
-        self._lh_low_conn_mask = os.path.join(probtrackx_output_dir1, 'lh.LowConn_fsaverage.mgh')
-        self._rh_low_conn_mask = os.path.join(probtrackx_output_dir1, 'rh.LowConn_fsaverage.mgh')
-        self._lh_low_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'lh.LowConn_fsaverage.mgh')
-        self._rh_low_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'rh.LowConn_fsaverage.mgh')
-        self._lh_medium_conn_mask = os.path.join(probtrackx_output_dir1, 'lh.MediumConn_fsaverage.mgh')
-        self._rh_medium_conn_mask = os.path.join(probtrackx_output_dir1, 'rh.MediumConn_fsaverage.mgh')
-        self._lh_medium_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'lh.MediumConn_fsaverage.mgh')
-        self._rh_medium_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'rh.MediumConn_fsaverage.mgh')
-        self._lh_high_conn_mask = os.path.join(probtrackx_output_dir1, 'lh.HighConn_fsaverage.mgh')
-        self._rh_high_conn_mask = os.path.join(probtrackx_output_dir1, 'rh.HighConn_fsaverage.mgh')
-        self._lh_high_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'lh.HighConn_fsaverage.mgh')
-        self._rh_high_conn_corrected_mask = os.path.join(probtrackx_output_dir2, 'rh.HighConn_fsaverage.mgh')
-        self._lh_unconn_mask = os.path.join(probtrackx_output_dir1, 'lh.UnConn_fsaverage.mgh')
-        self._rh_unconn_mask = os.path.join(probtrackx_output_dir1, 'rh.UnConn_fsaverage.mgh')
-        self._lh_unconn_corrected_mask = os.path.join(probtrackx_output_dir2, 'lh.UnConn_fsaverage.mgh')
-        self._rh_unconn_corrected_mask = os.path.join(probtrackx_output_dir2, 'rh.UnConn_fsaverage.mgh')
+        save_mgh(lh_unconn_mask, nib.load(lh_mgh_path), output_files['lh_unconn'])
+        save_mgh(rh_unconn_mask, nib.load(rh_mgh_path), output_files['rh_unconn'])
+        save_mgh(lh_lowconn_mask, nib.load(lh_mgh_path), output_files['lh_lowconn'])
+        save_mgh(rh_lowconn_mask, nib.load(rh_mgh_path), output_files['rh_lowconn'])
+        save_mgh(lh_medconn_mask, nib.load(lh_mgh_path), output_files['lh_medconn'])
+        save_mgh(rh_medconn_mask, nib.load(rh_mgh_path), output_files['rh_medconn'])
+        save_mgh(lh_highconn_mask, nib.load(lh_mgh_path), output_files['lh_highconn'])
+        save_mgh(rh_highconn_mask, nib.load(rh_mgh_path), output_files['rh_highconn'])
+        self._output_files = list(output_files.values())
+        self._lh_unconn_mask = output_files['lh_unconn']
+        self._rh_unconn_mask = output_files['rh_unconn']
+        self._lh_lowconn_mask = output_files['lh_lowconn']
+        self._rh_lowconn_mask = output_files['rh_lowconn']
+        self._lh_medconn_mask = output_files['lh_medconn']
+        self._rh_medconn_mask = output_files['rh_medconn']
+        self._lh_highconn_mask = output_files['lh_highconn']
+        self._rh_highconn_mask = output_files['rh_highconn']
 
         return runtime
+    
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_files'] = self._output_files
+        outputs['lh_unconn_mask'] = self._lh_unconn_mask
+        outputs['rh_unconn_mask'] = self._rh_unconn_mask
+        outputs['lh_lowconn_mask'] = self._lh_lowconn_mask
+        outputs['rh_lowconn_mask'] = self._rh_lowconn_mask
+        outputs['lh_medconn_mask'] = self._lh_medconn_mask
+        outputs['rh_medconn_mask'] = self._rh_medconn_mask
+        outputs['lh_highconn_mask'] = self._lh_highconn_mask
+        outputs['rh_highconn_mask'] = self._rh_highconn_mask
+
+        return outputs
+
+################
+# Merge ribbon #
+################
+class MergeRibbonInputSpec(BaseInterfaceInputSpec):
+    fs_subjects_dir = Str(desc='Freesurfer subjects directory', argstr='%s', position=0)
+    fs_subject_id = Str(desc='Freesurfer subject ID', argstr='%s', position=1)
+    output_gm_mask = Str(desc='Output GM mask file', argstr='%s', position=2)
+class MergeRibbonOutputSpec(TraitedSpec):
+    output_gm_mask = File(desc='Output GM mask file')
+class MergeRibbon(BaseInterface):
+    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'freesurfer', 'merge_ribbon.sh')
+    input_spec = MergeRibbonInputSpec
+    output_spec = MergeRibbonOutputSpec
+    terminal_output = 'allatonce'  
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['seed_mask_fsspace'] = self._seed_mask_fsspace
-        outputs['cortex_mask'] = self._cortex_mask
-        outputs['fs_processing_dir'] = self._fs_processing_dir
-        outputs['fs_orig'] = self._fs_orig
-        outputs['fs_to_fa_xfm'] = self._fs_to_fa_xfm
-        outputs['t1w_to_fa_xfm'] = self._t1w_to_fa_xfm
-        outputs['lh_low_conn_mask'] = self._lh_low_conn_mask
-        outputs['rh_low_conn_mask'] = self._rh_low_conn_mask
-        outputs['lh_low_conn_corrected_mask'] = self._lh_low_conn_corrected_mask
-        outputs['rh_low_conn_corrected_mask'] = self._rh_low_conn_corrected_mask
-        outputs['lh_medium_conn_mask'] = self._lh_medium_conn_mask
-        outputs['rh_medium_conn_mask'] = self._rh_medium_conn_mask
-        outputs['lh_medium_conn_corrected_mask'] = self._lh_medium_conn_corrected_mask
-        outputs['rh_medium_conn_corrected_mask'] = self._rh_medium_conn_corrected_mask
-        outputs['lh_high_conn_mask'] = self._lh_high_conn_mask
-        outputs['rh_high_conn_mask'] = self._rh_high_conn_mask
-        outputs['lh_high_conn_corrected_mask'] = self._lh_high_conn_corrected_mask
-        outputs['rh_high_conn_corrected_mask'] = self._rh_high_conn_corrected_mask
-        outputs['lh_unconn_mask'] = self._lh_unconn_mask
-        outputs['rh_unconn_mask'] = self._rh_unconn_mask
-        outputs['lh_unconn_corrected_mask'] = self._lh_unconn_corrected_mask
-        outputs['rh_unconn_corrected_mask'] = self._rh_unconn_corrected_mask
-
+        outputs['output_gm_mask'] = os.path.abspath(self.inputs.output_gm_mask)
         return outputs
 
 ##############################
@@ -892,20 +907,12 @@ class ExtractSurfaceParametersInputSpec(BaseInterfaceInputSpec):
     sessions = traits.List(desc='List of sessions')
     lh_unconn_mask = File(exists=True, desc='Unconnected mask (left hemisphere)')
     rh_unconn_mask = File(exists=True, desc='Unconnected mask (right hemisphere)')
-    lh_unconn_corrected_mask = File(exists=True, desc='Unconnected mask corrected for path length (left hemisphere)')
-    rh_unconn_corrected_mask = File(exists=True, desc='Unconnected mask corrected for path length (right hemisphere)')
     lh_low_conn_mask = File(exists=True, desc='Low connectivity mask (left hemisphere)')
     rh_low_conn_mask = File(exists=True, desc='Low connectivity mask (right hemisphere)')
-    lh_low_conn_corrected_mask = File(exists=True, desc='Low connectivity mask corrected for path length (left hemisphere)')
-    rh_low_conn_corrected_mask = File(exists=True, desc='Low connectivity mask corrected for path length (right hemisphere)')
     lh_medium_conn_mask = File(exists=True, desc='Medium connectivity mask (left hemisphere)')
     rh_medium_conn_mask = File(exists=True, desc='Medium connectivity mask (right hemisphere)')
-    lh_medium_conn_corrected_mask = File(exists=True, desc='Medium connectivity mask corrected for path length (left hemisphere)')
-    rh_medium_conn_corrected_mask = File(exists=True, desc='Medium connectivity mask corrected for path length (right hemisphere)')
     lh_high_conn_mask = File(exists=True, desc='High connectivity mask (left hemisphere)')
     rh_high_conn_mask = File(exists=True, desc='High connectivity mask (right hemisphere)')
-    lh_high_conn_corrected_mask = File(exists=True, desc='High connectivity mask corrected for path length (left hemisphere)')
-    rh_high_conn_corrected_mask = File(exists=True, desc='High connectivity mask corrected for path length (right hemisphere)')
     output_dir = Str(desc='Output directory')
     csv_file_name = Str(desc='Output CSV file name', default_value='surface_parameters.csv')
 
@@ -923,13 +930,9 @@ class ExtractSurfaceParameters(BaseInterface):
 
         paired_roi_masks = {
             "unconn": [self.inputs.lh_unconn_mask, self.inputs.rh_unconn_mask],
-            "unconn_corrected": [self.inputs.lh_unconn_corrected_mask, self.inputs.rh_unconn_corrected_mask],
             "low_conn": [self.inputs.lh_low_conn_mask, self.inputs.rh_low_conn_mask],
-            "low_conn_corrected": [self.inputs.lh_low_conn_corrected_mask, self.inputs.rh_low_conn_corrected_mask],
             "medium_conn": [self.inputs.lh_medium_conn_mask, self.inputs.rh_medium_conn_mask],
-            "medium_conn_corrected": [self.inputs.lh_medium_conn_corrected_mask, self.inputs.rh_medium_conn_corrected_mask],
             "high_conn": [self.inputs.lh_high_conn_mask, self.inputs.rh_high_conn_mask],
-            "high_conn_corrected": [self.inputs.lh_high_conn_corrected_mask, self.inputs.rh_high_conn_corrected_mask]
         }
 
         fwhm_values = [0, 5, 10, 15, 20, 25]
@@ -984,8 +987,6 @@ class ExtractSurfaceParameters(BaseInterface):
                         mean_roi_1 = roi_avg_values.get(1, np.nan)
                         colname = f"{roi_name}_{measure}.fwhm{fwhm}"
                         session_data[colname] = mean_roi_1
-
-                        #print(f"Session {session}, {colname}: {mean_roi_1}")
 
             results.append(session_data)
 

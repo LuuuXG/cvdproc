@@ -68,12 +68,11 @@ fslmaths $OUTPUT_DIR/aseg.nii.gz -mul 0 $OUTPUT_DIR/temp_wm.nii.gz
 
 # Step 3: Loop through label IDs
 #for i in 2 41 7 46 77 85 251 252 253 254 255 1004 2004; do
-for i in 2 41 7 46 77 85 251 252 253 254 255; do
-    # Extract single label mask
-    fslmaths $OUTPUT_DIR/aseg.nii.gz -thr $i -uthr $i -bin $OUTPUT_DIR/tmp_bin.nii.gz
-    # Add to cumulative mask
-    fslmaths $OUTPUT_DIR/temp_wm.nii.gz -add $OUTPUT_DIR/tmp_bin.nii.gz $OUTPUT_DIR/temp_wm.nii.gz
-done
+
+mri_binarize \
+  --i "$OUTPUT_DIR/aseg.nii.gz" \
+  --match 2 41 7 46 77 85 251 252 253 254 255 \
+  --o "$OUTPUT_DIR/temp_wm.nii.gz"
 
 # Step 4: Optional binarization (in case of overlaps)
 fslmaths $OUTPUT_DIR/temp_wm.nii.gz -bin $OUTPUT_DIR/WM_in_fs.nii.gz

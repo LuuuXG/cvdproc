@@ -44,59 +44,38 @@ class ReconAllClinical(CommandLine):
 ############################################
 
 class CopySynthSRInputSpec(BaseInterfaceInputSpec):
-    synthsr_raw = File(mandatory=True, desc='raw output of SynthSR')
-    synthsr_norm = File(mandatory=True, desc='cleaned up version of synthSR.raw.mgz, scaled such that the white matter has intensity of 110')
-    t1w = File(mandatory=True, desc='T1w image')
+    synthsr_raw = File(mandatory=True, desc='Raw output of SynthSR (mgz or nii)')
+    out_file = File(mandatory=True, desc='Full path for the output file, must end with .nii.gz')
 
 class CopySynthSROutputSpec(TraitedSpec):
-    synthsr_raw = File(desc='raw output of SynthSR')
-    synthsr_norm = File(desc='cleaned up version of synthSR.raw.mgz, scaled such that the white matter has intensity of 110')
+    out_file = File(desc='Converted SynthSRraw in specified output path')
 
 class CopySynthSR(BaseInterface):
     input_spec = CopySynthSRInputSpec
     output_spec = CopySynthSROutputSpec
 
     def _run_interface(self, runtime):
-        anat_dir = os.path.dirname(self.inputs.t1w)
 
-        synthsr_raw_ent = {
-            'space': 'T1w',
-            'desc': 'SynthSRraw',
-        }
+        out_path = self.inputs.out_file
+        
+        # Ensure folder exists
+        out_dir = os.path.dirname(out_path)
+        os.makedirs(out_dir, exist_ok=True)
 
-        synthsr_norm_ent = {
-            'space': 'T1w',
-            'desc': 'SynthSRnorm',
-        }
-
-        suffix = "T1w"
-        extension = ".nii.gz"
-
-        new_filename_raw = rename_bids_file(self.inputs.t1w, synthsr_raw_ent, suffix, extension)
-        new_filename_norm = rename_bids_file(self.inputs.t1w, synthsr_norm_ent, suffix, extension)
-
+        # Convert SynthSR raw to the requested output path
         subprocess.run([
             'mri_convert',
             self.inputs.synthsr_raw,
-            os.path.join(anat_dir, new_filename_raw)
-        ])
+            out_path
+        ], check=True)
 
-        subprocess.run([
-            'mri_convert',
-            self.inputs.synthsr_norm,
-            os.path.join(anat_dir, new_filename_norm)
-        ])
-
-        self._synthsr_raw = os.path.join(anat_dir, new_filename_raw)
-        self._synthsr_norm = os.path.join(anat_dir, new_filename_norm)
+        self._out_file = out_path
 
         return runtime
     
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['synthsr_raw'] = self._synthsr_raw
-        outputs['synthsr_norm'] = self._synthsr_norm
-        
+        outputs['out_file'] = self._out_file
         return outputs
 
 ##################################################

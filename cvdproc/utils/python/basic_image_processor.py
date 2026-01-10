@@ -21,7 +21,7 @@ def load_image(image_path):
 def load_image2(image_path):
     ext = os.path.splitext(image_path)[-1].lower()
 
-    if ext in ['.nii', '.gz', '.mgh']:
+    if ext in ['.nii', '.gz', '.mgh', '.mgz']:
         return nib.load(image_path).get_fdata()
 
     elif ext == '.gii':
@@ -236,13 +236,20 @@ def extract_roi_from_image(input_image, roi_list, binarize, output_path):
 
     return output_path
 
-def extract_roi_means(input_image, roi_image, ignore_background, output_path):
+def extract_roi_means(
+    input_image,
+    roi_image,
+    ignore_background=True,
+    roi_label=None,
+    output_csv=None
+):
     input_ext = os.path.splitext(input_image)[-1].lower()
     roi_ext = os.path.splitext(roi_image)[-1].lower()
 
-    if input_ext == '.gii':
+    # load input image
+    if input_ext == ".gii":
         input_dict = load_image2(input_image)
-        input_data = input_dict['value']
+        input_data = input_dict["value"]
         if isinstance(input_data, list):
             input_data = input_data[0]
         input_data = np.squeeze(input_data)
@@ -250,16 +257,14 @@ def extract_roi_means(input_image, roi_image, ignore_background, output_path):
         img = load_image(input_image)
         input_data = np.squeeze(img.get_fdata())
 
-    if roi_ext == '.gii':
+    # load roi image
+    if roi_ext == ".gii":
         roi_dict = load_image2(roi_image)
-        if 'label' in roi_dict:
-            roi_data = roi_dict['label']
-        else:
-            roi_data = roi_dict['value']
+        roi_data = roi_dict.get("label", roi_dict.get("value"))
         if isinstance(roi_data, list):
             roi_data = roi_data[0]
-        roi_data = np.squeeze(roi_data)
-    elif roi_ext == '.txt':
+        roi_data = np.squeeze(roi_data).astype(int)
+    elif roi_ext == ".txt":
         indices = np.loadtxt(roi_image, dtype=int)
         roi_data = np.zeros(input_data.shape, dtype=int)
         roi_data[indices] = 1
@@ -270,28 +275,36 @@ def extract_roi_means(input_image, roi_image, ignore_background, output_path):
     if input_data.shape != roi_data.shape:
         raise ValueError(f"Input and ROI shapes do not match: {input_data.shape} vs {roi_data.shape}")
 
-    roi_labels = np.unique(roi_data)
-    roi_means = []
-    for label in roi_labels:
-        mask = roi_data == label
+    # determine labels
+    if roi_label is None or len(roi_label) == 0:
+        labels = np.unique(roi_data).astype(int).tolist()
+    else:
+        labels = [int(x) for x in roi_label]
+
+    means = []
+    for lab in labels:
+        mask = (roi_data == lab)
         if ignore_background:
-            mask &= input_data != 0
-        mean_val = input_data[mask].mean() if np.any(mask) else np.nan
-        roi_means.append([label, mean_val])
+            mask = mask & (input_data != 0)
 
-    if output_path is None:
-        base_name = os.path.splitext(os.path.basename(input_image))[0]
-        folder = os.path.dirname(input_image) or "."
-        output_filename = f"roi_means_{base_name}.csv"
-        output_path = os.path.join(folder, output_filename)
+        if np.any(mask):
+            means.append(float(np.nanmean(input_data[mask])))
+        else:
+            means.append(float("nan"))
 
-    with open(output_path, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['ROI', 'MeanValue'])
-        writer.writerows(roi_means)
+    # optional csv
+    if output_csv is not None and str(output_csv).strip() != "":
+        out_dir = os.path.dirname(output_csv)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
 
-    print(f"ROI means saved to {output_path}")
-    return output_path
+        with open(output_csv, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ROI", "MeanValue"])
+            for lab, val in zip(labels, means):
+                writer.writerow([lab, val])
+
+    return labels, means
 
 def change_dtype(input_image, target_dtype, output_path):
     img = load_image(input_image)

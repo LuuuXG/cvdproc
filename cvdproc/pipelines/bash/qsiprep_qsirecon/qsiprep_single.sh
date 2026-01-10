@@ -54,6 +54,12 @@ if [ -z "$preproc_t1w_file" ]; then
   exit 1
 fi
 
+# check if warp file already exists
+if [ -f "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5" ] && [ -f "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5" ]; then
+  echo "Warp files already exist for subject ${subject_id}, session ${session_id}. Skipping warp generation."
+  exit 0
+fi
+
 mri_synthmorph -t $qsiprep_anat_dir/T1w_to_MNI.nii.gz -T $qsiprep_anat_dir/MNI_to_T1w.nii.gz $preproc_t1w_file /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz -g
 python3 /mnt/e/Codes/cvdproc/cvdproc/utils/python/nifti_warp_to_h5.py \
     --input "$qsiprep_anat_dir/MNI_to_T1w.nii.gz" \

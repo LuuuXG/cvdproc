@@ -63,7 +63,14 @@ if [[ -z "$DIR_LABEL" ]]; then
   exit 1
 fi
 
-# === Check whether b0_all already exists ===
+# === Always create/update acqparam.txt ===
+echo "Creating acqparam.txt (overwrite)..."
+cat > "${INPUTS}/acqparam.txt" <<EOF
+$PE_VECTOR $TOTAL_READOUT_TIME
+$PE_VECTOR 0
+EOF
+
+# === Check whether b0_all exists ===
 if [[ -f "$B0_ALL" ]]; then
   echo "b0_all.nii.gz already exists. Skipping synb0-disco."
 else
@@ -76,16 +83,7 @@ else
   echo "Extracting b0 from DWI..."
   fslroi "$DWI_IMG" "${INPUTS}/b0.nii.gz" 0 1
 
-  echo "Creating acqparam.txt..."
-  cat > "${INPUTS}/acqparam.txt" <<EOF
-$PE_VECTOR $TOTAL_READOUT_TIME
-$PE_VECTOR 0
-EOF
-
   DOCKER_IMAGE="leonyichencai/synb0-disco:v3.1"
-  # if ! docker inspect "$DOCKER_IMAGE" > /dev/null 2>&1; then
-  #   docker pull "$DOCKER_IMAGE"
-  # fi
 
   echo "Running synb0-disco container..."
   docker run --rm \

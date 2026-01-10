@@ -32,7 +32,8 @@ The detailed parameters for each pipeline can be found in the respective documen
 ## Currently Available Pipelines
 
 ### Structural MRI (sMRI) Pipelines
-- [x] Freesurfer recon-all ([freesurfer](./sMRI/freesurfer.md))
+- [x] Lesion Preprocess ([lesion_analysis](./sMRI/lesion_analysis.md))
+- [x] Freesurfer recon-all/recon-all-clinical.sh ([freesurfer](./sMRI/freesurfer.md))
 - [x] FSL anat (fsl_anat)
 - [x] T1w Registration to MNI space (t1_register)
 - [x] Anatomical Segmentation ([anat_seg](./sMRI/anat_seg.md))
@@ -41,7 +42,7 @@ The detailed parameters for each pipeline can be found in the respective documen
 - [x] CMB Quantification (cmb_quantification)
 
 ### Diffusion MRI (dMRI) Pipelines
-- [x] General DWI Processing (dwi_pipeline)
+- [x] General DWI Processing ([dwi_pipeline](./dMRI/dwi_pipeline.md))
 - [x] Lesion Quantification Toolkit (LQT) Pipeline ([lqt_pipeline](./dMRI/lqt_pipeline.md))
 
 ### Functional MRI (fMRI) Pipelines

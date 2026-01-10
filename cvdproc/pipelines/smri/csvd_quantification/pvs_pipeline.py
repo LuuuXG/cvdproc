@@ -5,6 +5,7 @@
 # modified by Youjie Wang, 2025-01-20
 
 import os
+import pandas as pd
 import subprocess
 import nibabel as nib
 import numpy as np
@@ -23,23 +24,50 @@ from cvdproc.pipelines.smri.freesurfer.synthstrip import SynthStrip
 from cvdproc.pipelines.smri.ants.n4biascorr_nipype import SimpleN4BiasFieldCorrection
 from cvdproc.pipelines.smri.csvd_quantification.segcsvd.segment_pvs import SegCSVDPVS
 
+from cvdproc.pipelines.common.calculate_roi_volume import CalculateROIVolume
+
 class PVSSegmentationPipeline:
-    def __init__(self, subject, session, output_path, **kwargs):
+    def __init__(self, 
+                 subject: object, 
+                 session: object, 
+                 output_path: str,
+                 use_which_t1w: str = None,
+                 use_which_flair: str = None,
+                 method: str = 'segcsvd',
+                 modality: str = 'T1w',
+                 shiva_config: str = None,
+                 use_wmh: bool = False,
+                 extract_from: str = None,
+                 **kwargs):
+        """
+        PVS Segmentation Pipeline
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, use the first T1w image found.
+            use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, use the first FLAIR image found.
+            method: 'SHIVA' or 'segcsvd'
+            modality: 'T1w' or 'T1w+FLAIR'. Applicable when method is 'SHIVA'.
+            shiva_config: path to SHIVA configuration file. Applicable when method is 'SHIVA'.
+            use_wmh: whether to use existing WMH segmentation for PVS segmentation. Applicable when method is 'segcsvd'.
+            extract_from: path to the output directory from which to extract results. (Currently only for 'segcsvd' outputs)
+        """
         
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
-        self.output_path_xfm = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f"ses-{self.session.session_id}")
-        
-        self.use_which_t1w = kwargs.get('use_which_t1w', None)
-        self.use_which_flair = kwargs.get('use_which_flair', None)
-        self.method = kwargs.get('method', 'SHIVA')
-        self.modality = kwargs.get('modality', 'T1w')
-        self.shiva_config = kwargs.get('shiva_config', os.path.join(self.subject.bids_dir, 'code', 'shiva_config.yml'))
+        self.use_wmh = use_wmh
+        self.use_which_t1w = use_which_t1w
+        self.use_which_flair = use_which_flair
+        self.method = method
+        self.modality = modality
+        self.shiva_config = shiva_config if shiva_config is not None else (os.path.join(self.subject.bids_dir, 'code', 'shiva_config.yml') if self.method == 'SHIVA' and self.subject is not None else None)
+        self.extract_from = extract_from
 
     def check_data_requirements(self):
         """
-        检查数据需求
         :return: bool
         """
         if self.modality == 'T1w':
@@ -57,7 +85,6 @@ class PVSSegmentationPipeline:
         t1w_files = self.session.get_t1w_files()
         if self.use_which_t1w:
             t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
-            # 确保最终只有1个合适的文件
             if len(t1w_files) != 1:
                 raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
             t1w_file = t1w_files[0]
@@ -72,7 +99,6 @@ class PVSSegmentationPipeline:
         if self.modality == 'T1w+FLAIR':
             if self.use_which_flair:
                 flair_files = [f for f in flair_files if self.use_which_flair in f]
-                # 确保最终只有1个合适的文件
                 if len(flair_files) != 1:
                     raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
                 flair_file = flair_files[0]
@@ -132,7 +158,7 @@ class PVSSegmentationPipeline:
             # 1. synthseg
             synthseg_out_ndoe = Node(IdentityInterface(fields=['synthseg_out']), name='synthseg_output')
             anat_seg_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
-            synthseg_out = os.path.join(anat_seg_dir, 'synthseg', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_synthseg.nii.gz")
+            synthseg_out = os.path.join(anat_seg_dir, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
             if os.path.exists(synthseg_out):
                 print(f"[PVS Pipeline] Found existing SynthSeg output: {synthseg_out}")
                 synthseg_out_ndoe.inputs.synthseg_out = synthseg_out
@@ -163,7 +189,7 @@ class PVSSegmentationPipeline:
             stripped_t1w_node = Node(IdentityInterface(fields=['stripped_t1w']), name='stripped_t1w_output')
             xfm_output_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f"ses-{self.session.session_id}")
             os.makedirs(xfm_output_dir, exist_ok=True)
-            t1w_stripped = os.path.join(xfm_output_dir, rename_bids_file(t1w_file, {'desc': 'brain'}, 'T1w', '.nii.gz'))
+            t1w_stripped = os.path.join(xfm_output_dir, rename_bids_file(t1w_file, {'desc': 'brain', 'space': 'T1w'}, 'T1w', '.nii.gz'))
             if os.path.exists(t1w_stripped):
                 print(f"[PVS Pipeline] Found existing skull-stripped T1w: {t1w_stripped}")
                 stripped_t1w_node.inputs.stripped_t1w = t1w_stripped
@@ -186,9 +212,12 @@ class PVSSegmentationPipeline:
             # look for: lebel-WMH and space-T1w and mask.nii.gz, if multiple, use the first one
             try:
                 wmh_files = [f for f in os.listdir(wmh_output_dir) if f.endswith('.nii.gz') and 'label-WMH' in f and 'space-T1w' in f and 'mask' in f]
-                if wmh_files:
+                if wmh_files and self.use_wmh:
                     wmh_file = os.path.join(wmh_output_dir, wmh_files[0])
                     print(f"[PVS Pipeline] Found existing WMH file: {wmh_file}")
+                elif wmh_files and not self.use_wmh:
+                    wmh_file = 'none'
+                    print(f"[PVS Pipeline] Existing WMH file found but use_wmh is set to False. A pseudo WMH (all=0) will be created.")
                 else:
                     wmh_file = 'none'
                     print(f"[PVS Pipeline] No existing WMH file found. A pseudo WMH (all=0) will be created.")
@@ -205,4 +234,89 @@ class PVSSegmentationPipeline:
             segcsvd_pvs_node.inputs.pvs_binary_filename = f"sub-{self.subject.subject_id}{session_entity}_space-T1w_label-PVS_desc-segcsvdThr0p35_mask.nii.gz"
             segcsvd_pvs_node.inputs.threshold = 0.35
 
+            # 6. ROI volume
+            generate_volume_csv_node = Node(CalculateROIVolume(), name='calculate_roi_volume')
+            pvs_quantification_workflow.connect(segcsvd_pvs_node, 'pvs_binary', generate_volume_csv_node, 'in_nii')
+            pvs_quantification_workflow.connect(shiva_pvs_seg_node, 'brain_seg', generate_volume_csv_node, 'roi_nii')
+            generate_volume_csv_node.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}{session_entity}_space-T1w_desc-shivaParcPVS_volume.csv")
+
+
         return pvs_quantification_workflow
+    
+    def extract_results(self):
+        os.makedirs(self.output_path, exist_ok=True)
+
+        pvs_seg_output_path = self.extract_from
+
+        # SegCSVD columns
+        segcsvd_columns = [
+            'Subject', 'Session',
+            'Left Deep WM', 'Left Basal Ganglia', 'Left Hippocampus', 'Left Cerebellar', 'Left Ventral DC',
+            'Right Deep WM', 'Right Basal Ganglia', 'Right Hippocampus', 'Right Cerebellar', 'Right Ventral DC',
+            'Brainstem',
+            'Total PVS Volume (mm3)'
+        ]
+        segcsvd_df = pd.DataFrame(columns=segcsvd_columns)
+
+        region_order = [
+            0,  # Left Deep WM
+            1,  # Left Basal Ganglia
+            2,  # Left Hippocampus
+            3,  # Left Cerebellar
+            4,  # Left Ventral DC
+            5,  # Right Deep WM
+            6,  # Right Basal Ganglia
+            7,  # Right Hippocampus
+            8,  # Right Cerebellar
+            9,  # Right Ventral DC
+            10  # Brainstem
+        ]
+
+        for subject_folder in os.listdir(pvs_seg_output_path):
+            subject_path = os.path.join(pvs_seg_output_path, subject_folder)
+            if not os.path.isdir(subject_path):
+                continue
+
+            # session level
+            for session_folder in os.listdir(subject_path):
+                session_path = os.path.join(subject_path, session_folder)
+                if not os.path.isdir(session_path):
+                    continue
+
+                # Find the correct CSV
+                segcsvd_shivaparc_csv = [
+                    f for f in os.listdir(session_path)
+                    if f.endswith('desc-shivaParcPVS_volume.csv')
+                ]
+
+                if len(segcsvd_shivaparc_csv) != 1:
+                    print(f"Warning: expected 1 CSV but found {len(segcsvd_shivaparc_csv)} in {session_path}")
+                    continue
+
+                csv_path = os.path.join(session_path, segcsvd_shivaparc_csv[0])
+
+                # Load CSV
+                df = pd.read_csv(csv_path)
+
+                # Extract 11 region volumes by row index
+                volumes = df.loc[region_order, "Volume (mm^3)"].tolist()
+
+                # Total PVS = sum of the 11 regions
+                total_volume = sum(volumes)
+
+                # Build one row
+                row = [subject_folder, session_folder] + volumes + [total_volume]
+
+                # Append to dataframe
+                segcsvd_df.loc[len(segcsvd_df)] = row
+
+        # =============================
+        # Save final CSV
+        # =============================
+        output_csv = os.path.join(self.output_path, "segcsvd_shivaparc_volume_summary.csv")
+        segcsvd_df.to_csv(output_csv, index=False)
+
+        print(f"Saved PVS quantification results to: {output_csv}")
+
+
+                

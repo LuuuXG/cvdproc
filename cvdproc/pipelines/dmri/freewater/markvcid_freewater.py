@@ -12,6 +12,7 @@ class MarkVCIDFreeWaterInputSpec(CommandLineInputSpec):
     in_dwi_bvec = File(exists=True, mandatory=True, desc='Input bvec file', argstr='%s', position=3)
     output_dir = Str(mandatory=True, desc='Output directory', argstr='%s', position=4)
     script_dir = Str(mandatory=True, desc='Directory containing the script', argstr='%s', position=5)
+    output_fw_img = File(desc='Output freewater image', argstr='%s', position=6)
 
 class MarkVCIDFreeWaterOutputSpec(TraitedSpec):
     out_fw = File(desc='Output freewater image')
@@ -27,6 +28,7 @@ class MarkVCIDFreeWater(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_fw'] = os.path.join(self.inputs.output_dir, 'wls_dti_FW.nii.gz')
+        #outputs['out_fw'] = os.path.join(self.inputs.output_dir, 'wls_dti_FW.nii.gz')
+        outputs['out_fw'] = self.inputs.output_fw_img
         outputs['out_fw_fa'] = os.path.join(self.inputs.output_dir, 'wls_dti_FA.nii.gz')
         return outputs

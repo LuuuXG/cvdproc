@@ -43,12 +43,14 @@ class SynthStripInputSpec(CommandLineInputSpec):
     no_csf = Bool(False, argstr="--no-csf", desc="Exclude CSF from brain border")
     model = Str(argstr="--model %s", desc="Alternative model weights")
     four_d = Bool(False, argstr="-4d", desc="Process 4D images (default is 3D)")
+    out_3d_ref = Str(argstr="-ref %s", desc="Save Reference 3D image for 4D processing")
 
 class SynthStripOutputSpec(TraitedSpec):
     # all these outputs can be None if not specified
     out_file = Either(File, None, desc='Stripped image file')
     mask_file = Either(File, None, desc='Binary brain mask file')
     sdt_file = Either(File, None, desc='Distance transform file')
+    out_3d_ref = Either(File, None, desc='Reference 3D image for 4D processing')
 
 class SynthStrip(CommandLine):
     script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bash', 'freesurfer', 'mri_synthstrip_flexible.sh'))
@@ -62,4 +64,5 @@ class SynthStrip(CommandLine):
         outputs['out_file'] = os.path.abspath(self.inputs.out_file) if self.inputs.out_file else None
         outputs['mask_file'] = os.path.abspath(self.inputs.mask_file) if self.inputs.mask_file else None
         outputs['sdt_file'] = os.path.abspath(self.inputs.sdt_file) if self.inputs.sdt_file else None
+        outputs['out_3d_ref'] = os.path.abspath(self.inputs.out_3d_ref) if self.inputs.out_3d_ref else None
         return outputs

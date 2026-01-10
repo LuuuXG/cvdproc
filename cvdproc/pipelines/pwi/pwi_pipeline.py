@@ -12,6 +12,10 @@ from cvdproc.pipelines.smri.freesurfer.synthstrip import SynthStrip
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
 from cvdproc.pipelines.pwi.aif.auto_aif_nipype import AutoAIFFromPWI
 from cvdproc.pipelines.pwi.dsc_mri_toolbox.dsc_mri_nipype import DSCMRI, Conc
+#from cvdproc.pipelines.smri.fsl.epi_reg_nipype import EPIRegNipype
+from cvdproc.pipelines.smri.freesurfer.synthmorph import SynthMorph
+from cvdproc.pipelines.common.register import MRIConvertApplyWarp
+from nipype.interfaces.fsl import MCFLIRT, FLIRT
 
 from cvdproc.config.paths import get_package_path
 
@@ -20,8 +24,6 @@ class PWIPipeline:
     Postprocessing pipeline for Dynamic Susceptibility Contrast MRI (DSC-MRI) perfusion data (PWI).
 
     This pipeline is to: Calculate PWI maps from DSC-MRI data (rCBF, rCBV, MTT, TTP, K2)
-
-    Last updated: 2025-07-27, WYJ
     """
         
     def __init__(self, 
@@ -29,6 +31,7 @@ class PWIPipeline:
                  session, 
                  output_path, 
                  use_which_pwi: str = "pwi", 
+                 use_which_t1w: str = None,
                  #baseline_range: list = [0, 15],
                  extract_from: str = None,
                  **kwargs):
@@ -40,6 +43,7 @@ class PWIPipeline:
             session (BIDSSession): A BIDS session object.
             output_path (str): Directory to save outputs.
             use_which_pwi (str, optional): Keyword to select the desired PWI file.
+            use_which_t1w (str, optional): Keyword to select the desired T1w file.
             extract_from (str, optional): If extracting results, please provide it.
 
         """
@@ -47,6 +51,7 @@ class PWIPipeline:
         self.session = session
         self.output_path = os.path.abspath(output_path)
         self.use_which_pwi = use_which_pwi
+        self.use_which_t1w = use_which_t1w
         self.extract_from = extract_from
         #self.baseline_range = baseline_range
 
@@ -64,10 +69,25 @@ class PWIPipeline:
             # if more than one PWI file, use the first one
             pwi_path = next((f for f in pwi_files if self.use_which_pwi in f), None)
 
+        # Get T1w file (T1w is optional, only for EPI registration)
+        t1_files = self.session.get_t1w_files()
+        if len(t1_files) == 1:
+            t1_path = t1_files[0]
+        else:
+            # find all files contain self.use_which_t1w
+            # if more than one T1w file, use the first one
+            t1_path = next((f for f in t1_files if self.use_which_t1w in f), None)
+
         if pwi_path is None:
             raise FileNotFoundError(f"No PWI file found with keyword '{self.use_which_pwi}' in session {self.session.session_id}.")
         pwi_path = os.path.abspath(pwi_path)
         print('[PWI Pipeline] Using PWI file:', pwi_path)
+
+        if t1_path is not None:
+            t1_path = os.path.abspath(t1_path)
+            print('[PWI Pipeline] Using T1w file for EPI registration:', t1_path)
+        else:
+            print('[PWI Pipeline] No T1w file found for EPI registration.')
 
         pwi_img = pwi_path
         pwi_json = pwi_path.replace('.nii.gz', '.json')
@@ -99,12 +119,21 @@ class PWIPipeline:
         synthstrip_node = Node(SynthStrip(), name='synthstrip_node')
         pwi_workflow.connect(input_node, 'pwi_img', synthstrip_node, 'image')
         synthstrip_node.inputs.four_d = True  # Process as 4D image
-        synthstrip_node.inputs.mask_file = os.path.join(self.output_path, rename_bids_file(pwi_path, {'space': 'pwi'}, 'brainmask', '.nii.gz'))
+        synthstrip_node.inputs.mask_file = os.path.join(self.output_path, rename_bids_file(pwi_path, {'space': 'pwi', 'desc': 'brain'}, 'mask', '.nii.gz'))
+        synthstrip_node.inputs.out_3d_ref = os.path.join(self.output_path, rename_bids_file(pwi_path, {'space': 'pwi'}, 'pwiref', '.nii.gz'))
+
+        # Head motion correction
+        head_motion_correction_node = Node(MCFLIRT(), name='head_motion_correction_node')
+        pwi_workflow.connect(input_node, 'pwi_img', head_motion_correction_node, 'in_file')
+        head_motion_correction_node.inputs.out_file = os.path.join(self.output_path, rename_bids_file(pwi_path, {'desc': 'hmc'}, 'pwi', '.nii.gz'))
+        head_motion_correction_node.inputs.cost = "normcorr"
+        head_motion_correction_node.inputs.dof = 6
+        head_motion_correction_node.inputs.ref_vol = 0
 
         # Calculate concentration
         conc_node = Node(Conc(), name='conc_node')
         pwi_workflow.connect(input_node, 'dsc_mri_toolbox_path', conc_node, 'toolbox_dir')
-        pwi_workflow.connect(input_node, 'pwi_img', conc_node, 'pwi_path')
+        pwi_workflow.connect(head_motion_correction_node, 'out_file', conc_node, 'pwi_path')
         pwi_workflow.connect(synthstrip_node, 'mask_file', conc_node, 'mask_path')
         pwi_workflow.connect(input_node, 'echo_time', conc_node, 'echo_time')
         pwi_workflow.connect(input_node, 'repetition_time', conc_node, 'repetition_time')
@@ -119,7 +148,7 @@ class PWIPipeline:
         auto_aif_node.inputs.time_echo = echo_time
         #auto_aif_node.inputs.output_conc = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'deltaR2s', '.nii.gz'))
         auto_aif_node.inputs.output_aif_vec = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'AIF', '.mat'))
-        auto_aif_node.inputs.output_aif_roi = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'AIFmask', '.nii.gz'))
+        auto_aif_node.inputs.output_aif_roi = os.path.join(self.output_path, rename_bids_file(pwi_path, {'desc': 'AIF'}, 'mask', '.nii.gz'))
         #auto_aif_node.inputs.baseline_range = [0, 15]
 
         # Calculate PWI map
@@ -143,5 +172,49 @@ class PWIPipeline:
         pwi_map_node.inputs.output_ttp_path = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'TTP', ''))
         pwi_map_node.inputs.output_s0_path = os.path.join(self.output_path, rename_bids_file(pwi_path, {}, 'S0map', ''))
         pwi_map_node.inputs.script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'matlab', 'dsc_mri_toolbox', 'pwimap.m'))
+
+        # EPI registration to T1w
+        if t1_path is not None:
+            # use synthmorph for PWI to T1w registration
+            print('[PWI Pipeline] Setting up SynthMorph registration from PWI to T1w.')
+            synthmorph_node = Node(SynthMorph(), name='synthmorph_node')
+            pwi_workflow.connect(synthstrip_node, 'out_3d_ref', synthmorph_node, 'moving_image')
+            synthmorph_node.inputs.fixed_image = t1w_brain
+            synthmorph_node.inputs.output_image = os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w'}, 'pwiref', '.nii.gz'))
+            synthmorph_node.inputs.fixed_to_moving_transform = os.path.join(self.session._find_output('xfm'), f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-pwi_warp.nii.gz")
+            synthmorph_node.inputs.moving_to_fixed_transform = os.path.join(self.session._find_output('xfm'), f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-pwi_to-T1w_warp.nii.gz")
+            synthmorph_node.inputs.use_gpu = True  # Set to True if GPU is available
+
+            # Transform PWI maps to T1w space
+            merge_pwi_maps_node = Merge(11, name='merge_pwi_maps_node')
+            pwi_workflow.connect(pwi_map_node, 'output_cbv_path', merge_pwi_maps_node, 'in1')
+            pwi_workflow.connect(pwi_map_node, 'output_cbv_lc_path', merge_pwi_maps_node, 'in2')
+            pwi_workflow.connect(pwi_map_node, 'output_k2_path', merge_pwi_maps_node, 'in3')
+            pwi_workflow.connect(pwi_map_node, 'output_cbf_svd_path', merge_pwi_maps_node, 'in4')
+            pwi_workflow.connect(pwi_map_node, 'output_cbf_csvd_path', merge_pwi_maps_node, 'in5')
+            pwi_workflow.connect(pwi_map_node, 'output_cbf_osvd_path', merge_pwi_maps_node, 'in6')
+            pwi_workflow.connect(pwi_map_node, 'output_mtt_svd_path', merge_pwi_maps_node, 'in7')
+            pwi_workflow.connect(pwi_map_node, 'output_mtt_csvd_path', merge_pwi_maps_node, 'in8')
+            pwi_workflow.connect(pwi_map_node, 'output_mtt_osvd_path', merge_pwi_maps_node, 'in9')
+            pwi_workflow.connect(pwi_map_node, 'output_ttp_path', merge_pwi_maps_node, 'in10')
+            pwi_workflow.connect(pwi_map_node, 'output_s0_path', merge_pwi_maps_node, 'in11')
+
+            mri_convert_apply_warp_node = MapNode(MRIConvertApplyWarp(), name='mri_convert_apply_warp_node', iterfield=['input_image', 'output_image'])
+            pwi_workflow.connect(merge_pwi_maps_node, 'out', mri_convert_apply_warp_node, 'input_image')
+            pwi_workflow.connect(synthmorph_node, 'moving_to_fixed_transform', mri_convert_apply_warp_node, 'warp_image')
+            mri_convert_apply_warp_node.inputs.output_image = [
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w'}, 'CBV', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'LeakageCorrection'}, 'CBV', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w'}, 'K2map', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'SVD'}, 'CBF', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'CSVD'}, 'CBF', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'OSVD'}, 'CBF', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'SVD'}, 'MTT', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'CSVD'}, 'MTT', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w', 'desc': 'OSVD'}, 'MTT', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w'}, 'TTP', '')),
+                os.path.join(self.session._find_output('xfm'), rename_bids_file(pwi_path, {'space': 'T1w'}, 'S0map', '')),
+            ]
+            mri_convert_apply_warp_node.inputs.interp = 'interpolate'
 
         return pwi_workflow

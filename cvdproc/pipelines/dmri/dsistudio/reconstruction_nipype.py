@@ -24,35 +24,41 @@ class DSIstudioReconstructionInputSpec(CommandLineInputSpec):
     other_output = Str(desc="Other Output File", argstr="--other_output=%s", mandatory=False)
 
 class DSIstudioReconstructionOutputSpec(TraitedSpec):
-    out_file = Str(desc="Output Fib File")
+    out_file = File(desc="Output Fib File")
 
 class DSIstudioReconstruction(CommandLine):
     _cmd = dsi_studio_path + " --action=rec --check_btable=1"
     input_spec = DSIstudioReconstructionInputSpec
     output_spec = DSIstudioReconstructionOutputSpec
 
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
+    def _expected_out_file(self):
+        """
+        Determine the expected output fib file path.
+        """
         if self.inputs.output:
             if os.path.isdir(self.inputs.output):
                 base_name = os.path.basename(self.inputs.source)
-                # remove .src.gz
                 base_name_noext = os.path.splitext(os.path.splitext(base_name)[0])[0]
-                outputs['out_file'] = os.path.join(self.inputs.output, base_name_noext + '.fib.gz')
+                return os.path.join(self.inputs.output, base_name_noext + ".fib.gz")
             else:
-                outputs['out_file'] = self.inputs.output
+                return self.inputs.output
         else:
             base_name = os.path.basename(self.inputs.source)
             base_name_noext = os.path.splitext(os.path.splitext(base_name)[0])[0]
-            outputs['out_file'] = os.path.abspath(base_name_noext + '.fib.gz')
-        return outputs
+            return os.path.abspath(base_name_noext + ".fib.gz")
 
-if __name__ == '__main__':
-    # Example usage
-    create_src = DSIstudioReconstruction()
-    create_src.inputs.source = '/mnt/f/BIDS/ALL/derivatives/dwi_pipeline/sub-WZCU002/ses-01/dsistudio/sub-WZCU002_ses-01_acq-DTIb1000_space-preprocdwi_desc-preproc_dwi.src.gz'
-    create_src.inputs.method = 7
-    create_src.inputs.qsdr_reso = 2.0
-    create_src.inputs.other_output = 'fa,ad,rd,md,iso,rdi,nrdi,tensor'
-    create_src.inputs.output = '/mnt/f/BIDS/ALL/derivatives/dwi_pipeline/sub-WZCU002/ses-01/dsistudio/sub-WZCU002_ses-01_acq-DTIb1000_space-preprocdwi_model-qsdr_dwimap.fib.gz'
-    create_src.run()
+    def _run_interface(self, runtime):
+        out_file = self._expected_out_file()
+
+        if out_file and os.path.exists(out_file):
+            runtime.stdout = f"DSI Studio reconstruction skipped (output exists): {out_file}\n"
+            runtime.stderr = ""
+            runtime.returncode = 0
+            return runtime
+
+        return super()._run_interface(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._expected_out_file()
+        return outputs

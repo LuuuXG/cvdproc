@@ -243,7 +243,7 @@ class WMHSegmentationPipeline:
         if t1w_file != '':
             t1w_stripped_node = Node(IdentityInterface(fields=["t1w_stripped", "brain_mask"]), name="t1w_stripped_node")
             t1w_stripped = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'desc': 'brain'}, 'T1w', '.nii.gz'))
-            brain_mask = os.path.join(os.path.dirname(t1w_stripped), rename_bids_file(t1w_file, {'label': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
+            brain_mask = os.path.join(os.path.dirname(t1w_stripped), rename_bids_file(t1w_file, {'desc': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
             if os.path.exists(t1w_stripped) and os.path.exists(brain_mask):
                 print(f"[WMH Pipeline] Found existing skull-stripped T1w: {t1w_stripped}. Will use it directly.")
                 t1w_stripped_node.inputs.t1w_stripped = t1w_stripped
@@ -252,7 +252,7 @@ class WMHSegmentationPipeline:
                 t1w_synthstrip = Node(SynthStrip(), name='t1w_synthstrip')
                 wmh_workflow.connect(inputnode, 't1w', t1w_synthstrip, 'image')
                 t1w_synthstrip.inputs.out_file = t1w_stripped
-                t1w_synthstrip.inputs.mask_file = os.path.join(os.path.dirname(t1w_stripped), rename_bids_file(t1w_file, {'label': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
+                t1w_synthstrip.inputs.mask_file = os.path.join(os.path.dirname(t1w_stripped), rename_bids_file(t1w_file, {'desc': 'brain', 'space': 'T1w'}, 'mask', '.nii.gz'))
                 t1w_synthstrip.inputs.no_csf = True
                 
                 wmh_workflow.connect(t1w_synthstrip, 'out_file', t1w_stripped_node, 't1w_stripped')
@@ -571,48 +571,6 @@ class WMHSegmentationPipeline:
                 if self.session.freesurfer_dir is None:
                     raise ValueError("Freesurfer directory is not available. Please run Freesurfer recon-all first.")
                 else:
-                    # print(f"[WMH Pipeline] Found Freesurfer directory: {self.session.freesurfer_dir}. Will run Bullseye WMH location quantification.")
-                    # bullseye_pipeline = create_bullseye_pipeline(
-                    #     scans_dir = os.path.dirname(self.session.freesurfer_dir),
-                    #     work_dir = self.output_path,
-                    #     outputdir = self.output_path,
-                    #     subject_ids = None,
-                    #     lobes_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-lobes_wmparc.nii.gz",
-                    #     shells_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-shells_wmparc.nii.gz",
-                    #     bullseye_fname = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-fs_desc-bullseye_wmparc.nii.gz",)
-                    # wmh_workflow.connect(inputnode, 'subject_id', bullseye_pipeline, 'inputnode.subject_ids')
-
-                    # # calculate volume using outputnode.bullseye_wmparc
-                    # # these parcellation files are in Freesurfer space, need to be transformed to raw T1w space
-                    # fs_to_t1w_reg = Node(Tkregister2fs2t1w(), name='fs_to_t1w_reg')
-                    # fs_to_t1w_reg.inputs.fs_subjects_dir = os.path.dirname(self.session.freesurfer_dir)
-                    # wmh_workflow.connect(inputnode, 'session', fs_to_t1w_reg, 'fs_subject_id')
-                    # fs_to_t1w_reg.inputs.output_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-fs_to-T1w_xfm.mat")
-                    # fs_to_t1w_reg.inputs.output_inverse_matrix = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-fs_xfm.mat")
-
-                    # # only transform outputnode.bullseye_wmparc to T1w space
-                    # transform_bullseye_parc_to_t1w = Node(ApplyXFM(), name='transform_bullseye_parc_to_t1w')
-                    # wmh_workflow.connect(bullseye_pipeline, 'outputnode.bullseye_wmparc', transform_bullseye_parc_to_t1w, 'in_file')
-                    # wmh_workflow.connect(inputnode, 't1w', transform_bullseye_parc_to_t1w, 'reference')
-                    # wmh_workflow.connect(fs_to_t1w_reg, 'output_matrix', transform_bullseye_parc_to_t1w, 'in_matrix_file')
-                    # transform_bullseye_parc_to_t1w.inputs.interp = 'nearestneighbour'
-                    # transform_bullseye_parc_to_t1w.inputs.apply_xfm = True
-                    # transform_bullseye_parc_to_t1w.inputs.out_file = os.path.join(self.output_path, 'bullseye', f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-bullseye_wmparc.nii.gz")
-
-                    # bullseye_quantification = Node(CalculateROIVolume(), name='bullseye_quantification')
-                    # wmh_workflow.connect(transform_bullseye_parc_to_t1w, 'out_file', bullseye_quantification, 'roi_nii')
-                    # wmh_workflow.connect(final_wmh_mask_node, 'final_wmh_mask_t1w', bullseye_quantification, 'in_nii')
-                    # bullseye_quantification.inputs.output_csv = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-bullseye_volume.csv")
-
-                    # # also need to create a json file to describe the bullseye parcellation
-                    # # 41-44: BG layer 1 (center) to layer 4 (cortex)
-                    # # 101-104: left frontal lobe layer 1 (center) to layer 4 (cortex)
-                    # # 121-124: left occipital lobe layer 1 (center) to layer 4 (cortex)
-                    # # 131-134: left temporal + parietal lobe layer 1 (center) to layer 4 (cortex)
-                    # # 211-214: right frontal lobe layer 1 (center) to layer 4 (cortex)
-                    # # 221-224: right occipital lobe layer 1 (center) to layer 4 (cortex)
-                    # # 231-234: right temporal + parietal lobe layer 1 (center) to layer 4 (cortex)
-
                     print(f"[WMH Pipeline] Found Freesurfer directory: {self.session.freesurfer_dir}. Will run Bullseye WMH location quantification.")
                     bullseye_process = Node(Bullseye2(), name='bullseye_process')
                     wmh_workflow.connect(inputnode, 'session', bullseye_process, 'subject_id')
@@ -791,10 +749,10 @@ class WMHSegmentationPipeline:
 
                     wmh_workflow.connect(files_to_register_node, 'out', wmh_to_mni_transform_node, 'input_image')
                     wmh_to_mni_transform_node.inputs.output_image = [
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-{self.seg_method}_probmap.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-PWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-DWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-{self.seg_method}_probmap.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-PWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-DWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
                     ]
                     wmh_to_mni_transform_node.inputs.interp = ['nearest', 'interpolate', 'nearest', 'nearest']
                 else:
@@ -805,13 +763,13 @@ class WMHSegmentationPipeline:
 
                     wmh_workflow.connect(files_to_register_node, 'out', wmh_to_mni_transform_node, 'input_image')
                     wmh_to_mni_transform_node.inputs.output_image = [
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-{self.seg_method}_probmap.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-{self.seg_method}_probmap.nii.gz"),
                     ]
                     wmh_to_mni_transform_node.inputs.interp = ['nearest', 'interpolate']
 
                 # will use the T1w to MNI warp to transform WMH to MNI space (2-step)
-                target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI_warp.nii.gz')
+                target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
                 
                 if not os.path.exists(target_warp):
                     print(f"[WMH Pipeline] No existing T1w to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
@@ -819,9 +777,9 @@ class WMHSegmentationPipeline:
                     t1w_to_mni_registration = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
                     wmh_workflow.connect(inputnode, 't1w', t1w_to_mni_registration, 't1')
                     t1w_to_mni_registration.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                    t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(t1w_file, {'space': 'MNI', 'desc':'brain'}, 'T1w', '.nii.gz'))
+                    t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'T1w', '.nii.gz'))
                     t1w_to_mni_registration.inputs.t1_2_mni_warp = target_warp
-                    t1w_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
+                    t1w_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
                     t1w_to_mni_registration.inputs.register_between_stripped = True
 
                     wmh_workflow.connect(t1w_to_mni_registration, 't1_2_mni_warp', wmh_to_mni_transform_node, 'warp_image')
@@ -832,7 +790,7 @@ class WMHSegmentationPipeline:
                 if 'JHU' in self.location_method:
                     # transform JHU WM atlas to T1w space
                     jhu_to_t1w_transform = Node(MRIConvertApplyWarp(), name='jhu_to_t1w_transform')
-                    target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
+                    target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
                     if not os.path.exists(target_inverse_warp):
                         wmh_workflow.connect(t1w_to_mni_registration, 'mni_2_t1_warp', jhu_to_t1w_transform, 'warp_image')
                     else:
@@ -858,10 +816,10 @@ class WMHSegmentationPipeline:
 
                     wmh_workflow.connect(files_to_register_node, 'out', wmh_to_mni_transform_node, 'input_image')
                     wmh_to_mni_transform_node.inputs.output_image = [
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-{self.seg_method}_probmap.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-PWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-DWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-{self.seg_method}_probmap.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-PWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-DWMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
                     ]
                     wmh_to_mni_transform_node.inputs.interp = ['nearest', 'interpolate', 'nearest', 'nearest']
                 else:
@@ -871,13 +829,13 @@ class WMHSegmentationPipeline:
                     wmh_workflow.connect(wmh_mask_node, 'wmh_probmap_flair', files_to_register_node, 'in2')
                     wmh_workflow.connect(files_to_register_node, 'out', wmh_to_mni_transform_node, 'input_image')
                     wmh_to_mni_transform_node.inputs.output_image = [
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
-                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-{self.seg_method}_probmap.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-WMH_desc-{self.seg_method}{thr_string}_mask.nii.gz"),
+                        os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-{self.seg_method}_probmap.nii.gz"),
                     ]
                     wmh_to_mni_transform_node.inputs.interp = ['nearest', 'interpolate']
 
                 # will use the FLAIR to MNI warp to transform WMH to MNI space
-                target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-FLAIR_to-MNI_warp.nii.gz')
+                target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-FLAIR_to-MNI152NLin6ASym_warp.nii.gz')
 
                 if not os.path.exists(target_warp):
                     print(f"[WMH Pipeline] No existing FLAIR to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
@@ -885,9 +843,9 @@ class WMHSegmentationPipeline:
                     flair_to_mni_registration = Node(SynthmorphNonlinear(), name='flair_to_mni_registration')
                     wmh_workflow.connect(inputnode, 'flair', flair_to_mni_registration, 't1')
                     flair_to_mni_registration.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                    flair_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(flair_file, {'space': 'MNI', 'desc':'brain'}, 'FLAIR', '.nii.gz'))
+                    flair_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(flair_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'FLAIR', '.nii.gz'))
                     flair_to_mni_registration.inputs.t1_2_mni_warp = target_warp
-                    flair_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-FLAIR_warp.nii.gz')
+                    flair_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-FLAIR_warp.nii.gz')
                     flair_to_mni_registration.inputs.register_between_stripped = True
 
                     wmh_workflow.connect(flair_to_mni_registration, 't1_2_mni_warp', wmh_to_mni_transform_node, 'warp_image')
@@ -898,13 +856,13 @@ class WMHSegmentationPipeline:
         # -----------------------
         # Part 4: Shape Features 
         # -----------------------
-        # must normalize to MNI
-        if not self.normalize_to_mni:
-            raise ValueError("[WMH Pipeline] Shape feature calculation requires WMH to be normalized to MNI space. Please set normalize_to_mni=True.")
-        # also need Fazekas classification (This is due to the reference method we use
-        if 'Fazekas' not in self.location_method:
-            raise ValueError("[WMH Pipeline] Shape feature calculation requires WMH to be classified into PWMH and DWMH. Please include 'Fazekas' in location_method.")
         if self.shape_features:
+            if not self.normalize_to_mni:
+                raise ValueError("[WMH Pipeline] Shape feature calculation requires WMH to be normalized to MNI space. Please set normalize_to_mni=True.")
+            
+            if 'Fazekas' not in self.location_method:
+                raise ValueError("[WMH Pipeline] Shape feature calculation requires WMH to be classified into PWMH and DWMH. Please include 'Fazekas' in location_method.")
+        
             # now we have wmh_to_mni_transform_node to get the PWMH and DWMH in MNI space (output_image[2] and output_image[3])
             # we need a node to connect to calculate shape features (input: the list of 4 files; output: pwmh_path and dwmh_path)
             def extract_pwmh_dwmh(wmh_files):
@@ -925,7 +883,7 @@ class WMHSegmentationPipeline:
             pwmh_shape_features.inputs.threshold = 10
             pwmh_shape_features.inputs.save_plots = False
             pwmh_shape_features.inputs.output_dir = shape_features_dir
-            pwmh_shape_features.inputs.wmh_labeled_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-PWMH_desc-{self.seg_method}{thr_string}_label.nii.gz"
+            pwmh_shape_features.inputs.wmh_labeled_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-PWMH_desc-{self.seg_method}{thr_string}_label.nii.gz"
             pwmh_shape_features.inputs.shape_csv_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-PWMH_ShapeFeatures.csv"
             pwmh_shape_features.inputs.shape_csv_avg_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-PWMH_ShapeFeaturesAvg.csv"
 
@@ -934,7 +892,7 @@ class WMHSegmentationPipeline:
             dwmh_shape_features.inputs.threshold = 10
             dwmh_shape_features.inputs.save_plots = False
             dwmh_shape_features.inputs.output_dir = shape_features_dir
-            dwmh_shape_features.inputs.wmh_labeled_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_label-DWMH_desc-{self.seg_method}{thr_string}_label.nii.gz"
+            dwmh_shape_features.inputs.wmh_labeled_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_label-DWMH_desc-{self.seg_method}{thr_string}_label.nii.gz"
             dwmh_shape_features.inputs.shape_csv_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-DWMH_ShapeFeatures.csv"
             dwmh_shape_features.inputs.shape_csv_avg_filename = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-DWMH_ShapeFeaturesAvg.csv"
 

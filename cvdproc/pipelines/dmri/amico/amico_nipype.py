@@ -57,7 +57,7 @@ class AmicoNoddi(BaseInterface):
             os.makedirs(output_dir)
         amico.util.fsl2scheme(dwi_bval, dwi_bvec, schemeFilename=os.path.join(output_dir, 'dwi.scheme'))
 
-        ae.load_data(dwi, os.path.join(output_dir, 'dwi.scheme'), mask_filename=dwi_mask, b0_thr=0)
+        ae.load_data(dwi, os.path.join(output_dir, 'dwi.scheme'), mask_filename=dwi_mask, b0_thr=0, replace_bad_voxels=0)
         ae.set_model('NODDI')
         ae.set_config("OUTPUT_path", output_dir)
         ae.set_config("doSaveModulatedMaps", True)
@@ -131,11 +131,11 @@ class AmicoNoddi(BaseInterface):
 if __name__ == "__main__":
     # Example usage
     noddi_node = AmicoNoddi()
-    noddi_node.inputs.dwi = '/mnt/f/BIDS/demo_BIDS/derivatives/qsiprep/sub-TAOHC0261/ses-baseline/dwi/sub-TAOHC0261_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.nii.gz'
-    noddi_node.inputs.bval = '/mnt/f/BIDS/demo_BIDS/derivatives/qsiprep/sub-TAOHC0261/ses-baseline/dwi/sub-TAOHC0261_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bval'
-    noddi_node.inputs.bvec = '/mnt/f/BIDS/demo_BIDS/derivatives/qsiprep/sub-TAOHC0261/ses-baseline/dwi/sub-TAOHC0261_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
-    noddi_node.inputs.mask = '/mnt/f/BIDS/demo_BIDS/derivatives/qsiprep/sub-TAOHC0261/ses-baseline/dwi/sub-TAOHC0261_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-brain_mask.nii.gz'
-    noddi_node.inputs.output_dir = '/mnt/f/BIDS/demo_BIDS/derivatives/amico_noddi/sub-TAOHC0261/ses-baseline'
+    noddi_node.inputs.dwi = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.nii.gz'
+    noddi_node.inputs.bval = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bval'
+    noddi_node.inputs.bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
+    noddi_node.inputs.mask = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-brain_mask.nii.gz'
+    noddi_node.inputs.output_dir = '/mnt/e/Neuroimage/post_qsiprep/amico_noddi'
     noddi_node.inputs.direction_filename = "custom_fit_dir.nii.gz"
     noddi_node.inputs.icvf_filename = "custom_fit_NDI.nii.gz"
     noddi_node.inputs.isovf_filename = "custom_fit_FWF.nii.gz"
