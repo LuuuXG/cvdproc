@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../">
+        <link rel="prev" href="../t1_register/">
       
       
         <link rel="next" href="../anat_seg/">
@@ -430,6 +430,52 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../lesion_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lesion Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../t1_register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    T1w Registration to MNI space
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -565,13 +611,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#principle-methodological-considerations" class="md-nav__link">
+  <a href="#freesurfer-principle-methodological-considerations" class="md-nav__link">
     <span class="md-ellipsis">
-      Principle Methodological Considerations
+      Freesurfer: Principle Methodological Considerations
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Principle Methodological Considerations">
+    <nav class="md-nav" aria-label="Freesurfer: Principle Methodological Considerations">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -630,6 +676,15 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freesurfer-recon-all-clinicalsh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Freesurfer: recon-all-clinical.sh
+    </span>
+  </a>
   
 </li>
         
@@ -996,7 +1051,7 @@
   
   
   <span class="md-ellipsis">
-    Containers
+    Containers Used
     
   </span>
   
@@ -1137,13 +1192,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#principle-methodological-considerations" class="md-nav__link">
+  <a href="#freesurfer-principle-methodological-considerations" class="md-nav__link">
     <span class="md-ellipsis">
-      Principle Methodological Considerations
+      Freesurfer: Principle Methodological Considerations
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Principle Methodological Considerations">
+    <nav class="md-nav" aria-label="Freesurfer: Principle Methodological Considerations">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1202,6 +1257,15 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freesurfer-recon-all-clinicalsh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Freesurfer: recon-all-clinical.sh
+    </span>
+  </a>
   
 </li>
         
@@ -1297,7 +1361,86 @@
 
     <div class="doc doc-contents ">
 
-        <p>Freesurfer pipeline</p>
+        <p>Freesurfer clinical pipeline</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>subject</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The subject object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>session</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The session object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The output path for the pipeline.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_t1w</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Use specific T1w file if multiple are available. Defaults to "".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -1625,6 +1768,85 @@
         <p>SynthSR pipeline</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>subject</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The subject object containing BIDS information.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>session</code>
+            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The session object containing BIDS information.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>output_path</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The output path for the pipeline results.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_which_t1w</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Use specific T1w file if multiple are available. Defaults to "".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
     </div>
 
 </div>
@@ -1646,7 +1868,7 @@
 
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<h3 id="principle-methodological-considerations">Principle Methodological Considerations</h3>
+<h3 id="freesurfer-principle-methodological-considerations">Freesurfer: Principle Methodological Considerations</h3>
 <h4 id="freesurfer-version">Freesurfer Version</h4>
 <p>The current pipeline uses the Freesurfer 7-dev version (freesurfer-linux-ubuntu22_x86_64-dev-20240909-9ca95c6). Although we prefer using deep learning-based tools implemented in Freesurfer 8 for more accurate and robust processing, the 8 version requires a larger RAM. For our groups with limited computational resources, we opt for the 7-dev version and parallelize the processing of multiple subjects to optimize resource usage.</p>
 <h4 id="external-brain-mask">External Brain Mask</h4>
@@ -1657,13 +1879,17 @@
 <h4 id="qc">QC</h4>
 <p>We use <a href="https://github.com/Deep-MI/fsqc">fsqc</a> by Deep-MI lab for Freesurfer QC.</p>
 <h4 id="subfield-segmentation">Subfield Segmentation</h4>
-<p>The subfield segmentation part includes:
-- hippocampus and amygdala
-- thalamus
-- brainstem
-- hypothalamus</p>
+<p>The subfield segmentation part includes:</p>
+<ul>
+<li>hippocampus and amygdala</li>
+<li>thalamus</li>
+<li>brainstem</li>
+<li>hypothalamus</li>
+</ul>
 <h4 id="csv-outputs">CSV Outputs</h4>
 <p>Although Freesurfer provides <code>aparcstats2table</code> and <code>asegstats2table</code> commands to generate CSV files, we implement our own CSV generation function to have more control over the output format. All <code>.stats</code> files are parsed to generate CSV files (also when subregions stats files are available) for cortical and subcortical measures except for <code>*h.curv.stats</code>.</p>
+<h3 id="freesurfer-recon-all-clinicalsh">Freesurfer: recon-all-clinical.sh</h3>
+<p>Some extra preprocessing steps were implemented to achieve output similar to <code>recon-all</code>, such as cortical morphology metrics. For detailed information on these steps, please refer to the <a href="https://github.com/LuuuXG/cvdproc/blob/main/cvdproc/pipelines/smri/freesurfer/recon_all_clinical.py">source code</a>.</p>
 
 
 
