@@ -96,3 +96,128 @@ class MergeDataToCSV(BaseInterface):
         outputs = self._outputs().get()
         outputs["output_csv"] = self.inputs.output_csv
         return outputs
+
+# -----------------------------
+# Weighted mean calculation
+# -----------------------------
+def weighted_mean_from_nifti(
+    scalar_nii,
+    weight_nii,
+    out_txt,
+    ignore_background=False,
+):
+    if not os.path.isfile(scalar_nii):
+        raise FileNotFoundError(f"Scalar NIfTI not found: {scalar_nii}")
+    if not os.path.isfile(weight_nii):
+        raise FileNotFoundError(f"Weight NIfTI not found: {weight_nii}")
+
+    scalar_img = nib.load(scalar_nii)
+    weight_img = nib.load(weight_nii)
+
+    scalar = scalar_img.get_fdata(dtype=np.float64)
+    weight = weight_img.get_fdata(dtype=np.float64)
+
+    if scalar.shape[:3] != weight.shape[:3]:
+        raise RuntimeError(
+            f"Shape mismatch: scalar {scalar.shape} vs weight {weight.shape}"
+        )
+
+    mask = (
+        (weight > 0) &
+        np.isfinite(weight) &
+        np.isfinite(scalar)
+    )
+
+    if ignore_background:
+        mask &= (scalar != 0)
+
+    if not np.any(mask):
+        raise RuntimeError("No valid voxels after masking.")
+
+    w = weight[mask]
+    x = scalar[mask]
+
+    w_sum = float(np.sum(w))
+    if w_sum <= 0:
+        raise RuntimeError("Sum of weights is zero.")
+
+    weighted_mean = float(np.sum(x * w) / w_sum)
+
+    out_dir = os.path.dirname(out_txt)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
+    with open(out_txt, "w") as f:
+        f.write(f"{weighted_mean:.8f}\n")
+
+    return out_txt, weighted_mean, int(np.sum(mask)), w_sum
+
+class TDWeightedMeanInputSpec(BaseInterfaceInputSpec):
+    scalar_nii = File(
+        exists=True,
+        mandatory=True,
+        desc="Scalar NIfTI image (e.g., ICVF)",
+    )
+    weight_nii = File(
+        exists=True,
+        mandatory=True,
+        desc="Weight NIfTI image (e.g., TDI, values in [0,1])",
+    )
+    out_txt = File(
+        mandatory=True,
+        desc="Output text file containing weighted mean value",
+    )
+    ignore_background = Bool(
+        False,
+        usedefault=True,
+        desc="If True, ignore voxels where scalar value equals zero",
+    )
+
+class TDWeightedMeanOutputSpec(TraitedSpec):
+    out_txt = File(exists=True, desc="Output text file with weighted mean")
+
+class TDWeightedMean(BaseInterface):
+    input_spec = TDWeightedMeanInputSpec
+    output_spec = TDWeightedMeanOutputSpec
+
+    def _run_interface(self, runtime):
+        out_txt = os.path.abspath(self.inputs.out_txt)
+
+        weighted_mean_from_nifti(
+            scalar_nii=self.inputs.scalar_nii,
+            weight_nii=self.inputs.weight_nii,
+            out_txt=out_txt,
+            ignore_background=self.inputs.ignore_background,
+        )
+
+        self._out_txt = out_txt
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["out_txt"] = getattr(
+            self, "_out_txt", os.path.abspath(self.inputs.out_txt)
+        )
+        return outputs
+
+if __name__ == "__main__":
+    from nipype import Node
+    node = Node(TDWeightedMean(), name="or_icvf_weighted_mean")
+    node.inputs.scalar_nii = (
+        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
+        "sub-AFib0241/ses-baseline/NODDI/"
+        "sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz"
+    )
+    node.inputs.weight_nii = (
+        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
+        "sub-AFib0241/ses-baseline/visual_pathway_analysis/"
+        "sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OT_tdi.nii.gz"
+    )
+    node.inputs.out_txt = (
+        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
+        "sub-AFib0241/ses-baseline/visual_pathway_analysis/"
+        "sub-AFib0241_ses-baseline_hemi-L_bundle-OT_icvf_weighted_mean.txt"
+    )
+    node.inputs.ignore_background = True
+
+    res = node.run()

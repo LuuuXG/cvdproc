@@ -20,7 +20,7 @@ from nipype.interfaces.fsl.maths import ApplyMask
 from nipype.interfaces.fsl.preprocess import ApplyXFM
 from ..fsl.fsl_anat_nipype import FSLANAT
 from ..fsl.distancemap_nipype import DistanceMap
-from ...common.copy_file import CopyFileCommandLine
+from cvdproc.pipelines.common.files import CopyFileCommandLine
 from cvdproc.pipelines.smri.fsl.fslmaths_thr import FSLMathsUnderThr, FSLMathsThr
 from cvdproc.pipelines.smri.fsl.make_bianca_mask_nipype import MakeBIANCAMask
 from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApplyWarp, TwoStepNormalization
@@ -263,7 +263,7 @@ class WMHSegmentationPipeline:
         # 2: shiva
         # 3: truenet
         run_synthseg = False
-        synthseg_outfile = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_synthseg.nii.gz')
+        synthseg_outfile = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
         if 'Fazekas' in self.location_method and self.ventmask_method == 'SynthSeg':
             run_synthseg = True
         if 'shiva' in self.location_method:

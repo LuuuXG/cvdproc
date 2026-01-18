@@ -43,7 +43,7 @@ class MergeRibbonOutputSpec(TraitedSpec):
     output_gm_mask = File(desc='Output cortical GM mask file', exists=True)
 
 class MergeRibbon(CommandLine):
-    _cmd = get_package_path('pipelines', 'bash', 'freesurfer', 'merge_ribbon.sh')
+    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'freesurfer', 'merge_ribbon.sh')
     input_spec = MergeRibbonInputSpec
     output_spec = MergeRibbonOutputSpec
 
@@ -60,22 +60,14 @@ class MRIBinarizeInputSpec(CommandLineInputSpec):
         desc="Input volume file",
         mandatory=True,
     )
+
     output_volume = File(
         argstr="--o %s",
         desc="Output volume file",
         mandatory=True,
     )
 
-    # Support multiple match values
-    match = List(
-        Int(),
-        argstr="--match %s...",
-        desc=(
-            "Match values for binarization (multiple allowed). "
-            "Cannot be used with min/max."
-        ),
-        xor=["min", "max"],
-    )
+    match = List( Int(), argstr="--match %s...", desc=( "Match values for binarization (multiple allowed). " "Cannot be used with min/max." ), xor=["min", "max"], )
 
     min = Float(
         argstr="--min %f",
@@ -103,13 +95,11 @@ class MRIBinarizeOutputSpec(TraitedSpec):
 
 
 class MRIBinarize(CommandLine):
-    """Custom Nipype interface for FreeSurfer mri_binarize with multi-match support."""
-
     _cmd = "mri_binarize"
     input_spec = MRIBinarizeInputSpec
     output_spec = MRIBinarizeOutputSpec
 
     def _list_outputs(self):
-        outputs = super()._list_outputs()
-        outputs["output_volume"] = self.inputs.output_volume
+        outputs = self._outputs().get()
+        outputs["output_volume"] = os.path.abspath(self.inputs.output_volume)
         return outputs

@@ -1,5 +1,5 @@
 import os
-from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, traits, TraitedSpec
+from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, traits, TraitedSpec, CommandLineInputSpec, CommandLine
 
 class FilterExistingInputSpec(BaseInterfaceInputSpec):
     input_file_list = traits.List(
@@ -100,4 +100,33 @@ class MergeFilename(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["merge_file_list"] = self._merge_file_list
+        return outputs
+
+class CopyFileCommandLineInputSpec(CommandLineInputSpec):
+    input_file = traits.Str(
+        desc="Path to the input file to copy",
+        mandatory=True,
+        argstr="%s",
+        position=0
+    )
+    output_file = traits.Str(
+        desc="Path to the output file",
+        mandatory=True,
+        argstr="%s",
+        position=1
+    )
+
+class CopyFileCommandLineOutputSpec(TraitedSpec):
+    output_file = traits.Str(
+        desc="Path to the copied file",
+    )
+
+class CopyFileCommandLine(CommandLine):
+    input_spec = CopyFileCommandLineInputSpec
+    output_spec = CopyFileCommandLineOutputSpec
+    _cmd = "cp"
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["output_file"] = os.path.abspath(self.inputs.output_file)
         return outputs

@@ -55,6 +55,7 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         'to': r"to-([^_]+)",
         'model': r"model-([^_]+)",
         'param': r"param-([^_]+)",
+        'bundle': r"bundle-([^_]+)",
         'desc': r"desc-([^_]+)"
     }
 
@@ -102,6 +103,7 @@ def rename_bids_file(original_filename, entities, suffix, extension):
     to_id = entities.get('to', extracted_entities.get('to', None))
     model_id = entities.get('model', extracted_entities.get('model', None))
     param_id = entities.get('param', extracted_entities.get('param', None))
+    bundle_id = entities.get('bundle', extracted_entities.get('bundle', None))
     desc_id = entities.get('desc', extracted_entities.get('desc', None))
 
     # Generate new filename
@@ -176,6 +178,8 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         new_filename_parts.append(f"model-{model_id}")
     if param_id:
         new_filename_parts.append(f"param-{param_id}")
+    if bundle_id:
+        new_filename_parts.append(f"bundle-{bundle_id}")
     if desc_id:
         new_filename_parts.append(f"desc-{desc_id}")
 

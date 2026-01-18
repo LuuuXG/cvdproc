@@ -1,6 +1,7 @@
 import os
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
 import csv
+import numpy as np
 
 class TckSampleInputSpec(CommandLineInputSpec):
     tracks = File(desc="Path to the input tck file", mandatory=True, argstr="%s", position=0)
@@ -64,13 +65,93 @@ class CalculateMeanTckSample(BaseInterface):
         outputs["output_file"] = os.path.abspath(self.inputs.output_file)
         return outputs
 
+class CalculatePointsMeanTckSampleInputSpec(BaseInterfaceInputSpec):
+    csv_file = File(
+        desc="Input CSV or whitespace-delimited file: rows=streamlines, columns=points",
+        mandatory=True,
+        exists=True,
+    )
+    output_file = File(
+        desc="Output CSV file (single row: point-wise mean values)",
+        mandatory=True,
+    )
+
+
+class CalculatePointsMeanTckSampleOutputSpec(TraitedSpec):
+    output_file = File(
+        desc="Output CSV file with one row of point-wise means",
+        exists=True,
+    )
+
+
+class CalculatePointsMeanTckSample(BaseInterface):
+    input_spec = CalculatePointsMeanTckSampleInputSpec
+    output_spec = CalculatePointsMeanTckSampleOutputSpec
+
+    def _run_interface(self, runtime):
+        in_file = os.path.abspath(self.inputs.csv_file)
+        out_file = os.path.abspath(self.inputs.output_file)
+
+        out_dir = os.path.dirname(out_file)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
+        # Load data (auto-detect delimiter)
+        try:
+            data = np.loadtxt(in_file, delimiter=",")
+        except ValueError:
+            data = np.loadtxt(in_file)
+
+        if data.ndim != 2:
+            raise RuntimeError(
+                f"Input file must be 2D (rows=streamlines, cols=points), got shape {data.shape}"
+            )
+
+        n_streamlines, n_points = data.shape
+
+        # -------- QC: check consistency --------
+        # After loadtxt, inconsistent row lengths would normally already fail.
+        # This check is explicit for clarity and future-proofing.
+        if not np.all([len(row) == n_points for row in data]):
+            raise RuntimeError(
+                "Inconsistent number of points across streamlines. "
+                "Point-wise averaging is invalid."
+            )
+
+        if n_points < 2:
+            raise RuntimeError(
+                f"Too few points per streamline ({n_points}). Expected >= 2."
+            )
+
+        # Column-wise mean
+        pointwise_mean = np.nanmean(data, axis=0)
+
+        # Save as ONE ROW
+        np.savetxt(
+            out_file,
+            pointwise_mean.reshape(1, -1),
+            delimiter=",",
+            fmt="%.6f",
+        )
+
+        self._output_file = out_file
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["output_file"] = getattr(
+            self, "_output_file", os.path.abspath(self.inputs.output_file)
+        )
+        return outputs
+
+
 if __name__ == "__main__":
     # Example usage
     tcksample = TckSampleCommand()
-    tcksample.inputs.tracks = "/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/tckgen_output/tracked.tck"
-    tcksample.inputs.image = "/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/dti_FA.nii.gz"
-    tcksample.inputs.values = "/mnt/f/BIDS/SVD_BIDS/derivatives/fdt/sub-SVD0035/ses-02/tckgen_output/FA.txt"
-    tcksample.inputs.stat_tck = "mean"
+    tcksample.inputs.tracks = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/visual_pathway_analysis/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OR_streamlines.tck"
+    tcksample.inputs.image = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/NODDI/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz"
+    tcksample.inputs.values = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/visual_pathway_analysis/L_OR_ICVF2.csv"
+    tcksample.inputs.args = '-force'
 
     # Run the command
     result = tcksample.run()  # This will execute the command

@@ -26,13 +26,13 @@ class AmicoNoddiInputSpec(BaseInterfaceInputSpec):
     config_filename = Str("config.pickle", desc="Filename for the AMICO config file")
 
 class AmicoNoddiOutputSpec(TraitedSpec):
-    direction = Str(desc="Directory where AMICO NODDI results are saved")
-    icvf = Str(desc="Path to the ICVF map")
-    isovf = Str(desc="Path to the ISOVF map")
-    od = Str(desc="Path to the ODI map")
-    modulated_icvf = Str(desc="Path to the modulated ICVF map")
-    modulated_od = Str(desc="Path to the modulated ODI map")
-    config = Str(desc="Path to the AMICO config file")
+    direction = File(desc="Directory where AMICO NODDI results are saved")
+    icvf = File(desc="Path to the ICVF map")
+    isovf = File(desc="Path to the ISOVF map")
+    od = File(desc="Path to the ODI map")
+    modulated_icvf = File(desc="Path to the modulated ICVF map")
+    modulated_od = File(desc="Path to the modulated ODI map")
+    config = File(desc="Path to the AMICO config file")
 
 class AmicoNoddi(BaseInterface):
     input_spec = AmicoNoddiInputSpec

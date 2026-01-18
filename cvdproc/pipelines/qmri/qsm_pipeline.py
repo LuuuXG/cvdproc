@@ -11,7 +11,7 @@ from .qqnet.qqnet_nipype import QQNet
 from ..common.copy_to_rawdata import CopyToRawData
 from ..common.register import ModalityRegistration
 from cvdproc.pipelines.common.register import SynthmorphNonlinear
-from cvdproc.pipelines.common.filter_existing import FilterExisting
+from cvdproc.pipelines.common.files import FilterExisting
 from cvdproc.pipelines.qmri.qsm_register.qsm_register2_nipype import QSMRegister
 
 from ...bids_data.rename_bids_file import rename_bids_file
@@ -136,7 +136,7 @@ class QSMPipeline:
             mag_to_t1w_register_node.inputs.dof = 6
 
             # 02: register T1w to MNI
-            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI_warp.nii.gz')
+            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
             t1_2_mni_warp_node = Node(IdentityInterface(fields=['t1_2_mni_warp']), name='t1_2_mni_warp_node')
 
             if not os.path.exists(target_warp):
@@ -145,9 +145,9 @@ class QSMPipeline:
                 t1w_to_mni_register_node = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
                 qsm_wf.connect(inputnode, 'in_t1', t1w_to_mni_register_node, 't1')
                 t1w_to_mni_register_node.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI', 'desc':'brain'}, 'T1w', '.nii.gz'))
+                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'T1w', '.nii.gz'))
                 t1w_to_mni_register_node.inputs.t1_2_mni_warp = target_warp
-                t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI_to-T1w_warp.nii.gz')
+                t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
                 t1w_to_mni_register_node.inputs.register_between_stripped = True
 
                 qsm_wf.connect(t1w_to_mni_register_node, 't1_2_mni_warp', t1_2_mni_warp_node, 't1_2_mni_warp')
@@ -171,25 +171,25 @@ class QSMPipeline:
             # qsm_wf.connect(qsm_scalar_maps_node, 'out', filter_existing_node, 'input_file_list')
 
             output1_filenames = [
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-Chisep_Chimap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-R2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-S0map.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-T2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-Chidia.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-Chipara.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-Chitotal.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-OEF.nii.gz'
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-QSMnet_Chimap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_R2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_S0map.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_T2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_Chidia.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_Chipara.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_Chitotal.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_OEF.nii.gz'
             ]
 
             output2_filenames = [
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-Chisep_Chimap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-R2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-S0map.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-T2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-Chidia.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-Chipara.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-Chitotal.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI_desc-OEF.nii.gz'
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-QSMnet_Chimap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_R2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_S0map.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_T2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chidia.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chipara.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chitotal.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_OEF.nii.gz'
             ]
 
             qsm_to_mni_register_node = Node(QSMRegister(), name='qsm_to_mni_registration')

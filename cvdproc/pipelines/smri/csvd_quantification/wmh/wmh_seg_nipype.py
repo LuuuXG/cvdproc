@@ -465,11 +465,15 @@ class TrueNetPostProcess(BaseInterface):
         # Save the binary mask as a NIfTI file
         wmh_mask_file = os.path.join(self.inputs.output_dir, self.inputs.output_mask_name)
         nib.save(nib.Nifti1Image(binary_mask, truenet_output_img.affine), wmh_mask_file)
-
-        # Save the probability map as a NIfTI file (keep original TrueNet output)
+        
+        # Also mask probability map (only in WM)
         probmap_file = os.path.join(self.inputs.output_dir, self.inputs.output_prob_map_name)
-        #os.rename(truenet_output_file, probmap_file)
-        shutil.copy(truenet_output_file, probmap_file)
+        prob_data = truenet_output_data.astype(np.float32)
+        if wm_mask_file:
+            # wm_mask_data already loaded above if wm_mask_file is found
+            wm_bin = (wm_mask_data > 0).astype(np.uint8)
+            prob_data = prob_data * wm_bin
+        nib.save(nib.Nifti1Image(prob_data, truenet_output_img.affine), probmap_file)
 
         # Set the output files
         self._wmh_mask = wmh_mask_file

@@ -855,26 +855,6 @@ class DefineConnectionLevel(BaseInterface):
 
         return outputs
 
-################
-# Merge ribbon #
-################
-class MergeRibbonInputSpec(BaseInterfaceInputSpec):
-    fs_subjects_dir = Str(desc='Freesurfer subjects directory', argstr='%s', position=0)
-    fs_subject_id = Str(desc='Freesurfer subject ID', argstr='%s', position=1)
-    output_gm_mask = Str(desc='Output GM mask file', argstr='%s', position=2)
-class MergeRibbonOutputSpec(TraitedSpec):
-    output_gm_mask = File(desc='Output GM mask file')
-class MergeRibbon(BaseInterface):
-    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'freesurfer', 'merge_ribbon.sh')
-    input_spec = MergeRibbonInputSpec
-    output_spec = MergeRibbonOutputSpec
-    terminal_output = 'allatonce'  
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['output_gm_mask'] = os.path.abspath(self.inputs.output_gm_mask)
-        return outputs
-
 ##############################
 # Extract Surface Parameters #
 ##############################

@@ -66,6 +66,7 @@ class SynthSegOutputSpec(TraitedSpec):
 class SynthSeg(CommandLine):
     input_spec = SynthSegInputSpec
     output_spec = SynthSegOutputSpec
+    #_cmd = 'bash ' + get_package_path('pipelines', 'bash', 'freesurfer', 'mri_synthseg.sh')
     _cmd = 'mri_synthseg'
     
     def _list_outputs(self):

@@ -43,7 +43,7 @@ class FlipBTable(BaseInterface):
 # example usage:
 if __name__ == "__main__":
     flip_btable = FlipBTable()
-    flip_btable.inputs.in_bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
-    flip_btable.inputs.out_bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
+    flip_btable.inputs.in_bvec = '/mnt/f/BIDS/WCH_AF_Project/derivatives/qsiprep/sub-AFib0241/ses-baseline/dwi/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
+    flip_btable.inputs.out_bvec = '/mnt/f/BIDS/WCH_AF_Project/derivatives/qsiprep/sub-AFib0241/ses-baseline/dwi/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi_flipped.bvec'
     flip_btable.inputs.flip_axis = [1]  # flip y axes
     flip_btable.run()
