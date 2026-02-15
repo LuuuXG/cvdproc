@@ -161,9 +161,9 @@ echo "out_dir:  $out_dir"
 # -------------------------
 # Output checks
 # -------------------------
-if [ -e "${out_dir}/xfms/eye.mat" ]; then
+if [ -e "${out_dir}/xfms/eye.mat" ] || [ -e "${out_dir}.bedpostX/xfms/eye.mat" ]; then
     echo "ERROR: Output directory appears already processed: ${out_dir}" >&2
-    echo "Delete or rename ${out_dir} before repeating." >&2
+    echo "Delete or rename ${out_dir} (and ${out_dir}.bedpostX if present) before repeating." >&2
     exit 1
 fi
 
@@ -263,6 +263,18 @@ echo "Log directory is: ${out_dir}/diff_parts"
 echo "${out_dir}/nodif_brain_mask"
 
 post_gopts=("${opts[@]}")
+
+# -------------------------
+# Compatibility shim for bedpostx_postproc_gpu.sh
+# It expects outputs under "${subjdir}.bedpostX"
+# -------------------------
+if [ ! -e "${out_dir}.bedpostX" ]; then
+    ln -s "${out_dir}" "${out_dir}.bedpostX"
+fi
+
+# Ensure expected subfolders exist via the symlinked path as well
+mkdir -p "${out_dir}.bedpostX/xfms" "${out_dir}.bedpostX/diff_parts"
+
 "${FSLDIR}/bin/bedpostx_postproc_gpu.sh" \
     "--data=${out_dir}/data" \
     "--mask=${out_dir}/nodif_brain_mask" \
@@ -285,5 +297,8 @@ mkdir -p "${out_dir}/xfms"
   echo "0 1 0 0"
   echo "0 0 1 0"
 } > "${out_dir}/xfms/eye.mat"
+
+# clear the symlink
+rm -f "${out_dir}.bedpostX"
 
 echo "Done"

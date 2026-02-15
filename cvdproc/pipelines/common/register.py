@@ -192,3 +192,128 @@ class Tkregister2fs2t1w(CommandLine):
         outputs['output_matrix'] = os.path.abspath(self.inputs.output_matrix)
         outputs['output_inverse_matrix'] = os.path.abspath(self.inputs.output_inverse_matrix)
         return outputs
+
+###############
+# mri_vol2vol #
+###############
+
+# mri_vol2vol \
+#   --mov /mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/lesion_mask/sub-SSI0114/ses-F1/sub-SSI0114_ses-F1_space-T1w_desc-RSSI_mask.nii.gz \
+#   --targ /mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/freesurfer/sub-SSI0114/ses-F1/mri/orig.mgz \
+#   --o /mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/lesion_mask/sub-SSI0114/ses-F1/sub-SSI0114_ses-F1_space-fs_desc-RSSI_mask.nii.gz \
+#   --fsl /mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/xfm/sub-SSI0114/ses-F1/sub-SSI0114_ses-F1_from-T1w_to-fs_xfm.mat \
+#   --nearest
+
+# mri_vol2vol
+
+#   --mov  movvol       : input (or output template with --inv)
+#   --targ targvol      : output template (or input with --inv)
+#   --o    outvol       : output volume
+#   --disp dispvol      : displacement volume
+#   --downsample N1 N2 N3 : downsample factor (eg, 2) (do not include a targ or regsitration)
+#          sets --fill-average, --fill-upsample 2, and --regheader
+
+#   --reg  register.dat : tkRAS-to-tkRAS matrix   (tkregister2 format)
+#   --lta  register.lta : Linear Transform Array (usually only 1 transform)
+#   --lta-inv  register.lta : LTA, invert (may not be the same as --lta --inv with --fstal)
+#   --fsl  register.fsl : fslRAS-to-fslRAS matrix (FSL format)
+#   --xfm  register.xfm : ScannerRAS-to-ScannerRAS matrix (MNI format)
+#   --regheader         : ScannerRAS-to-ScannerRAS matrix = identity
+#   --mni152reg         : target MNI152 space (need FSL installed)
+#   --s subject         : set matrix = identity and use subject for any templates
+
+#   --inv               : sample from targ to mov
+
+#   --tal               : map to a sub FOV of MNI305 (with --reg only)
+#   --talres resolution : set voxel size 1mm or 2mm (def is 1)
+#   --talxfm xfmfile    : default is talairach.xfm (looks in mri/transforms)
+
+#   --m3z morph    : non-linear morph encoded in the m3z format
+#   --noDefM3zPath : flag indicating that the code should not be looking for
+#        the non-linear m3z morph in the default location (subj/mri/transforms), but should use
+#        the morph name as is
+#   --inv-morph    : compute and use the inverse of the m3z morph
+
+#   --fstarg <vol>      : optionally use vol from subject in --reg as target. default is orig.mgz
+#   --crop scale        : crop and change voxel size
+#   --slice-crop sS sE  : crop output slices to be within sS and sE
+#   --slice-reverse     : reverse order of slices, update vox2ras
+#   --slice-bias alpha  : apply half-cosine bias field
+
+#   --trilin            : trilinear interpolation (default)
+#   --nearest           : nearest neighbor interpolation
+#   --cubic             : cubic B-Spline interpolation
+#   --interp interptype : interpolation cubic, trilin, nearest (def is trilin)
+#   --fill-average      : compute mean of all source voxels in a given target voxel
+#   --fill-conserve     : compute sum  of all source voxels in a given target voxel
+#   --fill-upsample USF : source upsampling factor for --fill-{avg,cons} (default is 2)
+
+#   --mul mulval   : multiply output by mulval
+
+#   --vsm vsmvol <pedir> : Apply a voxel shift map. pedir: +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)
+#   --vsm-pedir pedir : set pedir +/-1=+/-x, +/-2=+/-y, +/-3=+/-z (default +2)
+
+#   --precision precisionid : output precision (def is float)
+#   --keep-precision  : set output precision to that of input
+#   --kernel            : save the trilinear interpolation kernel instead
+#    --copy-ctab : setenv FS_COPY_HEADER_CTAB to copy any ctab in the mov header
+#    --vg-thresh thresh : set threshold for comparing vol geom
+
+#   --gcam mov srclta gcam dstlta vsm interp out
+#      srclta, gcam, or vsm can be set to 0 to indicate identity (not regheader)
+#      if dstlta is 0, then uses gcam atlas geometry as output target
+#      direction is automatically determined from srclta and dstlta
+#      interp 0=nearest, 1=trilin, 5=cubicbspline
+#      vsm pedir can be set with --vsm-pedir
+#      DestVol -> dstLTA -> CVSVol -> gcam -> AnatVol -> srcLTA -> B0UnwarpedVol -> VSM -> MovVol (b0Warped)
+
+#   --spm-warp mov movlta warp interp output
+#      mov is the input to be mapped
+#      movlta maps mov to the vbm input space (use 0 to ignore)
+#        if movlta=0, then input is anything that shares a RAS space with the VBM input
+#      warp is typically y_rinput.nii
+#      interp 0=nearest, 1=trilin
+
+#   --map-point a b c incoords lta outcoords outfile : stand-alone option to map a point to another space
+#      coords: 1=tkras, 2=scannerras, 3=vox; outfile can be nofile
+#   --map-point-inv-lta a b c incoords lta outcoords outfile
+#       same as --map-point but inverts the lta
+
+
+#   --no-resample : do not resample, just change vox2ras matrix
+#   --no-resample-scale : do not resample, just change vox2ras matrix, using scale=voxsize
+
+#   --rot   Ax Ay Az : rotation angles (deg) to apply to reg matrix
+#   --trans Tx Ty Tz : translation (mm) to apply to reg matrix
+#   --shear Sxy Sxz Syz : xz is in-plane
+#   --reg-final regfinal.dat : final reg after rot and trans (but not inv)
+#   --ctab ctabfile : embed colortable into output (note: this will override any embedded ctab)
+
+#   --synth : replace input with white gaussian noise
+#   --seed seed : seed for synth (def is to set from time of day)
+
+#   --save-reg : write out output volume registration matrix
+
+#   --help : go ahead, make my day
+#   --debug
+#   --version
+
+class MRIVol2VolInputSpec(CommandLineInputSpec):
+    moving_image = File(exists=True, desc="Moving image", argstr="--mov %s", mandatory=True)
+    target_image = File(exists=True, desc="Target image", argstr="--targ %s", mandatory=True)
+    output_image = Str(desc="Output image", argstr="--o %s", mandatory=True)
+    fsl_matrix = File(exists=True, desc="FSL transformation matrix (.mat)", argstr="--fsl %s", mandatory=True)
+    interp = Str('interpolate', desc='Interpolation method: <interpolate|weighted|nearest|cubic>', argstr='--%s', mandatory=False)
+
+class MRIVol2VolOutputSpec(TraitedSpec):
+    output_image = File(desc="Output image", exists=True)
+
+class MRIVol2Vol(CommandLine):
+    _cmd = 'mri_vol2vol'
+    input_spec = MRIVol2VolInputSpec
+    output_spec = MRIVol2VolOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['output_image'] = os.path.abspath(self.inputs.output_image)
+        return outputs

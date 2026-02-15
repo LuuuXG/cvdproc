@@ -13,10 +13,11 @@ from nipype.interfaces.base import (
 
 from cvdproc.config.paths import get_package_path
 
-dsi_studio_path = get_package_path(
-    "data", "lqt", "extdata", "DSI_studio", "dsi-studio", "dsi_studio"
-)
+# dsi_studio_path = get_package_path(
+#     "data", "lqt", "extdata", "DSI_studio", "dsi-studio", "dsi_studio"
+# )
 
+dsi_studio_path = get_package_path('data', 'dsi-studio', 'dsi_studio')
 
 class TractStatsInputSpec(CommandLineInputSpec):
     source = File(

@@ -12,7 +12,7 @@ from traits.api import Bool, Int, Str, Float, Either
 
 from cvdproc.config.paths import get_package_path
 
-dsi_studio_path = get_package_path('data', 'lqt', 'extdata', 'DSI_studio', 'dsi-studio', 'dsi_studio')
+dsi_studio_path = get_package_path('data', 'dsi-studio', 'dsi_studio')
 
 class DSIstudioTrackingInputSpec(CommandLineInputSpec):
     # core
@@ -22,7 +22,7 @@ class DSIstudioTrackingInputSpec(CommandLineInputSpec):
     thread_count = Int(1, desc='Number of threads to use', argstr='--thread_count=%d')
     # tracking parameters
     method = Int(desc='Tracking algorithm. 0=streamline, 1=RK4, etc.', argstr='--method=%d')
-    tract_count = Int(desc='Number of tracts to generate', argstr='--fiber_count=%d')
+    tract_count = Int(desc='Number of tracts to generate', argstr='--tract_count=%d')
     seed_count = Int(desc='Number of seeds to use', argstr='--seed_count=%d')
     track_voxel_ratio = Float(desc='Seeding density as a ratio of total voxel count', argstr='--track_voxel_ratio=%f')
     turning_angle = Float(desc='Maximum turning angle in degrees', argstr='--turning_angle=%f')

@@ -16,7 +16,6 @@ class AmicoNoddiInputSpec(BaseInterfaceInputSpec):
     mask = File(exists=True, desc="Path to the brain mask NIfTI file", mandatory=True)
     output_dir = Directory(desc="Directory to save AMICO NODDI results", mandatory=True)
 
-    # if provided, rename files
     direction_filename = Str("fit_dir.nii.gz", desc="Filename for the direction map")
     icvf_filename = Str("fit_NDI.nii.gz", desc="Filename for the ICVF map")
     isovf_filename = Str("fit_FWF.nii.gz", desc="Filename for the ISOVF map")
@@ -25,8 +24,9 @@ class AmicoNoddiInputSpec(BaseInterfaceInputSpec):
     modulated_od_filename = Str("fit_ODI_modulated.nii.gz", desc="Filename for the modulated ODI map")
     config_filename = Str("config.pickle", desc="Filename for the AMICO config file")
 
+
 class AmicoNoddiOutputSpec(TraitedSpec):
-    direction = File(desc="Directory where AMICO NODDI results are saved")
+    direction = File(desc="Path to the direction map")
     icvf = File(desc="Path to the ICVF map")
     isovf = File(desc="Path to the ISOVF map")
     od = File(desc="Path to the ODI map")
@@ -34,115 +34,116 @@ class AmicoNoddiOutputSpec(TraitedSpec):
     modulated_od = File(desc="Path to the modulated ODI map")
     config = File(desc="Path to the AMICO config file")
 
+
 class AmicoNoddi(BaseInterface):
     input_spec = AmicoNoddiInputSpec
     output_spec = AmicoNoddiOutputSpec
 
+    def _expected_outputs(self):
+        out_dir = os.path.abspath(self.inputs.output_dir)
+        return {
+            "direction": os.path.join(out_dir, self.inputs.direction_filename),
+            "icvf": os.path.join(out_dir, self.inputs.icvf_filename),
+            "isovf": os.path.join(out_dir, self.inputs.isovf_filename),
+            "od": os.path.join(out_dir, self.inputs.od_filename),
+            "modulated_icvf": os.path.join(out_dir, self.inputs.modulated_icvf_filename),
+            "modulated_od": os.path.join(out_dir, self.inputs.modulated_od_filename),
+            "config": os.path.join(out_dir, self.inputs.config_filename),
+        }
+
+    @staticmethod
+    def _is_valid_file(path):
+        return os.path.isfile(path) and os.path.getsize(path) > 0
+
     def _run_interface(self, runtime):
+        output_dir = os.path.abspath(self.inputs.output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        expected = self._expected_outputs()
+        expected_paths = list(expected.values())
+
+        # 1) Skip if all expected outputs already exist and are non-empty
+        if all(self._is_valid_file(p) for p in expected_paths):
+            return runtime
+
+        # 2) If some outputs exist but not all, do NOT overwrite anything.
+        #    Fail early to protect existing results from being overwritten by AMICO.
+        existing = [p for p in expected_paths if os.path.exists(p)]
+        if len(existing) > 0:
+            raise RuntimeError(
+                "Partial outputs detected. Refusing to run to avoid overwriting existing files. "
+                f"Existing files: {existing}"
+            )
+
+        # AMICO setup
         amico.setup()
         ae = amico.Evaluation()
 
-        # put kernels alongside output_dir (or anywhere you like)
-        kernels_dir = '/tmp/amico_kernels'
-        if not os.path.exists(kernels_dir):
-            os.makedirs(kernels_dir)
+        # Put kernels somewhere temporary
+        kernels_dir = "/tmp/amico_kernels"
+        os.makedirs(kernels_dir, exist_ok=True)
         ae.set_config("KERNELS_path", kernels_dir)
 
-        dwi = self.inputs.dwi
-        dwi_bval = self.inputs.bval
-        dwi_bvec = self.inputs.bvec
-        dwi_mask = self.inputs.mask
-        output_dir = self.inputs.output_dir
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        amico.util.fsl2scheme(dwi_bval, dwi_bvec, schemeFilename=os.path.join(output_dir, 'dwi.scheme'))
+        # Build scheme file inside output_dir
+        scheme_path = os.path.join(output_dir, "dwi.scheme")
+        amico.util.fsl2scheme(self.inputs.bval, self.inputs.bvec, schemeFilename=scheme_path)
 
-        ae.load_data(dwi, os.path.join(output_dir, 'dwi.scheme'), mask_filename=dwi_mask, b0_thr=0, replace_bad_voxels=0)
-        ae.set_model('NODDI')
-        ae.set_config("OUTPUT_path", output_dir)
-        ae.set_config("doSaveModulatedMaps", True)
-        ae.generate_kernels(regenerate=True)
-        ae.load_kernels()
-        ae.fit()
-        ae.save_results()
+        try:
+            ae.load_data(
+                self.inputs.dwi,
+                scheme_path,
+                mask_filename=self.inputs.mask,
+                b0_thr=0,
+                replace_bad_voxels=0,
+            )
+            ae.set_model("NODDI")
+            ae.set_config("OUTPUT_path", output_dir)
+            ae.set_config("doSaveModulatedMaps", True)
 
-        noddi_output_dir = output_dir
-        direction_output = os.path.join(noddi_output_dir, 'fit_dir.nii.gz')
-        icvf_output = os.path.join(noddi_output_dir, 'fit_NDI.nii.gz')
-        isovf_output = os.path.join(noddi_output_dir, 'fit_FWF.nii.gz')
-        od_output = os.path.join(noddi_output_dir, 'fit_ODI.nii.gz')
-        modulated_icvf_output = os.path.join(noddi_output_dir, 'fit_NDI_modulated.nii.gz')
-        modulated_od_output = os.path.join(noddi_output_dir, 'fit_ODI_modulated.nii.gz')
-        config_output = os.path.join(noddi_output_dir, 'config.pickle')
+            ae.generate_kernels(regenerate=True)
+            ae.load_kernels()
+            ae.fit()
+            ae.save_results()
 
-        # rename files if specified
-        if self.inputs.direction_filename != "fit_dir.nii.gz":
-            new_direction_path = os.path.join(noddi_output_dir, self.inputs.direction_filename)
-            shutil.move(direction_output, new_direction_path)
-            direction_output = new_direction_path
-        if self.inputs.icvf_filename != "fit_NDI.nii.gz":
-            new_icvf_path = os.path.join(noddi_output_dir, self.inputs.icvf_filename)
-            shutil.move(icvf_output, new_icvf_path)
-            icvf_output = new_icvf_path
-        if self.inputs.isovf_filename != "fit_FWF.nii.gz":
-            new_isovf_path = os.path.join(noddi_output_dir, self.inputs.isovf_filename)
-            shutil.move(isovf_output, new_isovf_path)
-            isovf_output = new_isovf_path
-        if self.inputs.od_filename != "fit_ODI.nii.gz":
-            new_od_path = os.path.join(noddi_output_dir, self.inputs.od_filename)
-            shutil.move(od_output, new_od_path)
-            od_output = new_od_path
-        if self.inputs.modulated_icvf_filename != "fit_NDI_modulated.nii.gz":
-            new_modulated_icvf_path = os.path.join(noddi_output_dir, self.inputs.modulated_icvf_filename)
-            shutil.move(modulated_icvf_output, new_modulated_icvf_path)
-            modulated_icvf_output = new_modulated_icvf_path
-        if self.inputs.modulated_od_filename != "fit_ODI_modulated.nii.gz":
-            new_modulated_od_path = os.path.join(noddi_output_dir, self.inputs.modulated_od_filename)
-            shutil.move(modulated_od_output, new_modulated_od_path)
-            modulated_od_output = new_modulated_od_path
-        if self.inputs.config_filename != "config.pickle":
-            new_config_path = os.path.join(noddi_output_dir, self.inputs.config_filename)
-            shutil.move(config_output, new_config_path)
-            config_output = new_config_path
+            # AMICO writes fixed filenames. Rename to user-specified filenames if needed.
+            produced = {
+                "direction": os.path.join(output_dir, "fit_dir.nii.gz"),
+                "icvf": os.path.join(output_dir, "fit_NDI.nii.gz"),
+                "isovf": os.path.join(output_dir, "fit_FWF.nii.gz"),
+                "od": os.path.join(output_dir, "fit_ODI.nii.gz"),
+                "modulated_icvf": os.path.join(output_dir, "fit_NDI_modulated.nii.gz"),
+                "modulated_od": os.path.join(output_dir, "fit_ODI_modulated.nii.gz"),
+                "config": os.path.join(output_dir, "config.pickle"),
+            }
 
-        # clear temp
-        if os.path.exists(os.path.join(output_dir, 'dwi.scheme')):
-            os.remove(os.path.join(output_dir, 'dwi.scheme'))
-        if os.path.exists(kernels_dir):
-            shutil.rmtree(kernels_dir)
+            for key, src in produced.items():
+                dst = expected[key]
+                if os.path.abspath(src) == os.path.abspath(dst):
+                    continue
+                if os.path.exists(dst):
+                    raise RuntimeError(f"Refusing to overwrite existing file: {dst}")
+                shutil.move(src, dst)
+
+        finally:
+            # Cleanup temp files
+            if os.path.exists(scheme_path):
+                try:
+                    os.remove(scheme_path)
+                except OSError:
+                    pass
+            if os.path.exists(kernels_dir):
+                try:
+                    shutil.rmtree(kernels_dir)
+                except OSError:
+                    pass
 
         return runtime
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        output_dir = self.inputs.output_dir
-        noddi_output_dir = output_dir
-
-        outputs['direction'] = os.path.join(noddi_output_dir, self.inputs.direction_filename)
-        outputs['icvf'] = os.path.join(noddi_output_dir, self.inputs.icvf_filename)
-        outputs['isovf'] = os.path.join(noddi_output_dir, self.inputs.isovf_filename)
-        outputs['od'] = os.path.join(noddi_output_dir, self.inputs.od_filename)
-        outputs['modulated_icvf'] = os.path.join(noddi_output_dir, self.inputs.modulated_icvf_filename)
-        outputs['modulated_od'] = os.path.join(noddi_output_dir, self.inputs.modulated_od_filename)
-        outputs['config'] = os.path.join(noddi_output_dir, self.inputs.config_filename)
-
+        expected = self._expected_outputs()
+        outputs.update(expected)
         return outputs
 
-if __name__ == "__main__":
-    # Example usage
-    noddi_node = AmicoNoddi()
-    noddi_node.inputs.dwi = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.nii.gz'
-    noddi_node.inputs.bval = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bval'
-    noddi_node.inputs.bvec = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bvec'
-    noddi_node.inputs.mask = '/mnt/e/Neuroimage/post_qsiprep/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-brain_mask.nii.gz'
-    noddi_node.inputs.output_dir = '/mnt/e/Neuroimage/post_qsiprep/amico_noddi'
-    noddi_node.inputs.direction_filename = "custom_fit_dir.nii.gz"
-    noddi_node.inputs.icvf_filename = "custom_fit_NDI.nii.gz"
-    noddi_node.inputs.isovf_filename = "custom_fit_FWF.nii.gz"
-    noddi_node.inputs.od_filename = "custom_fit_ODI.nii.gz"
-    noddi_node.inputs.modulated_icvf_filename = "custom_fit_NDI_modulated.nii.gz"
-    noddi_node.inputs.modulated_od_filename = "custom_fit_ODI_modulated.nii.gz"
-    noddi_node.inputs.config_filename = "custom_config.pickle"
-
-    result = noddi_node.run()
-    print(result.outputs)
+# class AmicoSANDIInputSpec(BaseInterfaceInputSpec):
+#     dwi = File(exists=True, mandatory=True, desc="Input DWI file")

@@ -297,6 +297,8 @@ class CalculateTDIWeightedScalars(BaseInterface):
         outputs["output_csv"] = getattr(self, "_out_csv", os.path.abspath(str(self.inputs.output_csv)))
         return outputs
 
+# tcksample: along tract
+
 class TckSampleMultiScalarProfileInputSpec(BaseInterfaceInputSpec):
     tck_file = File(
         exists=True,
@@ -413,11 +415,161 @@ class TckSampleMultiScalarProfile(BaseInterface):
         outputs = self._outputs().get()
         outputs["output_csv"] = getattr(self, "_out_csv", os.path.abspath(self.inputs.output_csv))
         return outputs
+    
+# tcksample: tract mean
+
+class TckSampleMultiScalarBundleInputSpec(BaseInterfaceInputSpec):
+    tck_file = File(
+        exists=True,
+        mandatory=True,
+        desc="Input TCK file (single bundle).",
+    )
+
+    scalar_files = traits.List(
+        traits.Str,
+        mandatory=True,
+        desc="List of scalar NIfTI files.",
+    )
+
+    scalar_names = traits.List(
+        traits.Str,
+        mandatory=True,
+        desc="Names for each scalar (same length as scalar_files).",
+    )
+
+    output_csv = File(
+        mandatory=True,
+        desc="Output CSV: single row with one value per scalar.",
+    )
+
+    stat_tck = traits.Enum(
+        "mean",
+        "median",
+        "min",
+        "max",
+        "sum",
+        usedefault=True,
+        desc="tcksample -stat_tck option; produces one value per streamline.",
+    )
+
+    bundle_reduce = traits.Enum(
+        "mean",
+        "median",
+        "min",
+        "max",
+        "sum",
+        usedefault=True,
+        desc="How to reduce per-streamline values into a single bundle-level value.",
+    )
+
+    precise = traits.Bool(
+        False,
+        usedefault=True,
+        desc="Use tcksample -precise.",
+    )
+
+    nointerp = traits.Bool(
+        False,
+        usedefault=True,
+        desc="Use tcksample -nointerp.",
+    )
+
+
+class TckSampleMultiScalarBundleOutputSpec(TraitedSpec):
+    output_csv = File(exists=True, desc="Bundle-level scalar summary CSV.")
+
+
+class TckSampleMultiScalarBundle(BaseInterface):
+    input_spec = TckSampleMultiScalarBundleInputSpec
+    output_spec = TckSampleMultiScalarBundleOutputSpec
+
+    @staticmethod
+    def _reduce_1d(x: np.ndarray, how: str) -> float:
+        x = x.astype(float, copy=False)
+        if how == "mean":
+            return float(np.nanmean(x))
+        if how == "median":
+            return float(np.nanmedian(x))
+        if how == "min":
+            return float(np.nanmin(x))
+        if how == "max":
+            return float(np.nanmax(x))
+        if how == "sum":
+            return float(np.nansum(x))
+        raise ValueError(f"Unsupported bundle_reduce: {how}")
+
+    def _run_interface(self, runtime):
+        tck = os.path.abspath(self.inputs.tck_file)
+        scalar_files = list(self.inputs.scalar_files)
+        scalar_names = list(self.inputs.scalar_names)
+
+        if len(scalar_files) != len(scalar_names):
+            raise ValueError("scalar_files and scalar_names length mismatch")
+
+        out_csv = os.path.abspath(self.inputs.output_csv)
+        os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+
+        values = []
+        missing = []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for idx, (scalar, name) in enumerate(zip(scalar_files, scalar_names)):
+                if not os.path.exists(scalar):
+                    values.append(np.nan)
+                    missing.append(name)
+                    continue
+
+                tmp_txt = os.path.join(tmpdir, f"{name}.txt")
+
+                cmd = ["tcksample", "-force"]
+                if self.inputs.precise:
+                    cmd.append("-precise")
+                if self.inputs.nointerp:
+                    cmd.append("-nointerp")
+
+                cmd += ["-stat_tck", self.inputs.stat_tck]
+                cmd += [tck, scalar, tmp_txt]
+
+                subprocess.run(cmd, check=True)
+
+                data = np.loadtxt(tmp_txt)
+
+                if data.ndim == 2:
+                    if data.shape[1] != 1:
+                        raise RuntimeError(
+                            f"Unexpected tcksample output shape for {name}: {data.shape}"
+                        )
+                    data = data[:, 0]
+                elif data.ndim != 1:
+                    raise RuntimeError(
+                        f"Unexpected tcksample output ndim for {name}: {data.shape}"
+                    )
+
+                bundle_val = self._reduce_1d(data, self.inputs.bundle_reduce)
+                values.append(bundle_val)
+
+        with open(out_csv, "w", newline="") as fp:
+            w = csv.writer(fp)
+            w.writerow(scalar_names)
+            w.writerow(["NA" if np.isnan(v) else f"{v:.6f}" for v in values])
+
+        if not os.path.isfile(out_csv):
+            raise RuntimeError(f"Failed to write output CSV: {out_csv}")
+
+        self._out_csv = out_csv
+        self._missing = missing
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs["output_csv"] = getattr(self, "_out_csv", os.path.abspath(self.inputs.output_csv))
+        return outputs
 
 if __name__ == "__main__":
     from nipype import Node
-    tck_dwimap_node = Node(TckSampleMultiScalarProfile(), name="tck_dwimap")
+    tck_dwimap_node = Node(TckSampleMultiScalarBundle(), name="tck_dwimap")
     tck_dwimap_node.inputs.tck_file = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/visual_pathway_analysis/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OR_streamlines.tck"
+    tck_dwimap_node.inputs.stat_tck = 'mean'
     tck_dwimap_node.inputs.scalar_files = [
         "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/NODDI/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz",
         "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/NODDI/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-isovf_dwimap.nii.gz"

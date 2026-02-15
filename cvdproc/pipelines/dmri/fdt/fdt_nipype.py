@@ -493,7 +493,7 @@ class Bedpostx(CommandLine):
     _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'fdt', 'bedpostx_gpu_custom.sh')
     input_spec = BedpostxInputSpec
     output_spec = BedpostxOutputSpec
-    terminal_output = 'allatonce'
+    #terminal_output = 'allatonce'
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -645,7 +645,7 @@ class ProbtrackxInputSpec(CommandLineInputSpec):
     waypoints = Str(argstr='--waypoints=%s', desc='Waypoints file', mandatory=False)
     path_length_correction = Bool(False, argstr='--pd', desc='Enable path length correction', mandatory=False)
     output_dir = Str(argstr='--dir=%s', desc='Output directory', mandatory=True)
-    nsmamples = Int(5000, argstr='--nsamples=%d', desc='Number of samples', mandatory=False)
+    nsamples = Int(5000, argstr='--nsamples=%d', desc='Number of samples', mandatory=False)
     args = Str(argstr='%s', desc='Additional arguments', mandatory=False)
 
 class ProbtrackxOutputSpec(TraitedSpec):
@@ -721,11 +721,13 @@ class MergeGifti(BaseInterface):
 # Apply GIFTI mask to MGH #
 ###########################
 class ApplyGiiMaskToMghInputSpec(BaseInterfaceInputSpec):
-    measure_mgh = File(exists=True, desc='Measure MGH file')
-    mask_gii = File(exists=True, desc='Mask GIFTI file')
-    output_mgh = File(desc='Output masked MGH file')
+    measure_mgh = File(exists=True, mandatory=True, desc="Measure MGH file")
+    mask_gii = File(exists=True, mandatory=True, desc="Mask GIFTI file")
+    output_mgh = File(mandatory=True, desc="Output masked MGH file")
+
 class ApplyGiiMaskToMghOutputSpec(TraitedSpec):
-    output_mgh = File(desc='Output masked MGH file')
+    output_mgh = File(exists=True, desc="Output masked MGH file")
+
 class ApplyGiiMaskToMgh(BaseInterface):
     input_spec = ApplyGiiMaskToMghInputSpec
     output_spec = ApplyGiiMaskToMghOutputSpec
@@ -736,28 +738,148 @@ class ApplyGiiMaskToMgh(BaseInterface):
         output_mgh_path = self.inputs.output_mgh
 
         measure_img = nib.load(measure_mgh_path)
-        measure_data = measure_img.get_fdata().squeeze()
+        measure_data = np.asanyarray(measure_img.get_fdata()).squeeze()
+
+        if measure_data.ndim != 1:
+            raise ValueError(f"Expected 1D measure data after squeeze, got shape {measure_data.shape}")
 
         mask_gii = nib.load(mask_gii_path)
-        mask_data = mask_gii.darrays[2].data
+        darrays = getattr(mask_gii, "darrays", None)
+        if darrays is None or len(darrays) == 0:
+            raise ValueError(f"No darrays found in GIFTI file: {mask_gii_path}")
 
-        if not np.all(np.isin(np.unique(mask_data), [0, 1])):
-            print("Warning: Mask data is not binary. Set all non-zero values to 1.")
-            mask_data = np.where(mask_data > 0, 1, mask_data)
-        
-        masked_data = measure_data * mask_data
+        target_len = int(measure_data.shape[0])
+
+        candidates = []
+        for i, da in enumerate(darrays):
+            data = np.asanyarray(da.data).squeeze()
+            if data.ndim == 1:
+                candidates.append((i, data))
+
+        if len(candidates) == 0:
+            raise ValueError(f"No 1D darray found in GIFTI file: {mask_gii_path}")
+
+        mask_data = None
+
+        # Prefer exact length match to the MGH vector
+        for i, data in candidates:
+            if int(data.shape[0]) == target_len:
+                mask_data = data
+                break
+
+        # Fallback: if only one 1D darray exists, use it but still validate
+        if mask_data is None and len(candidates) == 1:
+            mask_data = candidates[0][1]
+
+        if mask_data is None:
+            shapes = [(i, c.shape) for i, c in candidates]
+            raise ValueError(
+                f"Could not find a 1D GIFTI darray matching measure length {target_len}. "
+                f"Candidates: {shapes}. File: {mask_gii_path}"
+            )
+
+        if int(mask_data.shape[0]) != target_len:
+            raise ValueError(
+                f"Mask length mismatch: measure length {target_len} vs mask length {int(mask_data.shape[0])} "
+                f"(mask file: {mask_gii_path})"
+            )
+
+        unique_vals = np.unique(mask_data)
+        if not np.all(np.isin(unique_vals, [0, 1])):
+            mask_data = (mask_data > 0).astype(measure_data.dtype)
+
+        masked_data = measure_data * mask_data.astype(measure_data.dtype)
+
+        out_dir = os.path.dirname(os.path.abspath(output_mgh_path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
         masked_img = nib.MGHImage(masked_data, measure_img.affine, measure_img.header)
         nib.save(masked_img, output_mgh_path)
-        print(f"Masked MGH file saved as {output_mgh_path}")
-
-        self._output_mgh = output_mgh_path
 
         return runtime
-    
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['output_mgh'] = self._output_mgh
 
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs["output_mgh"] = os.path.abspath(self.inputs.output_mgh)
+        return outputs
+
+#################################
+# Apply GIFTI mask to MGH (TXT) #
+#################################
+
+class ApplyIndexTxtToMghInputSpec(BaseInterfaceInputSpec):
+    measure_mgh = File(exists=True, mandatory=True, desc="Input surface measure MGH (1D vector)")
+    index_txt = File(exists=True, mandatory=True, desc="Text file containing vertex indices to zero")
+    output_mgh = File(mandatory=True, desc="Output masked MGH file")
+    index_base = traits.Enum(0, 1, usedefault=True, desc="0 if indices are 0-based, 1 if indices are 1-based")
+
+class ApplyIndexTxtToMghOutputSpec(TraitedSpec):
+    output_mgh = File(exists=True, desc="Output masked MGH file")
+
+class ApplyIndexTxtToMgh(BaseInterface):
+    input_spec = ApplyIndexTxtToMghInputSpec
+    output_spec = ApplyIndexTxtToMghOutputSpec
+
+    def _read_indices(self, txt_path: str) -> np.ndarray:
+        indices = []
+        with open(txt_path, "r") as f:
+            for line in f:
+                s = line.strip()
+                if not s:
+                    continue
+                if s.startswith("#"):
+                    continue
+                try:
+                    indices.append(int(s))
+                except ValueError:
+                    # Ignore non-integer lines safely
+                    continue
+        if len(indices) == 0:
+            raise ValueError(f"No valid integer indices found in: {txt_path}")
+        idx = np.asarray(indices, dtype=np.int64)
+        if self.inputs.index_base == 1:
+            idx = idx - 1
+        return idx
+
+    def _run_interface(self, runtime):
+        measure_mgh_path = self.inputs.measure_mgh
+        index_txt_path = self.inputs.index_txt
+        output_mgh_path = self.inputs.output_mgh
+
+        measure_img = nib.load(measure_mgh_path)
+        measure_data = np.asanyarray(measure_img.get_fdata()).squeeze()
+
+        if measure_data.ndim != 1:
+            raise ValueError(f"Expected 1D measure data after squeeze, got shape {measure_data.shape}")
+
+        n = int(measure_data.shape[0])
+        idx = self._read_indices(index_txt_path)
+
+        if np.any(idx < 0) or np.any(idx >= n):
+            bad = idx[(idx < 0) | (idx >= n)]
+            preview = bad[:10].tolist()
+            raise ValueError(
+                f"Index out of range for measure length {n}. "
+                f"Bad indices (first 10): {preview}. "
+                f"Check index_base={int(self.inputs.index_base)} and the txt file."
+            )
+
+        masked = measure_data.copy()
+        masked[idx] = 0
+
+        out_dir = os.path.dirname(os.path.abspath(output_mgh_path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
+        out_img = nib.MGHImage(masked, measure_img.affine, measure_img.header)
+        nib.save(out_img, output_mgh_path)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs["output_mgh"] = os.path.abspath(self.inputs.output_mgh)
         return outputs
 
 ###########################

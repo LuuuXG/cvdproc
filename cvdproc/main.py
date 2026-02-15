@@ -184,13 +184,13 @@ def main():
 
         config = load_config(args.config_file)
         global_matlab_path = config.get("matlab_path", None)
-        global_spm_path = config.get("spm_path", None)
 
         if not args.pipeline:
             parser.error("To run a pipeline, please provide --pipeline.")
 
-        if len(args.session_id) > 0 and len(args.subject_id) != len(args.session_id):
-            parser.error("Number of subject IDs and session IDs must match.")
+        if args.session_id is not None:
+            if len(args.session_id) > 0 and len(args.subject_id) != len(args.session_id):
+                parser.error("Number of subject IDs and session IDs must match.")
 
         pipeline_config = config.get("pipelines", {}).get(args.pipeline, {})
         if not pipeline_config:
@@ -229,7 +229,12 @@ def main():
 
             # Set output path
             output_path = os.path.join(output_base, args.pipeline, f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-            if 't1_register' not in output_path and 'lesion_analysis' not in output_path:
+            if not any(k in output_path for k in (
+                "t1_register",
+                "lesion_analysis",
+                "freesurfer_longitudinal",
+                "nemo_postprocess"
+            )):
                 os.makedirs(output_path, exist_ok=True)
 
             # Get pipeline object and create workflow
@@ -240,7 +245,6 @@ def main():
                 session=session,
                 output_path=output_path,
                 matlab_path=global_matlab_path,
-                spm_path=global_spm_path,
                 **pipeline_config
             )
 

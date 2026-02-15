@@ -16,12 +16,11 @@ class PipelineManager:
             output_path = output_path or default_output_path
 
         matlab_path = kwargs.pop("matlab_path", None)
-        spm_path = kwargs.pop("spm_path", None)
 
         #### CSVD marker ####
         if pipeline_name.lower() == "wmh_quantification":
             from ..pipelines.smri.csvd_quantification.wmh_pipeline import WMHSegmentationPipeline
-            return WMHSegmentationPipeline(subject, session, output_path=output_path, matlab_path=matlab_path, spm_path=spm_path, **kwargs)
+            return WMHSegmentationPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "pvs_quantification":
             from ..pipelines.smri.csvd_quantification.pvs_pipeline import PVSSegmentationPipeline
             return PVSSegmentationPipeline(subject, session, output_path=output_path, **kwargs)
@@ -45,6 +44,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "freesurfer":
             from ..pipelines.smri.freesurfer_pipeline import FreesurferPipeline
             return FreesurferPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "freesurfer_longitudinal":
+            from ..pipelines.smri.freesurfer_pipeline import FreesurferLongitudinalPipeline
+            return FreesurferLongitudinalPipeline(subject, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "freesurfer_clinical":
             from ..pipelines.smri.freesurfer_pipeline import FreesurferClinicalPipeline
             return FreesurferClinicalPipeline(subject, session, output_path=output_path, **kwargs)

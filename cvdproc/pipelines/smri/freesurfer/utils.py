@@ -7,13 +7,12 @@ import traits
 from cvdproc.config.paths import get_package_path
 
 class MRIvol2surfInputSpec(CommandLineInputSpec):
-    volume = File(argstr='--mov %s', desc='Input volume file', mandatory=True)
+    volume = File(argstr='--mov %s', desc='Input volume file', mandatory=True, exists=True)
     regheader = Str(argstr='--regheader %s', desc='Registration header (subject id)', mandatory=True)
     hemi = Str(argstr='--hemi %s', desc='Hemisphere (lh or rh)', mandatory=True)
-    output_surf = Str(argstr='--o %s', desc='Output surface file', mandatory=True)
+    output_surf = File(argstr='--o %s', desc='Output surface file', mandatory=True)
     proj_frac = Float(0.5, argstr='--projfrac %f', desc='Projection fraction', mandatory=False)
     target = Str(argstr='--trgsubject %s', desc='Target subject', mandatory=False)
-    # will not passed to command line
     subjects_dir = Str(desc='Freesurfer subjects directory', mandatory=True)
 
 class MRIvol2surfOutputSpec(TraitedSpec):
@@ -25,15 +24,16 @@ class MRIvol2surf(CommandLine):
     output_spec = MRIvol2surfOutputSpec
 
     def _run_interface(self, runtime):
-        # set SUBJECTS_DIR environment variable
-        os.environ['SUBJECTS_DIR'] = self.inputs.subjects_dir
+        # set per-node environment (safe for parallel execution)
+        self.inputs.environ = getattr(self.inputs, "environ", {})
+        self.inputs.environ["SUBJECTS_DIR"] = self.inputs.subjects_dir
         return super()._run_interface(runtime)
-    
+
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['output_surf'] = self.inputs.ouput_surf
+        outputs["output_surf"] = os.path.abspath(self.inputs.output_surf)
         return outputs
-
+    
 class MergeRibbonInputSpec(CommandLineInputSpec):
     subjects_dir = Str(argstr='%s', desc='Freesurfer subjects directory', mandatory=True, position=0)
     subject_id = Str(argstr='%s', desc='Freesurfer subject ID', mandatory=True, position=1)

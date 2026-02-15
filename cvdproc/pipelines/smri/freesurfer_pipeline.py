@@ -4,21 +4,40 @@ import subprocess
 import re
 import csv
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import nibabel as nib
 import numpy as np
 from nipype.interfaces.freesurfer import ReconAll
-from nipype import Node, Workflow
+from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Function
 from .freesurfer.recon_all_clinical import ReconAllClinical, CopySynthSR, PostProcess
 from .freesurfer.synthSR import SynthSR
 from cvdproc.pipelines.smri.freesurfer.subfieldseg import SegmentSubregions, SegmentHACross, SegmentBS, SegmentThalamic, HypothalamicSubunits
 from cvdproc.pipelines.smri.freesurfer.post_freesurfer import FSQC, Stats2CSV
+from cvdproc.pipelines.smri.freesurfer.recon_all_longitudinal import FreesurferLongitudinal
+from cvdproc.pipelines.smri.freesurfer.results_extractor import FreesurferStatsExtractorMixin
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
-class FreesurferPipeline:
+def build_long_stats2csv_inputs(long_subject_dirs):
+    import os
+
+    subject_ids = []
+    output_dirs = []
+
+    if long_subject_dirs is None:
+        return subject_ids, output_dirs
+
+    for d in long_subject_dirs:
+        d = str(d)
+        sid = os.path.basename(d)   # ses-XXX.long.sub-YYY
+        subject_ids.append(sid)
+        output_dirs.append(os.path.join(d, "stats"))
+
+    return subject_ids, output_dirs
+
+class FreesurferPipeline(FreesurferStatsExtractorMixin):
     def __init__(
         self,
         subject: object,
@@ -26,6 +45,7 @@ class FreesurferPipeline:
         output_path: str,
         use_which_t1w: str = "",
         recon_all: bool = True,
+        longitudinal: bool = False,
         subregion_ha: bool = False,
         subregion_thalamus: bool = False,
         subregion_brainstem: bool = False,
@@ -160,403 +180,175 @@ class FreesurferPipeline:
         return fs_workflow
 
     # ---------------------------------------------------------------------
-    # Helpers for extract_results (optimized, wide format, single underscore)
-    # ---------------------------------------------------------------------
-    @staticmethod
-    def _safe_name(x: str) -> str:
-        x = str(x).strip()
-        x = re.sub(r"\s+", "_", x)
-        x = re.sub(r"[^0-9a-zA-Z_\-\.]+", "_", x)
-        return x
-
-    @staticmethod
-    def _infer_hemi_from_filename(fname: str) -> Optional[str]:
-        f = fname.lower()
-        if f.startswith("lh.") or ".lh." in f:
-            return "lh"
-        if f.startswith("rh.") or ".rh." in f:
-            return "rh"
-        return None
-
-    @staticmethod
-    def _read_csv_if_exists(path: str) -> Optional[pd.DataFrame]:
-        if not os.path.exists(path):
-            return None
-        try:
-            return pd.read_csv(path)
-        except Exception:
-            return None
-
-    @staticmethod
-    def _infer_struct_col(df: pd.DataFrame) -> Optional[str]:
-        for c in ["StructName", "Structure", "LabelName", "Name", "ROI", "Region"]:
-            if c in df.columns:
-                return c
-        return None
-
-    @staticmethod
-    def _infer_volume_col(df: pd.DataFrame) -> Optional[str]:
-        candidates = ["Volume_mm3", "volume_mm3", "Volume", "volume"]
-        for c in candidates:
-            if c in df.columns and pd.api.types.is_numeric_dtype(df[c]):
-                return c
-        for c in df.columns:
-            if "vol" in str(c).lower() and pd.api.types.is_numeric_dtype(df[c]):
-                return c
-        return None
-
-    @staticmethod
-    def _sort_cortical_feature_keys_metric_major(keys: List[str]) -> List[str]:
-        """
-        Metric-major ordering for cortical features:
-          <prefix>_<ROI>_<metric>
-        Sort by: metric, then ROI, then prefix (stable tie-breaker).
-        Prefix may contain underscores, so parse using rsplit("_", 2).
-        """
-        def _parse(k: str):
-            parts = str(k).rsplit("_", 2)
-            if len(parts) < 3:
-                return ("", "", k)
-            prefix, roi, metric = parts[0], parts[1], parts[2]
-            return (metric, roi, prefix)
-
-        return sorted(keys, key=_parse)
-
-    def _wide_from_roi_table(
-        self,
-        df: pd.DataFrame,
-        prefix: str,
-        struct_col: Optional[str],
-        drop_cols: Optional[List[str]] = None,
-    ) -> Dict[str, float]:
-        """
-        Convert an ROI table to a single-row wide dict.
-        Columns: <prefix>_<ROI>_<metric>
-        Keeps all numeric metrics.
-        """
-        if df is None or df.empty:
-            return {}
-
-        df = df.copy()
-
-        if drop_cols:
-            for c in drop_cols:
-                if c in df.columns:
-                    df = df.drop(columns=[c])
-
-        if struct_col is None:
-            struct_col = self._infer_struct_col(df)
-        if struct_col is None or struct_col not in df.columns:
-            return {}
-
-        df[struct_col] = df[struct_col].astype(str).map(self._safe_name)
-
-        exclude = {struct_col, "Index", "SegId"}
-        value_cols = [c for c in df.columns if c not in exclude and pd.api.types.is_numeric_dtype(df[c])]
-
-        out: Dict[str, float] = {}
-        for _, r in df.iterrows():
-            roi = r[struct_col]
-            for m in value_cols:
-                key = f"{prefix}_{roi}_{self._safe_name(m)}"
-                out[key] = r[m]
-
-        return out
-
-    def _wide_volume_only(
-        self,
-        df: pd.DataFrame,
-        prefix: str,
-        fname: str,
-    ) -> Dict[str, float]:
-        """
-        Convert aseg / wmparc / subseg tables to a single-row wide dict using only volume.
-        Columns: <prefix>_<StructName>_Volume_mm3
-        """
-        if df is None or df.empty:
-            return {}
-
-        df = df.copy()
-
-        for c in ["Index", "SegId"]:
-            if c in df.columns:
-                df = df.drop(columns=[c])
-
-        struct_col = self._infer_struct_col(df)
-        vol_col = self._infer_volume_col(df)
-        if struct_col is None or vol_col is None:
-            return {}
-
-        df[struct_col] = df[struct_col].astype(str).map(self._safe_name)
-        vol = pd.to_numeric(df[vol_col], errors="coerce")
-
-        out: Dict[str, float] = {}
-        for name, v in zip(df[struct_col], vol):
-            if pd.isna(v):
-                continue
-            out[f"{prefix}_{name}_Volume_mm3"] = float(v)
-
-        hemi = self._infer_hemi_from_filename(fname)
-        if hemi is not None:
-            out[f"{prefix}_hemi"] = hemi
-
-        return out
-
-    def _wide_brainvol(self, df: pd.DataFrame, prefix: str) -> Dict[str, float]:
-        """
-        Convert brainvol.csv (long) to wide dict.
-        Columns: <prefix>_<name>
-        """
-        if df is None or df.empty:
-            return {}
-
-        if "name" not in df.columns or "value" not in df.columns:
-            return {}
-
-        df = df.copy()
-        df["name"] = df["name"].astype(str).map(self._safe_name)
-        vals = pd.to_numeric(df["value"], errors="coerce")
-
-        out: Dict[str, float] = {}
-        for n, v in zip(df["name"], vals):
-            if pd.isna(v):
-                continue
-            out[f"{prefix}_{n}"] = float(v)
-
-        return out
-
-    # ---------------------------------------------------------------------
     # Extract results (streaming CSV writer; no fragmentation warning)
     # Cortical columns: metric-major ordering
     # ---------------------------------------------------------------------
     def extract_results(self):
-        os.makedirs(self.output_path, exist_ok=True)
-        out_dir = Path(self.output_path)
+        import os
+        import re
 
-        freesurfer_output_dir = self.extract_from
-        if not freesurfer_output_dir or not os.path.isdir(freesurfer_output_dir):
-            raise FileNotFoundError(f"extract_from is not a valid directory: {freesurfer_output_dir}")
+        if not self.extract_from or not os.path.isdir(self.extract_from):
+            raise FileNotFoundError(f"extract_from is not a valid directory: {self.extract_from}")
 
-        cortical_files = [
-            "lh.aparc.csv",
-            "rh.aparc.csv",
-            "lh.aparc.a2009s.csv",
-            "rh.aparc.a2009s.csv",
-            "lh.aparc.DKTatlas.csv",
-            "rh.aparc.DKTatlas.csv",
-            "lh.aparc.pial.csv",
-            "rh.aparc.pial.csv",
-            "lh.BA_exvivo.csv",
-            "rh.BA_exvivo.csv",
-            "lh.BA_exvivo.thresh.csv",
-            "rh.BA_exvivo.thresh.csv",
-            "lh.w-g.pct.csv",
-            "rh.w-g.pct.csv",
-        ]
+        fs_root = self.extract_from  # should be derivatives/freesurfer
 
-        volume_only_files = [
-            "aseg.csv",
-            "wmparc.csv",
-            "amygdalar-nuclei.lh.T1.v22.csv",
-            "amygdalar-nuclei.rh.T1.v22.csv",
-            "brainstem.v13.csv",
-            "hipposubfields.lh.T1.v22.csv",
-            "hipposubfields.rh.T1.v22.csv",
-            "hypothalamic_subunits_volumes.v1.csv",
-            "thalamic-nuclei.lh.v13.T1.csv",
-            "thalamic-nuclei.rh.v13.T1.csv",
-        ]
+        ses_dir_pat = re.compile(r"^ses-[^/]+$")
 
-        brainvol_file = "brainvol.csv"
+        items = []
+        for sub in sorted(os.listdir(fs_root)):
+            sub_path = os.path.join(fs_root, sub)
+            if not os.path.isdir(sub_path):
+                continue
+            if not sub.startswith("sub-"):
+                continue
 
-        # filekey -> {"fh": file handle, "writer": DictWriter, "fieldnames": list[str], "is_cortical": bool}
-        writers: Dict[str, Dict[str, object]] = {}
-        # filekey -> set of (subject, session) to ensure one row per subject-session
-        seen: Dict[str, set] = {}
-
-        def _open_writer(filekey: str, out_path: Path, fieldnames: List[str], is_cortical: bool) -> csv.DictWriter:
-            out_fh = open(out_path, "w", newline="", encoding="utf-8")
-            w = csv.DictWriter(out_fh, fieldnames=fieldnames, extrasaction="ignore")
-            w.writeheader()
-            writers[filekey] = {
-                "fh": out_fh,
-                "writer": w,
-                "fieldnames": fieldnames,
-                "is_cortical": is_cortical,
-                "path": out_path,
-            }
-            seen[filekey] = set()
-            return w
-
-        def _close_all():
-            for v in writers.values():
-                try:
-                    v["fh"].close()
-                except Exception:
-                    pass
-
-        def _rewrite_with_expanded_header(filekey: str, new_fieldnames: List[str]):
-            info = writers[filekey]
-            out_path: Path = info["path"]
-
-            # Read existing rows
-            old_rows: List[Dict[str, object]] = []
-            try:
-                if out_path.exists():
-                    old_df = pd.read_csv(out_path)
-                    old_rows = old_df.to_dict(orient="records")
-            except Exception:
-                old_rows = []
-
-            # Close old handle
-            try:
-                info["fh"].close()
-            except Exception:
-                pass
-
-            # Rewrite
-            out_fh = open(out_path, "w", newline="", encoding="utf-8")
-            w = csv.DictWriter(out_fh, fieldnames=new_fieldnames, extrasaction="ignore")
-            w.writeheader()
-            for r in old_rows:
-                w.writerow(r)
-
-            writers[filekey] = {
-                "fh": out_fh,
-                "writer": w,
-                "fieldnames": new_fieldnames,
-                "is_cortical": info["is_cortical"],
-                "path": out_path,
-            }
-
-        def _ensure_writer_and_write_row(
-            filekey: str,
-            out_path: Path,
-            row: Dict[str, object],
-            is_cortical: bool,
-        ):
-            key_pair = (row.get("subject"), row.get("session"))
-            if key_pair[0] is None or key_pair[1] is None:
-                return
-
-            if filekey in seen and key_pair in seen[filekey]:
-                return
-
-            # Determine desired feature ordering
-            feat_keys = [k for k in row.keys() if k not in ("subject", "session")]
-
-            if is_cortical:
-                feat_keys = self._sort_cortical_feature_keys_metric_major(feat_keys)
-            else:
-                feat_keys = sorted(feat_keys)
-
-            fieldnames = ["subject", "session"] + feat_keys
-
-            if filekey not in writers:
-                _open_writer(filekey, out_path, fieldnames, is_cortical)
-            else:
-                existing = writers[filekey]["fieldnames"]
-                existing_feats = existing[2:]
-
-                # Expand schema if new columns appear
-                union_feats = set(existing_feats).union(set(feat_keys))
-                if is_cortical:
-                    new_feats = self._sort_cortical_feature_keys_metric_major(list(union_feats))
-                else:
-                    new_feats = sorted(list(union_feats))
-
-                new_fieldnames = ["subject", "session"] + new_feats
-                if new_fieldnames != existing:
-                    _rewrite_with_expanded_header(filekey, new_fieldnames)
-
-            writers[filekey]["writer"].writerow(row)
-            seen[filekey].add(key_pair)
-
-        try:
-            for subject_folder in os.listdir(freesurfer_output_dir):
-                subject_path = os.path.join(freesurfer_output_dir, subject_folder)
-                if not os.path.isdir(subject_path):
+            for ses_folder in sorted(os.listdir(sub_path)):
+                ses_path = os.path.join(sub_path, ses_folder)
+                if not os.path.isdir(ses_path):
+                    continue
+                if not ses_dir_pat.match(ses_folder):
                     continue
 
-                for session_folder in os.listdir(subject_path):
-                    session_path = os.path.join(subject_path, session_folder)
-                    if not os.path.isdir(session_path):
-                        continue
+                # Exclude any unexpected longitudinal-like folders if they appear
+                if ".long." in ses_folder:
+                    continue
 
-                    subject = str(subject_folder)
-                    session = str(session_folder)
-                    stats_dir = os.path.join(session_path, "stats")
-                    if not os.path.isdir(stats_dir):
-                        continue
+                session = ses_folder  # e.g., ses-baseline, ses-F1
+                stats_dir = os.path.join(ses_path, "stats")
+                if not os.path.isdir(stats_dir):
+                    continue
 
-                    # ---- cortical (metric-major columns) ----
-                    for fname in cortical_files:
-                        fpath = os.path.join(stats_dir, fname)
-                        df = self._read_csv_if_exists(fpath)
-                        if df is None:
-                            continue
+                items.append(
+                    {"subject": sub, "session": session, "stats_dir": stats_dir}
+                )
 
-                        prefix = self._safe_name(Path(fname).stem)
-                        row: Dict[str, object] = {"subject": subject, "session": session}
-                        row.update(
-                            self._wide_from_roi_table(
-                                df=df,
-                                prefix=prefix,
-                                struct_col=self._infer_struct_col(df),
-                                drop_cols=["Index", "SegId"],
-                            )
-                        )
-                        if len(row) <= 2:
-                            continue
+        # Write merged summary CSVs into self.output_path (no extra subfolder)
+        self._extract_merge_stats_dirs(stats_dir_items=items, output_path=self.output_path)
 
-                        out_path = out_dir / f"{Path(fname).stem}_summary.csv"
-                        _ensure_writer_and_write_row(
-                            filekey=fname,
-                            out_path=out_path,
-                            row=row,
-                            is_cortical=True,
-                        )
+class FreesurferLongitudinalPipeline(FreesurferStatsExtractorMixin):
+    def __init__(
+        self,
+        subject: object,
+        output_path: str,
+        subregion_ha: bool = False,
+        subregion_thalamus: bool = False,
+        subregion_brainstem: bool = False,
+        subregion_hypothalamus: bool = False,
+        stats2csv: bool = False,
+        extract_from: str = "",
+        **kwargs,
+    ):
+        self.subject = subject
+        self.output_path = os.path.abspath(output_path)
 
-                    # ---- volume-only ----
-                    for fname in volume_only_files:
-                        fpath = os.path.join(stats_dir, fname)
-                        df = self._read_csv_if_exists(fpath)
-                        if df is None:
-                            continue
+        self.subregion_ha = subregion_ha
+        self.subregion_thalamus = subregion_thalamus
+        self.subregion_brainstem = subregion_brainstem
+        self.subregion_hypothalamus = subregion_hypothalamus
 
-                        prefix = self._safe_name(Path(fname).stem)
-                        row = {"subject": subject, "session": session}
-                        row.update(self._wide_volume_only(df=df, prefix=prefix, fname=fname))
-                        if len(row) <= 2:
-                            continue
+        self.stats2csv = stats2csv
+        self.extract_from = extract_from
 
-                        out_path = out_dir / f"{Path(fname).stem}_summary.csv"
-                        _ensure_writer_and_write_row(
-                            filekey=fname,
-                            out_path=out_path,
-                            row=row,
-                            is_cortical=False,
-                        )
+    def check_data_requirements(self):
+        return True
 
-                    # ---- brainvol ----
-                    fpath = os.path.join(stats_dir, brainvol_file)
-                    df = self._read_csv_if_exists(fpath)
-                    if df is not None:
-                        row = {"subject": subject, "session": session}
-                        row.update(self._wide_brainvol(df=df, prefix="brainvol"))
-                        if len(row) <= 2:
-                            continue
+    def create_workflow(self):
+        fs_longitudinal_wf = Workflow(name="fs_longitudinal_workflow")
 
-                        out_path = out_dir / "brainvol_summary.csv"
-                        _ensure_writer_and_write_row(
-                            filekey="brainvol",
-                            out_path=out_path,
-                            row=row,
-                            is_cortical=False,
-                        )
+        inputnode = Node(
+            IdentityInterface(
+                fields=[
+                    "bids_dir",
+                    "subject_id",
+                    "subregion_ha",
+                    "subregion_thalamus",
+                    "subregion_brainstem",
+                    "subregion_hypothalamus",
+                ]
+            ),
+            name="inputnode",
+        )
+        inputnode.inputs.bids_dir = self.subject.bids_dir
+        inputnode.inputs.subject_id = self.subject.subject_id
+        inputnode.inputs.subregion_ha = self.subregion_ha
+        inputnode.inputs.subregion_thalamus = self.subregion_thalamus
+        inputnode.inputs.subregion_brainstem = self.subregion_brainstem
+        inputnode.inputs.subregion_hypothalamus = self.subregion_hypothalamus
 
-        finally:
-            _close_all()
+        recon_all_longitudinal_node = Node(FreesurferLongitudinal(), name="recon_all_longitudinal")
+        fs_longitudinal_wf.connect(inputnode, "bids_dir", recon_all_longitudinal_node, "bids_dir")
+        fs_longitudinal_wf.connect(inputnode, "subject_id", recon_all_longitudinal_node, "subject_id")
+        fs_longitudinal_wf.connect(inputnode, "subregion_ha", recon_all_longitudinal_node, "subregion_ha")
+        fs_longitudinal_wf.connect(inputnode, "subregion_thalamus", recon_all_longitudinal_node, "subregion_thalamus")
+        fs_longitudinal_wf.connect(inputnode, "subregion_brainstem", recon_all_longitudinal_node, "subregion_brainstem")
+        fs_longitudinal_wf.connect(inputnode, "subregion_hypothalamus", recon_all_longitudinal_node, "subregion_hypothalamus")
+
+        if self.stats2csv:
+            build_inputs_node = Node(
+                Function(
+                    input_names=["long_subject_dirs"],
+                    output_names=["subject_ids", "output_dirs"],
+                    function=build_long_stats2csv_inputs,
+                ),
+                name="build_long_stats2csv_inputs",
+            )
+
+            fs_longitudinal_wf.connect(
+                recon_all_longitudinal_node,
+                "long_subject_dirs",
+                build_inputs_node,
+                "long_subject_dirs",
+            )
+
+            stats2csv_map = MapNode(
+                Stats2CSV(),
+                iterfield=["subject_id", "output_dir"],
+                name="stats2csv_long_map",
+            )
+
+            fs_longitudinal_wf.connect(recon_all_longitudinal_node, "subjects_dir", stats2csv_map, "subjects_dir")
+            fs_longitudinal_wf.connect(build_inputs_node, "subject_ids", stats2csv_map, "subject_id")
+            fs_longitudinal_wf.connect(build_inputs_node, "output_dirs", stats2csv_map, "output_dir")
+
+        return fs_longitudinal_wf
+    
+    def extract_results(self):
+        import os
+        import re
+
+        if not self.extract_from or not os.path.isdir(self.extract_from):
+            raise FileNotFoundError(f"extract_from is not a valid directory: {self.extract_from}")
+
+        fs_root = self.extract_from  # should be derivatives/freesurfer
+
+        long_dir_pat = re.compile(r"^ses-[^.]+\.long\.sub-.+$")
+
+        items = []
+        for sub in sorted(os.listdir(fs_root)):
+            sub_path = os.path.join(fs_root, sub)
+            if not os.path.isdir(sub_path):
+                continue
+            if not sub.startswith("sub-"):
+                continue
+
+            for long_folder in sorted(os.listdir(sub_path)):
+                long_path = os.path.join(sub_path, long_folder)
+                if not os.path.isdir(long_path):
+                    continue
+                if not long_dir_pat.match(long_folder):
+                    continue
+
+                session = long_folder.split(".long.", 1)[0]  # ses-baseline
+                stats_dir = os.path.join(long_path, "stats")
+                if not os.path.isdir(stats_dir):
+                    continue
+
+                items.append(
+                    {"subject": sub, "session": session, "stats_dir": stats_dir}
+                )
+
+        # Write merged summary CSVs into self.output_path (no extra subfolder)
+        self._extract_merge_stats_dirs(stats_dir_items=items, output_path=self.output_path)
 
 class FreesurferClinicalPipeline:
     def __init__(self, 
