@@ -651,6 +651,7 @@ class ProbtrackxInputSpec(CommandLineInputSpec):
 class ProbtrackxOutputSpec(TraitedSpec):
     output_dir = Str(desc='Output directory')
     fdt_paths = File(desc='FDT paths file')
+    waytotal = File(desc='Waytotal file')
 
 class Probtrackx(CommandLine):
     # use gpu
@@ -663,6 +664,40 @@ class Probtrackx(CommandLine):
         outputs = self.output_spec().get()
         outputs['output_dir'] = os.path.abspath(self.inputs.output_dir)
         outputs['fdt_paths'] = os.path.abspath(os.path.join(self.inputs.output_dir, 'fdt_paths.nii.gz'))
+        outputs['waytotal'] = os.path.abspath(os.path.join(self.inputs.output_dir, 'waytotal'))
+        return outputs
+
+#################
+# Read waytotal #
+#################
+class ReadSingleValueInputSpec(BaseInterfaceInputSpec):
+    input_file = File(
+        exists=True,
+        mandatory=True,
+        desc="Input text file containing a single numeric value"
+    )
+
+
+class ReadSingleValueOutputSpec(TraitedSpec):
+    value = traits.Float(
+        desc="Extracted numeric value from file"
+    )
+
+
+class ReadSingleValue(BaseInterface):
+    input_spec = ReadSingleValueInputSpec
+    output_spec = ReadSingleValueOutputSpec
+
+    def _run_interface(self, runtime):
+        with open(self.inputs.input_file, "r") as f:
+            content = f.read().strip()
+
+        self._value = float(content)
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["value"] = self._value
         return outputs
 
 ###############    

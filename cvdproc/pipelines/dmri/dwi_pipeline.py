@@ -19,7 +19,7 @@ from cvdproc.pipelines.common.pad_dwi import PadDWI
 from cvdproc.pipelines.common.flip_b_table import FlipBTable
 from cvdproc.pipelines.common.register import Tkregister2fs2t1w, MRIConvertApplyWarp, MRIVol2Vol
 
-from cvdproc.pipelines.dmri.fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, OrderEddyOutputs, B0RefAndBrainMask, DTIFitBIDS, BedpostxGPUCustom, Probtrackx, ExtractSurfaceParameters, ApplyGiiMaskToMgh, ApplyIndexTxtToMgh, DefineConnectionLevel
+from cvdproc.pipelines.dmri.fdt.fdt_nipype import B0AllAndAcqparam, IndexTxt, Topup, EddyCuda, OrderEddyOutputs, B0RefAndBrainMask, DTIFitBIDS, BedpostxGPUCustom, Probtrackx, ReadSingleValue, ExtractSurfaceParameters, ApplyGiiMaskToMgh, ApplyIndexTxtToMgh, DefineConnectionLevel
 from cvdproc.pipelines.dmri.synb0.synb0_nipype import Synb0
 from cvdproc.pipelines.dmri.psmd.psmd_nipype import PSMDCommandLine
 from cvdproc.pipelines.dmri.alps.alps_nipype import ALPS
@@ -369,12 +369,6 @@ class DWIPipeline:
             seed_mask = ''
             print("No seed mask found.")
             #raise FileNotFoundError(f"No seed mask found in {lesion_mask_dir}. Please check the directory.")
-        
-        if seed_mask != '':
-            # calculate number of voxels in the seed mask
-            seed_mask_img = nib.load(seed_mask)
-            seed_mask_data = seed_mask_img.get_fdata() 
-            num_seed_voxels = np.sum(seed_mask_data > 0) # Because probtrackx always do tracking in DWI space
 
         # Whether need mrtrix3 preproc dwi (nifti to mif)
         if 'mrtrix3' in self.connectome or 'mrtrix3' in self.tractography:
@@ -1232,6 +1226,9 @@ class DWIPipeline:
             seed_mask_tractography.inputs.nsamples = 10000
             seed_mask_tractography.inputs.args = '-l --forcedir --opd --ompl'
 
+            waytotal_node = Node(ReadSingleValue(), name='waytotal_node')
+            dwi_workflow.connect(seed_mask_tractography, 'waytotal', waytotal_node, 'input_file')
+
             lh_fdtpaths_to_surf = Node(MRIvol2surf(), name='lh_fdtpaths_to_surf')
             dwi_workflow.connect(seed_mask_tractography, 'fdt_paths', lh_fdtpaths_to_surf, 'volume')
             lh_fdtpaths_to_surf.inputs.subjects_dir = fs_subjects_dir
@@ -1264,7 +1261,7 @@ class DWIPipeline:
             dwi_workflow.connect(mask_lh_fdtpaths_surf, 'output_mgh', define_connection_level_node, 'lh_mgh')
             dwi_workflow.connect(mask_rh_fdtpaths_surf, 'output_mgh', define_connection_level_node, 'rh_mgh')
             define_connection_level_node.inputs.low_threshold = 3.8e-5
-            define_connection_level_node.inputs.divisor = 10000 * num_seed_voxels
+            dwi_workflow.connect(waytotal_node, 'value', define_connection_level_node, 'divisor')
             define_connection_level_node.inputs.output_files = {
                 'lh_unconn': os.path.join(uncorrected_tractography_output_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-L_space-fsaverage_desc-UnConn_mask.mgh'),
                 'rh_unconn': os.path.join(uncorrected_tractography_output_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-R_space-fsaverage_desc-UnConn_mask.mgh'),
