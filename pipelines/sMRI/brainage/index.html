@@ -655,6 +655,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#installation-of-brainager" class="md-nav__link">
+    <span class="md-ellipsis">
+      installation of brainageR
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       References
@@ -1050,6 +1059,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#installation-of-brainager" class="md-nav__link">
+    <span class="md-ellipsis">
+      installation of brainageR
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#references" class="md-nav__link">
     <span class="md-ellipsis">
       References
@@ -1214,18 +1232,18 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>use_which_dwi</code>
+                <code>use_which_t1w</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Which DWI file to use. Defaults to 'T1w'</p>
+                <p>Which T1w file to use. Defaults to 'T1w'</p>
               </div>
             </td>
             <td>
-                <em>required</em>
+                  <code>&#39;T1w&#39;</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1287,6 +1305,8 @@
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
 <p>Currently, only the <code>brainageR</code> method is supported for brain age estimation. This choice is based on Dorfel et al. <sup id="fnref:dorfel2023prediction"><a class="footnote-ref" href="#fn:dorfel2023prediction">1</a></sup> which reported that 'pyment and
 brainageR consistently showed the highest accuracy and test–retest reliability'.</p>
+<h3 id="installation-of-brainager">installation of brainageR</h3>
+<p><code>brainageR</code> can be installed following the <a href="https://github.com/james-cole/brainageR">official documentation</a>. It is also included in the <code>cvdproc</code> package (in <code>data</code> folder, including the rds files), but the lines 66-70 in the brainageR folder need to be modified to specify the correct paths.</p>
 <h3 id="references">References</h3>
 <div class="footnote">
 <hr />
