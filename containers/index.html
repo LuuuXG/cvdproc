@@ -20,7 +20,7 @@
     
     
       
-        <title>Containers Used - cvdproc</title>
+        <title>Containers Used and Docker Notes - cvdproc</title>
       
     
     
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Containers Used
+              Containers Used and Docker Notes
             
           </span>
         </div>
@@ -583,6 +583,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipelines/sMRI/hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -872,7 +895,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -885,7 +908,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -911,6 +934,15 @@
   <a href="#docker-images" class="md-nav__link">
     <span class="md-ellipsis">
       Docker Images
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docker-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Notes
     </span>
   </a>
   
@@ -981,6 +1013,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#docker-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docker Notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1012,6 +1053,11 @@
 <li>segcsvd_rc03:latest</li>
 <li>ytzero/synbold-disco:v1.4</li>
 </ul>
+<h2 id="docker-notes">Docker Notes</h2>
+<p>Load custom docker images (.tar.gz)</p>
+<div class="highlight"><pre><span></span><code># e.g. qsiprep_1.0.1-custom.tar.gz
+gunzip -c qsiprep_1.0.1-custom.tar.gz | docker load
+</code></pre></div>
 
 
 
