@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../sMRI/pvs_quantification/">
+        <link rel="prev" href="../../sMRI/hipsta/">
       
       
         <link rel="next" href="../lqt_pipeline/">
@@ -562,6 +562,52 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/brainage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1102,7 +1148,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -2073,9 +2119,11 @@
 <h4 id="psmd">PSMD</h4>
 <p>PSMD (Peak Width of Skeletonized Mean Diffusivity), considered a marker of white matter injury, is calculated using <a href="https://github.com/isdneuroimaging/psmd">psmd</a> script <sup id="fnref:zanon2023peak"><a class="footnote-ref" href="#fn:zanon2023peak">3</a></sup>. We use a previous version of the script, while the latest version prefers a Docker-based implementation.</p>
 <h4 id="dti-alps">DTI-ALPS</h4>
+<p><img alt="DTI-ALPS" src="../DTI-ALPS.png" /></p>
 <p>DTI-ALPS (Diffusion Tensor Image Analysis along the Perivascular Space) is calculated using a customized <a href="https://github.com/gbarisano/alps">script</a>.</p>
 <p>The original method was proposed in <sup id="fnref:taoka2017evaluation"><a class="footnote-ref" href="#fn:taoka2017evaluation">4</a></sup>. It is important to note that multiple studies have suggested that DTI-ALPS should not be simply interpreted as a reflection of glymphatic function. Instead, DTI-ALPS likely reflects complex changes in brain microstructure, pointing to a more comprehensive neurodegenerative mechanism <sup id="fnref:li2025microstructural"><a class="footnote-ref" href="#fn:li2025microstructural">5</a></sup>.</p>
 <h4 id="pved">PVeD</h4>
+<p><img alt="PVeD" src="../PVeD.png" /></p>
 <p>periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain <sup id="fnref:chen2025periventricular"><a class="footnote-ref" href="#fn:chen2025periventricular">6</a></sup>. It is calculated using the official <a href="https://github.com/ChangleChen/EstPVeD">EstPVeD</a> script.</p>
 <p>Things to concern: A region growing method is used to determine the periventricular region. However, if there are lesions (such as lacunar infarcts with high MD values) in this region, these lesion areas will be ignored, leading to variability in the periventricular region among subjects.</p>
 <h3 id="connectome-analysis">Connectome Analysis</h3>

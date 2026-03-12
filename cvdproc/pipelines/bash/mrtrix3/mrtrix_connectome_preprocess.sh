@@ -4,9 +4,9 @@ set -euo pipefail
 
 # ------------------------ Usage & argument parsing ------------------------ #
 
-if [ "$#" -ne 19 ]; then
+if [ "$#" -ne 18 ]; then
   echo "Usage: $0 \\"
-  echo "  <preproc_dwi.mif> <dwi_mask.mif> <fs_to_dwi.mat> <output_dir> <aseg.nii.gz> \\"
+  echo "  <preproc_dwi.mif> <dwi_mask.mif> <output_dir> <aseg.nii.gz> \\"
   echo "  <wm_response.mif> <wm_fod.mif> <wm_fod_norm.mif> \\"
   echo "  <gm_response.mif> <gm_fod.mif> <gm_fod_norm.mif> \\"
   echo "  <csf_response.mif> <csf_fod.mif> <csf_fod_norm.mif> \\"
@@ -52,7 +52,6 @@ csf_fod_path="${output_dir}/${output_csf_fod}"
 csf_fod_norm_path="${output_dir}/${output_csf_fod_norm}"
 
 sift_mu_path="${output_dir}/${output_sift_mu}"
-aseg_dwi_path="${output_dir}/${output_aseg_dwi}"
 five_tt_dwi_path="${output_dir}/${five_tt_dwi}"
 gmwmSeed_dwi_path="${output_dir}/${gmwmSeed_dwi}"
 streamlines_tck_path="${output_dir}/${streamlines_tck}"

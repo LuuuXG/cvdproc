@@ -17,7 +17,7 @@ ants_path     = ""; % currently not used
 %  - subjects = 'auto' will scan BIDS for all sub-*
 %  - or provide a cell array, e.g., {'HC0261','HC0262'}
 subjects = { ...
-    'HC0157'
+    'HC0366'
 };
 
 % sessions_mode:

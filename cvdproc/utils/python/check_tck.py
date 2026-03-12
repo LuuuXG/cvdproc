@@ -146,10 +146,10 @@ def convert_tck_to_dsi_mm_space(
 
 # Example usage:
 convert_tck_to_dsi_mm_space(
-    tck_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0248/ses-baseline/mrtrix3/tracks_1M.tck",
-    fa1_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0248/ses-baseline/dtifit/sub-SSI0248_ses-baseline_acq-NODDIb2500_dir-AP_space-preprocdwi_model-tensor_param-fa_dwimap.nii.gz",
-    fa_dsi_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0248/ses-baseline/dsistudio/sub-SSI0248_ses-baseline_acq-NODDIb2500_dir-AP_space-preprocdwi_desc-preproc_dwi_dti_fa.nii.gz",
-    output_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0248/ses-baseline/mrtrix3/tracked_in_dsi_space.tck",
+    tck_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0114/ses-F1/tractography/mrtrix3/sub-SSI0114_ses-F1_acq-DTIb1000_space-preprocdwi_desc-ROIseed_streamlines.tck",
+    fa1_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0114/ses-F1/dtifit/sub-SSI0114_ses-F1_acq-DTIb1000_space-preprocdwi_model-tensor_param-fa_dwimap.nii.gz",
+    fa_dsi_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0114/ses-F1/dsistudio/sub-SSI0114_ses-F1_acq-DTIb1000_space-preprocdwi_desc-preproc_dwi_dti_fa.nii.gz",
+    output_path="/mnt/f/BIDS/WCH_SVD_3T_BIDS/derivatives/dwi_pipeline/sub-SSI0114/ses-F1/tractography/mrtrix3/tracked_in_dsi_space.tck",
     flip_x=False,
     flip_y=True,
     flip_z=False

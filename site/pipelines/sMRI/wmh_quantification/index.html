@@ -680,6 +680,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -707,6 +716,52 @@
   
   <span class="md-ellipsis">
     PVS Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../brainage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
     
   </span>
   
@@ -997,7 +1052,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -1156,6 +1211,15 @@
   <a href="#shape-features" class="md-nav__link">
     <span class="md-ellipsis">
       shape features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
     </span>
   </a>
   
@@ -1458,6 +1522,22 @@
                   <code>False</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>extract_from</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Folder name to extract results from</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -1553,10 +1633,14 @@
 <td>FSL truenet</td>
 <td>'truenet'</td>
 <td>3D FLAIR / T1w / 3D FLAIR + T1w</td>
-<td><a href="https://github.com/v-sundaresan/truenet">FSL truenet</a>. The advantages of this method include the provision of multiple models, suitable for single-channel FLAIR and T1w or dual-channel FLAIR + T1w, especially FLAIR + T1w will get very good results, but the preprocessing time is relatively long (because it involves steps such as FAST segmentation). In addition, the preprocessing process seems to have some problems for the case of only FLAIR, and the results obtained without preprocessing when only FLAIR is used are consistent with the results obtained after running preprocessing.</td>
+<td><a href="https://github.com/v-sundaresan/truenet">FSL truenet</a>. The advantages of this method include the provision of multiple models, suitable for single-channel FLAIR and T1w or dual-channel FLAIR + T1w, especially FLAIR + T1w will get very good results, but the preprocessing time is relatively long (because it involves steps such as FAST segmentation).</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">truenet</p>
+<p>We omit the preprocessing steps because we do not involve fine-tuning the model. This can significantly speed up the processing pipeline while achieving similar results.</p>
+</div>
 <h3 id="bianca-mask">bianca mask</h3>
 <p>If 'use_bianca_mask' is set to True, an inclusion mask is applied after the segmentation step (ref: 'The script below creates an example of inclusion mask from T1 images, which excludes cortical GM and the following structures: putamen, globus pallidus, nucleus accumbens, thalamus, brainstem, cerebellum, hippocampus, amygdala. The cortical GM is excluded from the brain mask by extracting the cortical CSF from single-subject’s CSF pve map, dilating it to reach the cortical GM, and excluding these areas. The other structures are identified in MNI space, non-linearly registered to the single-subjects’ images, and removed from the brain mask.' in <a href="https://web.mit.edu/fsl_v5.0.10/fsl/doc/wiki/BIANCA(2f)Userguide.html">FSL BIANCA</a>).</p>
 <p>Other WMH segmentation methods not included in the pipeline:</p>
@@ -1570,25 +1654,48 @@
 <h3 id="lateral-ventricle-mask">lateral ventricle mask</h3>
 <p>'ventmask_method' is used to specify the method for obtaining the lateral ventricle mask, which is required for the Fazekas location method. You can choose one of the following methods: 'SynthSeg'</p>
 <ul>
-<li>'SynthSeg': use <a href="https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg">SynthSeg</a></li>
+<li>'SynthSeg': use <a href="https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg">SynthSeg</a>. Now we use a combined mask (plus a lateral ventricle mask from standard space) for better accuracy (see the figure below).</li>
 </ul>
+<p><img alt="Lateral Ventricle Mask" src="../Fazekas_classification.png" /></p>
 <h3 id="location-methods">location methods</h3>
 <p>You can choose one or more location methods to get the location information of WMH.</p>
 <ul>
-<li>'Fazekas': classify WMH into periventricular WMH (PWMH) and deep WMH (DWMH) based on the distance to the lateral ventricles of each WMH cluster. WMH lesions totally outside the 10mm distance to the lateral ventricles are classified as DWMH. Those totally within 10mm distance or partially within 10mm distance are classified as PWMH (Theoretical should be divided into periventricular WMH and confluent WMH, but simplified to PWMH. See this <a href="https://alz-journals.onlinelibrary.wiley.com/doi/10.1002/alz.13345">Keller et al.</a> for more information). </li>
-<li>'bullseye': calculate WMH volume according a bullseye parcellation scheme (see <a href="https://linkinghub.elsevier.com/retrieve/pii/S0150986117302249">Sudre et al.</a>). Do this classification need precomputed freesurfer recon-all results.</li>
+<li>'Fazekas': classify WMH into periventricular WMH (PWMH) and deep WMH (DWMH) based on the distance to the lateral ventricles of each WMH cluster. WMH lesions totally outside the 10mm distance to the lateral ventricles are classified as DWMH. Those totally within 10mm distance or partially within 10mm distance are classified as PWMH (Theoretical should be divided into periventricular WMH and confluent WMH, but simplified to PWMH. See this Keller et al. <sup id="fnref2:keller2023white"><a class="footnote-ref" href="#fn:keller2023white">1</a></sup> for more information). </li>
+<li>'bullseye': calculate WMH volume according a bullseye parcellation scheme (see Sudre et al. <sup id="fnref:sudre2018bullseye"><a class="footnote-ref" href="#fn:sudre2018bullseye">2</a></sup>). Do this classification need precomputed freesurfer recon-all results.</li>
 <li>'shiva': calculate WMH volume according to the SHIVA parcellation scheme (Shallow, Deep, Perivetricular, Cerebellar, and Brainstem). See <a href="https://github.com/pboutinaud/SHiVAi">shivai</a> for more information.</li>
-<li>'McDonald': This utilizes the annotation of WMH clusters in <a href="https://github.com/CompImg/LST-AI">LST-AI</a>. It is more suitable for MS lesions.</li>
+<li>'McDonald': this utilizes the annotation of WMH clusters in <a href="https://github.com/CompImg/LST-AI">LST-AI</a>. It is more suitable for MS lesions.</li>
+<li>'JHU': this is achieved by non-linearly registering the JHU atlas in standard space to individual space <sup id="fnref:biesbroek2025signature"><a class="footnote-ref" href="#fn:biesbroek2025signature">3</a></sup>. However, it should be noted that common PWMH may not fall within any ROI (in other words, it may be more suitable for subjects with more severe WMH).</li>
 </ul>
 <h3 id="normalization-to-mni-space">normalization to MNI space</h3>
 <p>If 'normalize_to_mni' is set to True, the WMH segmentation results will be transformed to MNI space using a non-linear registration (SynthMorph).</p>
 <h3 id="shape-features">shape features</h3>
-<p>If 'shape_features' is set to True, shape features of PWMH and DWMH will be calculated. We refer to the SMART-MR studies (e.g., <a href="https://alz-journals.onlinelibrary.wiley.com/doi/10.1002/alz.13345">Keller et al.</a>, <a href="https://www.neurology.org/doi/10.1212/WNL.0000000000011827">Ghaznawi et al.</a>) and <a href="https://www.karger.com/Article/FullText/515836">Han et al.</a></p>
+<p>If 'shape_features' is set to True, shape features of PWMH and DWMH will be calculated. We refer to the SMART-MR studies (e.g., Keller et al. <sup id="fnref:keller2023white"><a class="footnote-ref" href="#fn:keller2023white">1</a></sup>, Ghaznawi et al. <sup id="fnref:ghaznawi2019association"><a class="footnote-ref" href="#fn:ghaznawi2019association">4</a></sup>) and Han et al. <sup id="fnref:han2021association"><a class="footnote-ref" href="#fn:han2021association">5</a></sup>.</p>
 <p>Methodological issues must be considered:</p>
 <ul>
 <li>The simple hypothesis is that WMH lesions will be more complex and irregular as they grow larger. However, WMH in different locations may have different growth patterns. For example, a normal aging-related PWMH lesion may reveal a cap-like shape along the lateral ventricle (Fazekas score 1, assume have 4 WMH clusters in left/right anterior/posterior horn of lateral ventricle, respectively), these WMH clusters may grow and merge to a single large PWMH lesion (Fazekas score 3). So, compare the small and large PWMH lesions directly may not be appropriate (in another word, the shape features may dramatically change when two or more WMH clusters merge).</li>
 <li>If you want to compare the shape features of WMH between different subjects, is it rational to simplely calculate the mean shape features of all WMH clusters in each subject? It seems OK with DWMH clusters, but not for PWMH clusters (see the above point).</li>
 </ul>
+<h3 id="references">References</h3>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:keller2023white">
+<p>Jasmin Annica Keller, Sigurdur Sigurdsson, Kelly Klaassen, Lydiane Hirschler, Mark A van Buchem, Lenore J Launer, Matthias JP van Osch, Vilmundur Gudnason, and Jeroen de Bresser. White matter hyperintensity shape is associated with long-term dementia risk. <em>Alzheimer's &amp; Dementia</em>, 19(12):5632–5641, 2023.&#160;<a class="footnote-backref" href="#fnref:keller2023white" title="Jump back to footnote 1 in the text">&#8617;</a><a class="footnote-backref" href="#fnref2:keller2023white" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+<li id="fn:sudre2018bullseye">
+<p>Carol H Sudre, B Gomez Anson, Indran Davagnanam, A Schmitt, Alex F Mendelson, F Prados, Lorna Smith, David Atkinson, Alun D Hughes, N Chaturvedi, and others. Bullseye's representation of cerebral white matter hyperintensities. <em>Journal of Neuroradiology</em>, 45(2):114–122, 2018.&#160;<a class="footnote-backref" href="#fnref:sudre2018bullseye" title="Jump back to footnote 2 in the text">&#8617;</a></p>
+</li>
+<li id="fn:biesbroek2025signature">
+<p>J Matthijs Biesbroek, Floor AS De Kort, Devasuda Anblagan, Mark E Bastin, Alexa Beiser, Henry Brodaty, Nishi Chaturvedi, Christopher PLH Chen, Bastian Cheng, Ching-Yu Cheng, and others. Signature white matter hyperintensity locations associated with vascular risk factors derived from 15 653 individuals. <em>Stroke</em>, 56(10):3047–3059, 2025.&#160;<a class="footnote-backref" href="#fnref:biesbroek2025signature" title="Jump back to footnote 3 in the text">&#8617;</a></p>
+</li>
+<li id="fn:ghaznawi2019association">
+<p>Rashid Ghaznawi, Mirjam I Geerlings, Myriam G Jaarsma-Coes, Maarten HT Zwartbol, Hugo J Kuijf, Yolanda van der Graaf, Theo D Witkamp, Jeroen Hendrikse, and Jeroen de Bresser. The association between lacunes and white matter hyperintensity features on mri: the smart-mr study. <em>Journal of Cerebral Blood Flow &amp; Metabolism</em>, 39(12):2486–2496, 2019.&#160;<a class="footnote-backref" href="#fnref:ghaznawi2019association" title="Jump back to footnote 4 in the text">&#8617;</a></p>
+</li>
+<li id="fn:han2021association">
+<p>Ji Won Han, Hyunna Lee, Subin Lee, Haejin Kim, Grace Eun Kim, Jong Bin Bae, Seung Wan Suh, Jae Hyoung Kim, and Ki Woong Kim. Association of the irregular 3-dimensional shape of white matter hyperintensities with cognitive function. <em>European Neurology</em>, 84(4):280–287, 2021.&#160;<a class="footnote-backref" href="#fnref:han2021association" title="Jump back to footnote 5 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 

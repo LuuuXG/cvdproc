@@ -38,6 +38,7 @@ from cvdproc.pipelines.dmri.dipy.dipy_degibbs import DipyDegibbs
 from cvdproc.pipelines.dmri.freewater.single_shell_freewater import SingleShellFW
 from cvdproc.pipelines.dmri.freewater.markvcid_freewater import MarkVCIDFreeWater
 from cvdproc.pipelines.dmri.qsiprep.register import QSIPrepOrigToACPC
+from cvdproc.pipelines.dmri.visualization.vis import PlotTckOnSliceCmd
 
 from cvdproc.pipelines.smri.mirror.mirror_nipype import MirrorMask
 from cvdproc.pipelines.smri.fsl.fsl_anat_nipype import FSLANAT
@@ -1065,6 +1066,7 @@ class DWIPipeline:
                         chidia_to_dwi_node.inputs.out_file = os.path.join(anat_output_dir, rename_bids_file(chidia_in_t1w_file, {'space': space_entity}, "Chidia", ".nii.gz"))
                         dwi_workflow.connect(chidia_to_dwi_node, 'out_file', dwi_scalarmaps_output_node, 'chidia_img')
 
+                    if wmh_probmap_file is not None:
                         wmhprobmap_to_dwi_node = Node(FLIRT(), name='wmhprobmap_to_dwi')
                         wmhprobmap_to_dwi_node.inputs.in_file = wmh_probmap_file
                         dwi_workflow.connect(invert_dwi_to_t1w_reg_node, 'out_file', wmhprobmap_to_dwi_node, 'in_matrix_file')
@@ -1186,7 +1188,7 @@ class DWIPipeline:
             fs_parcellation_config.inputs.in2 = get_package_path('data', 'labelconvert', 'custom', 'fs_aparc.txt')
 
             prepare_fs_parcellation_node = MapNode(LabelConvert(), name='prepare_parcellation', iterfield=['in_config', 'out_file'])
-            dwi_workflow.connect(prepare_connectome_node, 'aseg_dwi', prepare_fs_parcellation_node, 'in_file')
+            dwi_workflow.connect(refine_aseg_node, 'out_aseg', prepare_fs_parcellation_node, 'in_file')
             prepare_fs_parcellation_node.inputs.in_lut = get_package_path('data', 'labelconvert_in', 'FreeSurferColorLUT.txt')
             dwi_workflow.connect(fs_parcellation_config, 'out', prepare_fs_parcellation_node, 'in_config')
             prepare_fs_parcellation_node.inputs.out_file = [
@@ -1494,7 +1496,7 @@ class DWIPipeline:
             #lh_or_track_node.inputs.turning_angle = 45
             lh_or_track_node.inputs.max_length = 200
             lh_or_track_node.inputs.args = '--tip_iteration=0 --method=0'
-            dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dil3x_roi', lh_or_track_node, 'seed')
+            dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dilx_roi', lh_or_track_node, 'seed')
             dwi_workflow.connect(prepare_vp_roi_node, 'lh_v1_ext2_roi', lh_or_track_node, 'end')
             #dwi_workflow.connect(fetch_roi4meyersloop_L, 'out', lh_or_track_node, 'ter')
 
@@ -1506,7 +1508,7 @@ class DWIPipeline:
             #rh_or_track_node.inputs.turning_angle = 45
             rh_or_track_node.inputs.max_length = 200
             rh_or_track_node.inputs.args = '--tip_iteration=0 --method=0'
-            dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dil3x_roi', rh_or_track_node, 'seed')
+            dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dilx_roi', rh_or_track_node, 'seed')
             dwi_workflow.connect(prepare_vp_roi_node, 'rh_v1_ext2_roi', rh_or_track_node, 'end')
             #dwi_workflow.connect(fetch_roi4meyersloop_R, 'out', rh_or_track_node, 'ter')
 
@@ -1562,10 +1564,10 @@ class DWIPipeline:
             dwi_workflow.connect(rh_ml_track_node, 'output', vp_refine_node, 'rh_ml')
             dwi_workflow.connect(prepare_vp_roi_node, 'optic_chiasm_dil1_roi', vp_refine_node, 'cho_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dil1_roi', vp_refine_node, 'lh_lgn_roi')
-            dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dil3x_roi', vp_refine_node, 'lh_lgn_dia_x_roi')
+            dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_dilx_roi', vp_refine_node, 'lh_lgn_dia_x_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'lh_lgn_extendpart_roi', vp_refine_node, 'lh_lgn_extendpart_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dil1_roi', vp_refine_node, 'rh_lgn_roi')
-            dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dil3x_roi', vp_refine_node, 'rh_lgn_dia_x_roi')
+            dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_dilx_roi', vp_refine_node, 'rh_lgn_dia_x_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'rh_lgn_extendpart_roi', vp_refine_node, 'rh_lgn_extendpart_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'lh_v1_ext2_roi', vp_refine_node, 'lh_v1_roi')
             dwi_workflow.connect(prepare_vp_roi_node, 'rh_v1_ext2_roi', vp_refine_node, 'rh_v1_roi')
@@ -1629,6 +1631,16 @@ class DWIPipeline:
                 os.path.join(vpa_output_dir, rename_bids_file(preproc_dwi_filename, {'desc': None, 'bundle': 'ML', 'hemi': 'L'}, 'tdi', '.nii.gz')),
                 os.path.join(vpa_output_dir, rename_bids_file(preproc_dwi_filename, {'desc': None, 'bundle': 'ML', 'hemi': 'R'}, 'tdi', '.nii.gz'))
             ]
+
+            # gather OR and OT tck files for QC
+            select_or_ot = Node(Select(index=[0, 1, 2, 3]), name="select_or_ot")
+            dwi_workflow.connect(tt_to_tck_node, "out_tck", select_or_ot, "inlist")
+
+            or_ot_qc_node = Node(PlotTckOnSliceCmd(), name="or_ot_qc")
+            or_ot_qc_node.inputs.script_path = get_package_path("pipelines", "dmri", "visualization", "plot_tck_cli.py")
+            dwi_workflow.connect(select_or_ot, "out", or_ot_qc_node, "tck_files")
+            dwi_workflow.connect(preproc_dwi_node, "b0", or_ot_qc_node, "ref_nii")
+            or_ot_qc_node.inputs.out_png = os.path.join(vpa_output_dir, "QC.png")
 
         #########################
         # Calculate DWI metrics #
@@ -1741,287 +1753,504 @@ class DWIPipeline:
         return dwi_workflow
     
     def extract_results(self):
-        def _read_one_row_mask_metrics(csv_path):
+        def _sanitize_metric_name(name):
             """
-            Read a single-row metrics CSV produced by CalculateScalarMaps.
-            Returns a dict with keys: FA, MD, FW (MarkVCID2), ODI, ICVF, ISOVF
-            Missing file or missing columns -> np.nan
+            Convert metric names to safe column names.
+            Example:
+                'FW (MarkVCID2)' -> 'markvcid_FW'
             """
-            keys = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF"]
-            out = {k: np.nan for k in keys}
+            mapping = {
+                "FW (MarkVCID2)": "markvcid_FW"
+            }
+            if name in mapping:
+                return mapping[name]
 
+            safe_name = str(name).strip()
+            safe_name = safe_name.replace(" ", "_")
+            safe_name = safe_name.replace("(", "")
+            safe_name = safe_name.replace(")", "")
+            safe_name = safe_name.replace("-", "_")
+            safe_name = safe_name.replace("/", "_")
+            return safe_name
+
+        def _read_single_row_csv_as_dict(csv_path):
+            """
+            Read a single-row CSV and return a dict using sanitized column names.
+            Missing file or empty file -> {}
+            """
             if csv_path is None or not os.path.exists(csv_path):
-                return out
+                return {}
 
             df = pd.read_csv(csv_path)
-            if df.shape[0] < 1:
-                return out
+            if df.empty or df.shape[0] < 1:
+                return {}
 
             row0 = df.iloc[0]
-            for k in keys:
-                if k in df.columns:
-                    out[k] = row0[k]
+            out = {}
+            for col in df.columns:
+                safe_col = _sanitize_metric_name(col)
+                out[safe_col] = row0[col]
             return out
 
+        def _read_alongtract_metrics_wide(csv_path, n_points=100):
+            """
+            Read along-tract metrics CSV (expected 100 rows, one row per tract point)
+            and flatten it into a single-row dict in wide format:
+                FA_001 ... FA_100
+                MD_001 ... MD_100
+                ...
+            Missing file -> empty dict
+            Missing rows -> pad with np.nan
+            Extra rows -> truncate to n_points
+            """
+            if csv_path is None or not os.path.exists(csv_path):
+                return {}
 
-        def _safe_get(d, k):
-            v = d.get(k, np.nan)
-            try:
-                return float(v)
-            except Exception:
-                return np.nan
-    
+            df = pd.read_csv(csv_path)
+            if df.empty:
+                return {}
+
+            df = df.reset_index(drop=True)
+
+            if df.shape[0] < n_points:
+                pad_df = pd.DataFrame(np.nan, index=range(n_points - df.shape[0]), columns=df.columns)
+                df = pd.concat([df, pad_df], ignore_index=True)
+            elif df.shape[0] > n_points:
+                df = df.iloc[:n_points, :].copy()
+
+            out = {}
+            for col in df.columns:
+                prefix = _sanitize_metric_name(col)
+                for i in range(n_points):
+                    out[f"{prefix}_{i+1:03d}"] = df.iloc[i][col]
+
+            return out
+
         os.makedirs(self.output_path, exist_ok=True)
 
         dwi_output_path = self.extract_from
 
         # DTI-ALPS
-        alps_columns = ['Subject', 'Session', 'ALPS_L', 'ALPS_R', 'ALPS_mean']
+        alps_columns = ["Subject", "Session", "ALPS_L", "ALPS_R", "ALPS_mean"]
         alps_results_df = pd.DataFrame(columns=alps_columns)
 
         # PSMD
-        psmd_columns = ['Subject', 'Session', 'PSMD', 'PSMD_Left', 'PSMD_Right']
+        psmd_columns = ["Subject", "Session", "PSMD", "PSMD_Left", "PSMD_Right"]
         psmd_results_df = pd.DataFrame(columns=psmd_columns)
 
         # PVeD
-        pved_columns = ['Subject', 'Session', 'PVeD', 'PVeD_L', 'PVeD_R', 'QA_index']
+        pved_columns = ["Subject", "Session", "PVeD", "PVeD_L", "PVeD_R", "QA_index"]
         pved_results_df = pd.DataFrame(columns=pved_columns)
-        
+
         # Track-based DWI metrics
-        track_dwi_metrics_columns = ['Subject', 'Session', 'Track_DTI_FA', 'Track_DTI_MD', 'Track_SS_FW', 'Track_DTI_FW'] # SS for single shell
+        track_dwi_metrics_columns = ["Subject", "Session", "Track_DTI_FA", "Track_DTI_MD", "Track_SS_FW", "Track_DTI_FW"]
         track_dwi_metrics_df = pd.DataFrame(columns=track_dwi_metrics_columns)
 
-        # Mask-based DWI metrics
-        mask_tensor_metrics_columns = ['Subject', 'Session',
-                                      'FA_seedmask', 'MD_seedmask', 'markvcid_FW_seedmask',
-                                      'FA_WMH', 'MD_WMH', 'markvcid_FW_WMH',
-                                      'FA_NAWM', 'MD_NAWM', 'markvcid_FW_NAWM']
-        mask_tensor_metrics_df = pd.DataFrame(columns=mask_tensor_metrics_columns)
-
-        mask_noddi_metrics_columns = ['Subject', 'Session',
-                                     'ODI_seedmask', 'ICVF_seedmask', 'ISOVF_seedmask',
-                                     'ODI_WMH', 'ICVF_WMH', 'ISOVF_WMH',
-                                     'ODI_NAWM', 'ICVF_NAWM', 'ISOVF_NAWM']
-        mask_noddi_metrics_df = pd.DataFrame(columns=mask_noddi_metrics_columns)
+        # Mask-based mean dwimap results, grouped by mask type
+        mean_dwimap_seedmask_df = pd.DataFrame()
+        mean_dwimap_WMH_df = pd.DataFrame()
+        mean_dwimap_NAWM_df = pd.DataFrame()
 
         # Surface parameters
         surface_parameters_df = pd.DataFrame()
         mirror_surface_parameters_df = pd.DataFrame()
 
-        # Assume have sub + ses
-        # Loop through all subjects (start with sub-) and sessions (start with ses-)
+        # Along-tract DWI metrics
+        alongtract_L_OR_df = pd.DataFrame()
+        alongtract_L_OT_df = pd.DataFrame()
+        alongtract_R_OR_df = pd.DataFrame()
+        alongtract_R_OT_df = pd.DataFrame()
+
+        # TDIweighted dwimap results
+        tdiweighted_L_OR_df = pd.DataFrame()
+        tdiweighted_L_OT_df = pd.DataFrame()
+        tdiweighted_R_OR_df = pd.DataFrame()
+        tdiweighted_R_OT_df = pd.DataFrame()
+
         print(f"Reading results from {dwi_output_path}...")
+
         for subject_folder in os.listdir(dwi_output_path):
-            if not subject_folder.startswith('sub-'):
+            if not subject_folder.startswith("sub-"):
                 continue
 
-            subject_id = subject_folder.split('-')[1]
+            subject_id = subject_folder.split("-", 1)[1]
             subject_folder_path = os.path.join(dwi_output_path, subject_folder)
 
+            if not os.path.isdir(subject_folder_path):
+                continue
+
             for session_folder in os.listdir(subject_folder_path):
-                if not session_folder.startswith('ses-'):
+                if not session_folder.startswith("ses-"):
                     continue
 
-                session_id = session_folder.split('-')[1]
+                session_id = session_folder.split("-", 1)[1]
                 session_path = os.path.join(subject_folder_path, session_folder)
 
-                dti_alps_csv = os.path.join(session_path, 'DTI-ALPS', 'alps.stat', 'alps.csv')
-                psmd_txt = os.path.join(session_path, 'psmd', 'psmd_out.txt')
-                pved_csv = os.path.join(session_path, 'PVeD', 'PVeD_metrics.csv')
+                if not os.path.isdir(session_path):
+                    continue
 
-                tract_fa_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_FA_mean.csv')
-                tract_md_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_MD_mean.csv')
-                tract_ss_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_freewater_mean.csv')
-                tract_dti_fw_csv = os.path.join(session_path, 'dwi_metrics_stats', 'track_in_dti_freewater_mean.csv')
-                
-                seedmask_scalarmaps_csv = os.path.join(session_path, 'dwi_metrics_stats', f"sub-{subject_id}_ses-{session_id}_label-seedmask_desc-mean_dwimap.csv")
-                wmh_scalarmaps_csv = os.path.join(session_path, 'dwi_metrics_stats', f"sub-{subject_id}_ses-{session_id}_label-WMH_desc-mean_dwimap.csv")
-                nawm_scalarmaps_csv = os.path.join(session_path, 'dwi_metrics_stats', f"sub-{subject_id}_ses-{session_id}_label-NAWM_desc-mean_dwimap.csv")
+                dwi_metrics_stats_dir = os.path.join(session_path, "dwi_metrics_stats")
 
-                surface_csv = os.path.join(session_path, 'surface_parameters.csv')
-                mirror_surface_csv = os.path.join(session_path, 'mirror_surface_parameters.csv')
-                
+                dti_alps_csv = os.path.join(session_path, "DTI-ALPS", "alps.stat", "alps.csv")
+                psmd_txt = os.path.join(session_path, "psmd", "psmd_out.txt")
+                pved_csv = os.path.join(session_path, "PVeD", "PVeD_metrics.csv")
+
+                tract_fa_csv = os.path.join(dwi_metrics_stats_dir, "track_in_dti_FA_mean.csv")
+                tract_md_csv = os.path.join(dwi_metrics_stats_dir, "track_in_dti_MD_mean.csv")
+                tract_ss_fw_csv = os.path.join(dwi_metrics_stats_dir, "track_in_freewater_mean.csv")
+                tract_dti_fw_csv = os.path.join(dwi_metrics_stats_dir, "track_in_dti_freewater_mean.csv")
+
+                seedmask_mean_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_label-seedmask_desc-mean_dwimap.csv"
+                )
+                wmh_mean_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_label-WMH_desc-mean_dwimap.csv"
+                )
+                nawm_mean_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_label-NAWM_desc-mean_dwimap.csv"
+                )
+
+                surface_csv = os.path.join(session_path, "surface_parameters.csv")
+                mirror_surface_csv = os.path.join(session_path, "mirror_surface_parameters.csv")
+
+                alongtract_L_OR_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-L_label-OR_desc-alongtract_dwimap.csv"
+                )
+                alongtract_L_OT_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-L_label-OT_desc-alongtract_dwimap.csv"
+                )
+                alongtract_R_OR_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-R_label-OR_desc-alongtract_dwimap.csv"
+                )
+                alongtract_R_OT_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-R_label-OT_desc-alongtract_dwimap.csv"
+                )
+
+                tdiweighted_L_OR_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-L_label-OR_desc-TDIweighted_dwimap.csv"
+                )
+                tdiweighted_L_OT_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-L_label-OT_desc-TDIweighted_dwimap.csv"
+                )
+                tdiweighted_R_OR_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-R_label-OR_desc-TDIweighted_dwimap.csv"
+                )
+                tdiweighted_R_OT_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_hemi-R_label-OT_desc-TDIweighted_dwimap.csv"
+                )
+
                 # DTI-ALPS
                 if os.path.exists(dti_alps_csv):
                     alps_df = pd.read_csv(dti_alps_csv)
-                    if {'alps_L', 'alps_R', 'alps'}.issubset(alps_df.columns):
+                    if {"alps_L", "alps_R", "alps"}.issubset(alps_df.columns):
                         new_data = pd.DataFrame([{
-                            'Subject': f"sub-{subject_id}",
-                            'Session': f"ses-{session_id}",
-                            'ALPS_L': alps_df['alps_L'].values[0],
-                            'ALPS_R': alps_df['alps_R'].values[0],
-                            'ALPS_mean': alps_df['alps'].values[0]
+                            "Subject": f"sub-{subject_id}",
+                            "Session": f"ses-{session_id}",
+                            "ALPS_L": alps_df["alps_L"].values[0],
+                            "ALPS_R": alps_df["alps_R"].values[0],
+                            "ALPS_mean": alps_df["alps"].values[0]
                         }])
                         alps_results_df = pd.concat([alps_results_df, new_data], ignore_index=True)
-                
+
                 # PSMD
                 if os.path.exists(psmd_txt):
-                    # if have only on number, assign to PSMD (XXXX)
-                    # if have two number, assign to PSMD_L and PSMD_R (XXXX XXXX)
-                    with open(psmd_txt, 'r') as f:
+                    with open(psmd_txt, "r") as f:
                         line = f.readline().strip()
                         parts = line.split()
                         if len(parts) == 1:
                             new_data = pd.DataFrame([{
-                                'Subject': f"sub-{subject_id}",
-                                'Session': f"ses-{session_id}",
-                                'PSMD': float(parts[0]),
-                                'PSMD_Left': np.nan,
-                                'PSMD_Right': np.nan
+                                "Subject": f"sub-{subject_id}",
+                                "Session": f"ses-{session_id}",
+                                "PSMD": float(parts[0]),
+                                "PSMD_Left": np.nan,
+                                "PSMD_Right": np.nan
                             }])
                         elif len(parts) == 2:
                             new_data = pd.DataFrame([{
-                                'Subject': f"sub-{subject_id}",
-                                'Session': f"ses-{session_id}",
-                                'PSMD': np.nan,
-                                'PSMD_Left': float(parts[0]),
-                                'PSMD_Right': float(parts[1])
+                                "Subject": f"sub-{subject_id}",
+                                "Session": f"ses-{session_id}",
+                                "PSMD": np.nan,
+                                "PSMD_Left": float(parts[0]),
+                                "PSMD_Right": float(parts[1])
                             }])
                         else:
                             new_data = pd.DataFrame([{
-                                'Subject': f"sub-{subject_id}",
-                                'Session': f"ses-{session_id}",
-                                'PSMD': np.nan,
-                                'PSMD_Left': np.nan,
-                                'PSMD_Right': np.nan
+                                "Subject": f"sub-{subject_id}",
+                                "Session": f"ses-{session_id}",
+                                "PSMD": np.nan,
+                                "PSMD_Left": np.nan,
+                                "PSMD_Right": np.nan
                             }])
                         psmd_results_df = pd.concat([psmd_results_df, new_data], ignore_index=True)
 
                 # PVeD
                 if os.path.exists(pved_csv):
                     pved_df = pd.read_csv(pved_csv)
-                    if {'PVeD_total', 'PVeD_L', 'PVeD_R'}.issubset(pved_df.columns):
+                    if {"PVeD_total", "PVeD_L", "PVeD_R"}.issubset(pved_df.columns):
+                        qa_value = pved_df["QA_index"].values[0] if "QA_index" in pved_df.columns else np.nan
                         new_data = pd.DataFrame([{
-                            'Subject': f"sub-{subject_id}",
-                            'Session': f"ses-{session_id}",
-                            'PVeD': pved_df['PVeD_total'].values[0],
-                            'PVeD_L': pved_df['PVeD_L'].values[0],
-                            'PVeD_R': pved_df['PVeD_R'].values[0],
-                            'QA_index': pved_df['QA_index'].values[0]
+                            "Subject": f"sub-{subject_id}",
+                            "Session": f"ses-{session_id}",
+                            "PVeD": pved_df["PVeD_total"].values[0],
+                            "PVeD_L": pved_df["PVeD_L"].values[0],
+                            "PVeD_R": pved_df["PVeD_R"].values[0],
+                            "QA_index": qa_value
                         }])
                         pved_results_df = pd.concat([pved_results_df, new_data], ignore_index=True)
 
                 # Track-based DWI metrics
                 new_data = pd.DataFrame([{
-                    'Subject': f"sub-{subject_id}",
-                    'Session': f"ses-{session_id}",
-                    'Track_DTI_FA': pd.read_csv(tract_fa_csv)['mean'].values[0] if os.path.exists(tract_fa_csv) else None,
-                    'Track_DTI_MD': pd.read_csv(tract_md_csv)['mean'].values[0] if os.path.exists(tract_md_csv) else None,
-                    'Track_SS_FW': pd.read_csv(tract_ss_fw_csv)['mean'].values[0] if os.path.exists(tract_ss_fw_csv) else None,
-                    'Track_DTI_FW': pd.read_csv(tract_dti_fw_csv)['mean'].values[0] if os.path.exists(tract_dti_fw_csv) else None
+                    "Subject": f"sub-{subject_id}",
+                    "Session": f"ses-{session_id}",
+                    "Track_DTI_FA": pd.read_csv(tract_fa_csv)["mean"].values[0] if os.path.exists(tract_fa_csv) else None,
+                    "Track_DTI_MD": pd.read_csv(tract_md_csv)["mean"].values[0] if os.path.exists(tract_md_csv) else None,
+                    "Track_SS_FW": pd.read_csv(tract_ss_fw_csv)["mean"].values[0] if os.path.exists(tract_ss_fw_csv) else None,
+                    "Track_DTI_FW": pd.read_csv(tract_dti_fw_csv)["mean"].values[0] if os.path.exists(tract_dti_fw_csv) else None
                 }])
                 track_dwi_metrics_df = pd.concat([track_dwi_metrics_df, new_data], ignore_index=True)
 
-                # Mask-based DWI metrics
-                seedmask_metrics = _read_one_row_mask_metrics(seedmask_scalarmaps_csv)
-                wmh_metrics = _read_one_row_mask_metrics(wmh_scalarmaps_csv)
-                nawm_metrics = _read_one_row_mask_metrics(nawm_scalarmaps_csv)
+                # Mean dwimap results grouped by mask type
+                mean_specs = [
+                    ("seedmask", seedmask_mean_csv, mean_dwimap_seedmask_df),
+                    ("WMH", wmh_mean_csv, mean_dwimap_WMH_df),
+                    ("NAWM", nawm_mean_csv, mean_dwimap_NAWM_df),
+                ]
 
-                tensor_row = {
-                    "Subject": f"sub-{subject_id}",
-                    "Session": f"ses-{session_id}",
+                updated_mean_dfs = {}
 
-                    "FA_seedmask": _safe_get(seedmask_metrics, "FA"),
-                    "MD_seedmask": _safe_get(seedmask_metrics, "MD"),
-                    "markvcid_FW_seedmask": _safe_get(seedmask_metrics, "FW (MarkVCID2)"),
+                for mask_label, csv_path, target_df in mean_specs:
+                    metric_dict = _read_single_row_csv_as_dict(csv_path)
 
-                    "FA_WMH": _safe_get(wmh_metrics, "FA"),
-                    "MD_WMH": _safe_get(wmh_metrics, "MD"),
-                    "markvcid_FW_WMH": _safe_get(wmh_metrics, "FW (MarkVCID2)"),
+                    if metric_dict:
+                        row = {
+                            "DWI_Pipeline_ID": f"sub-{subject_id}_ses-{session_id}",
+                            "Subject": f"sub-{subject_id}",
+                            "Session": f"ses-{session_id}",
+                            "Mask": mask_label,
+                        }
+                        row.update(metric_dict)
+                        target_df = pd.concat([target_df, pd.DataFrame([row])], ignore_index=True)
 
-                    "FA_NAWM": _safe_get(nawm_metrics, "FA"),
-                    "MD_NAWM": _safe_get(nawm_metrics, "MD"),
-                    "markvcid_FW_NAWM": _safe_get(nawm_metrics, "FW (MarkVCID2)"),
-                }
-                mask_tensor_metrics_df = pd.concat([mask_tensor_metrics_df, pd.DataFrame([tensor_row])], ignore_index=True)
+                    updated_mean_dfs[mask_label] = target_df
 
-                noddi_row = {
-                    "Subject": f"sub-{subject_id}",
-                    "Session": f"ses-{session_id}",
-
-                    "ODI_seedmask": _safe_get(seedmask_metrics, "ODI"),
-                    "ICVF_seedmask": _safe_get(seedmask_metrics, "ICVF"),
-                    "ISOVF_seedmask": _safe_get(seedmask_metrics, "ISOVF"),
-
-                    "ODI_WMH": _safe_get(wmh_metrics, "ODI"),
-                    "ICVF_WMH": _safe_get(wmh_metrics, "ICVF"),
-                    "ISOVF_WMH": _safe_get(wmh_metrics, "ISOVF"),
-
-                    "ODI_NAWM": _safe_get(nawm_metrics, "ODI"),
-                    "ICVF_NAWM": _safe_get(nawm_metrics, "ICVF"),
-                    "ISOVF_NAWM": _safe_get(nawm_metrics, "ISOVF"),
-                }
-                mask_noddi_metrics_df = pd.concat([mask_noddi_metrics_df, pd.DataFrame([noddi_row])], ignore_index=True)
+                mean_dwimap_seedmask_df = updated_mean_dfs["seedmask"]
+                mean_dwimap_WMH_df = updated_mean_dfs["WMH"]
+                mean_dwimap_NAWM_df = updated_mean_dfs["NAWM"]
 
                 # Surface parameters
                 if os.path.exists(surface_csv):
                     df = pd.read_csv(surface_csv)
-                    df.insert(0, 'DWI_Pipeline_ID', f'sub-{subject_id}_ses-{session_id}')
-                    df.insert(1, 'Subject', f'sub-{subject_id}')
-                    df.insert(2, 'Session', f'ses-{session_id}')
+                    df.insert(0, "DWI_Pipeline_ID", f"sub-{subject_id}_ses-{session_id}")
+                    df.insert(1, "Subject", f"sub-{subject_id}")
+                    df.insert(2, "Session", f"ses-{session_id}")
                     surface_parameters_df = pd.concat([surface_parameters_df, df], ignore_index=True)
-                
+
                 if os.path.exists(mirror_surface_csv):
                     df_mirror = pd.read_csv(mirror_surface_csv)
-                    df_mirror.insert(0, 'DWI_Pipeline_ID', f'sub-{subject_id}_ses-{session_id}')
-                    df_mirror.insert(1, 'Subject', f'sub-{subject_id}')
-                    df_mirror.insert(2, 'Session', f'ses-{session_id}')
+                    df_mirror.insert(0, "DWI_Pipeline_ID", f"sub-{subject_id}_ses-{session_id}")
+                    df_mirror.insert(1, "Subject", f"sub-{subject_id}")
+                    df_mirror.insert(2, "Session", f"ses-{session_id}")
                     mirror_surface_parameters_df = pd.concat([mirror_surface_parameters_df, df_mirror], ignore_index=True)
 
+                # Visual Pathway: Along-tract DWI metrics
+                alongtract_specs = [
+                    ("L", "OR", alongtract_L_OR_csv, alongtract_L_OR_df),
+                    ("L", "OT", alongtract_L_OT_csv, alongtract_L_OT_df),
+                    ("R", "OR", alongtract_R_OR_csv, alongtract_R_OR_df),
+                    ("R", "OT", alongtract_R_OT_csv, alongtract_R_OT_df),
+                ]
+
+                updated_alongtract_dfs = {}
+
+                for hemi, tract_label, csv_path, target_df in alongtract_specs:
+                    wide_metrics = _read_alongtract_metrics_wide(csv_path, n_points=100)
+
+                    if wide_metrics:
+                        row = {
+                            "DWI_Pipeline_ID": f"sub-{subject_id}_ses-{session_id}",
+                            "Subject": f"sub-{subject_id}",
+                            "Session": f"ses-{session_id}",
+                            "Hemisphere": hemi,
+                            "Tract": tract_label,
+                        }
+                        row.update(wide_metrics)
+                        target_df = pd.concat([target_df, pd.DataFrame([row])], ignore_index=True)
+
+                    updated_alongtract_dfs[(hemi, tract_label)] = target_df
+
+                alongtract_L_OR_df = updated_alongtract_dfs[("L", "OR")]
+                alongtract_L_OT_df = updated_alongtract_dfs[("L", "OT")]
+                alongtract_R_OR_df = updated_alongtract_dfs[("R", "OR")]
+                alongtract_R_OT_df = updated_alongtract_dfs[("R", "OT")]
+
+                # Visual Pathway: TDIweighted dwimap results
+                tdiweighted_specs = [
+                    ("L", "OR", tdiweighted_L_OR_csv, tdiweighted_L_OR_df),
+                    ("L", "OT", tdiweighted_L_OT_csv, tdiweighted_L_OT_df),
+                    ("R", "OR", tdiweighted_R_OR_csv, tdiweighted_R_OR_df),
+                    ("R", "OT", tdiweighted_R_OT_csv, tdiweighted_R_OT_df),
+                ]
+
+                updated_tdiweighted_dfs = {}
+
+                for hemi, tract_label, csv_path, target_df in tdiweighted_specs:
+                    metric_dict = _read_single_row_csv_as_dict(csv_path)
+
+                    if metric_dict:
+                        row = {
+                            "DWI_Pipeline_ID": f"sub-{subject_id}_ses-{session_id}",
+                            "Subject": f"sub-{subject_id}",
+                            "Session": f"ses-{session_id}",
+                            "Hemisphere": hemi,
+                            "Tract": tract_label,
+                        }
+                        row.update(metric_dict)
+                        target_df = pd.concat([target_df, pd.DataFrame([row])], ignore_index=True)
+
+                    updated_tdiweighted_dfs[(hemi, tract_label)] = target_df
+
+                tdiweighted_L_OR_df = updated_tdiweighted_dfs[("L", "OR")]
+                tdiweighted_L_OT_df = updated_tdiweighted_dfs[("L", "OT")]
+                tdiweighted_R_OR_df = updated_tdiweighted_dfs[("R", "OR")]
+                tdiweighted_R_OT_df = updated_tdiweighted_dfs[("R", "OT")]
+
         # Save results
-        alps_output_excel = os.path.join(self.output_path, 'alps_results.xlsx')
-        psmd_output_excel = os.path.join(self.output_path, 'psmd_results.xlsx')
-        pved_output_excel = os.path.join(self.output_path, 'pved_results.xlsx')
-        track_dwi_metrics_output_excel = os.path.join(self.output_path, 'track_dwi_metrics_results.xlsx')
-        mask_tensor_metrics_output_csv = os.path.join(self.output_path, "mask_tensor_metrics_results.csv")
-        mask_noddi_metrics_output_csv = os.path.join(self.output_path, "mask_noddi_metrics_results.csv")
-        surface_output_excel = os.path.join(self.output_path, 'surface_parameters_results.xlsx')
-        mirror_output_excel = os.path.join(self.output_path, 'mirror_surface_parameters_results.xlsx')
+        alps_output_excel = os.path.join(self.output_path, "alps_results.xlsx")
+        psmd_output_excel = os.path.join(self.output_path, "psmd_results.xlsx")
+        pved_output_excel = os.path.join(self.output_path, "pved_results.xlsx")
+        track_dwi_metrics_output_excel = os.path.join(self.output_path, "track_dwi_metrics_results.xlsx")
+
+        mean_dwimap_seedmask_output_csv = os.path.join(self.output_path, "mean_dwimap_seedmask_results.csv")
+        mean_dwimap_WMH_output_csv = os.path.join(self.output_path, "mean_dwimap_WMH_results.csv")
+        mean_dwimap_NAWM_output_csv = os.path.join(self.output_path, "mean_dwimap_NAWM_results.csv")
+
+        surface_output_excel = os.path.join(self.output_path, "surface_parameters_results.xlsx")
+        mirror_output_excel = os.path.join(self.output_path, "mirror_surface_parameters_results.xlsx")
+
+        alongtract_L_OR_output_csv = os.path.join(self.output_path, "alongtract_hemi-L_label-OR_results.csv")
+        alongtract_L_OT_output_csv = os.path.join(self.output_path, "alongtract_hemi-L_label-OT_results.csv")
+        alongtract_R_OR_output_csv = os.path.join(self.output_path, "alongtract_hemi-R_label-OR_results.csv")
+        alongtract_R_OT_output_csv = os.path.join(self.output_path, "alongtract_hemi-R_label-OT_results.csv")
+
+        tdiweighted_L_OR_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-L_label-OR_results.csv")
+        tdiweighted_L_OT_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-L_label-OT_results.csv")
+        tdiweighted_R_OR_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-R_label-OR_results.csv")
+        tdiweighted_R_OT_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-R_label-OT_results.csv")
+
         if not alps_results_df.empty:
             alps_results_df.to_excel(alps_output_excel, header=True, index=False)
             print(f"DTI-ALPS results saved to {alps_output_excel}")
         else:
             print("No DTI-ALPS results found.")
+
         if not psmd_results_df.empty:
             psmd_results_df.to_excel(psmd_output_excel, header=True, index=False)
             print(f"PSMD results saved to {psmd_output_excel}")
         else:
             print("No PSMD results found.")
+
         if not pved_results_df.empty:
             pved_results_df.to_excel(pved_output_excel, header=True, index=False)
             print(f"PVeD results saved to {pved_output_excel}")
         else:
             print("No PVeD results found.")
+
         if not track_dwi_metrics_df.empty:
             track_dwi_metrics_df.to_excel(track_dwi_metrics_output_excel, header=True, index=False)
             print(f"Track-based DWI metrics results saved to {track_dwi_metrics_output_excel}")
         else:
             print("No track-based DWI metrics results found.")
-        if not mask_tensor_metrics_df.empty:
-            mask_tensor_metrics_df.to_csv(mask_tensor_metrics_output_csv, index=False)
-            print(f"Mask-based tensor metrics saved to {mask_tensor_metrics_output_csv}")
-        else:
-            print("No mask-based tensor metrics results found.")
 
-        if not mask_noddi_metrics_df.empty:
-            mask_noddi_metrics_df.to_csv(mask_noddi_metrics_output_csv, index=False)
-            print(f"Mask-based NODDI metrics saved to {mask_noddi_metrics_output_csv}")
+        if not mean_dwimap_seedmask_df.empty:
+            mean_dwimap_seedmask_df.to_csv(mean_dwimap_seedmask_output_csv, index=False)
+            print(f"Mean dwimap seedmask results saved to {mean_dwimap_seedmask_output_csv}")
         else:
-            print("No mask-based NODDI metrics results found.")
+            print("No mean dwimap seedmask results found.")
 
-        # Save surface parameters
-        if 'session' in surface_parameters_df.columns:
-            surface_parameters_df.drop(columns=['session'], inplace=True)
-        if 'session' in mirror_surface_parameters_df.columns:
-            mirror_surface_parameters_df.drop(columns=['session'], inplace=True)
+        if not mean_dwimap_WMH_df.empty:
+            mean_dwimap_WMH_df.to_csv(mean_dwimap_WMH_output_csv, index=False)
+            print(f"Mean dwimap WMH results saved to {mean_dwimap_WMH_output_csv}")
+        else:
+            print("No mean dwimap WMH results found.")
+
+        if not mean_dwimap_NAWM_df.empty:
+            mean_dwimap_NAWM_df.to_csv(mean_dwimap_NAWM_output_csv, index=False)
+            print(f"Mean dwimap NAWM results saved to {mean_dwimap_NAWM_output_csv}")
+        else:
+            print("No mean dwimap NAWM results found.")
+
+        if "session" in surface_parameters_df.columns:
+            surface_parameters_df.drop(columns=["session"], inplace=True)
+        if "session" in mirror_surface_parameters_df.columns:
+            mirror_surface_parameters_df.drop(columns=["session"], inplace=True)
 
         if not surface_parameters_df.empty:
             surface_parameters_df.to_excel(surface_output_excel, header=True, index=False)
             print(f"Surface parameters results saved to {surface_output_excel}")
         else:
             print("No surface parameters found.")
+
         if not mirror_surface_parameters_df.empty:
             mirror_surface_parameters_df.to_excel(mirror_output_excel, header=True, index=False)
             print(f"Mirror surface parameters results saved to {mirror_output_excel}")
         else:
             print("No mirror surface parameters found.")
+
+        if not alongtract_L_OR_df.empty:
+            alongtract_L_OR_df.to_csv(alongtract_L_OR_output_csv, index=False)
+            print(f"Along-tract L OR metrics saved to {alongtract_L_OR_output_csv}")
+        else:
+            print("No along-tract L OR metrics found.")
+
+        if not alongtract_L_OT_df.empty:
+            alongtract_L_OT_df.to_csv(alongtract_L_OT_output_csv, index=False)
+            print(f"Along-tract L OT metrics saved to {alongtract_L_OT_output_csv}")
+        else:
+            print("No along-tract L OT metrics found.")
+
+        if not alongtract_R_OR_df.empty:
+            alongtract_R_OR_df.to_csv(alongtract_R_OR_output_csv, index=False)
+            print(f"Along-tract R OR metrics saved to {alongtract_R_OR_output_csv}")
+        else:
+            print("No along-tract R OR metrics found.")
+
+        if not alongtract_R_OT_df.empty:
+            alongtract_R_OT_df.to_csv(alongtract_R_OT_output_csv, index=False)
+            print(f"Along-tract R OT metrics saved to {alongtract_R_OT_output_csv}")
+        else:
+            print("No along-tract R OT metrics found.")
+
+        if not tdiweighted_L_OR_df.empty:
+            tdiweighted_L_OR_df.to_csv(tdiweighted_L_OR_output_csv, index=False)
+            print(f"TDIweighted L OR results saved to {tdiweighted_L_OR_output_csv}")
+        else:
+            print("No TDIweighted L OR results found.")
+
+        if not tdiweighted_L_OT_df.empty:
+            tdiweighted_L_OT_df.to_csv(tdiweighted_L_OT_output_csv, index=False)
+            print(f"TDIweighted L OT results saved to {tdiweighted_L_OT_output_csv}")
+        else:
+            print("No TDIweighted L OT results found.")
+
+        if not tdiweighted_R_OR_df.empty:
+            tdiweighted_R_OR_df.to_csv(tdiweighted_R_OR_output_csv, index=False)
+            print(f"TDIweighted R OR results saved to {tdiweighted_R_OR_output_csv}")
+        else:
+            print("No TDIweighted R OR results found.")
+
+        if not tdiweighted_R_OT_df.empty:
+            tdiweighted_R_OT_df.to_csv(tdiweighted_R_OT_output_csv, index=False)
+            print(f"TDIweighted R OT results saved to {tdiweighted_R_OT_output_csv}")
+        else:
+            print("No TDIweighted R OT results found.")

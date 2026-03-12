@@ -155,11 +155,11 @@ def merge_and_save_excel(
 
 if __name__ == "__main__":
     merge_and_save_excel(
-        base_file_path=r"D:\WYJ\数据表\提取_merged.xlsx",
-        additional_file_path=r"D:\WYJ\数据表\HC.xlsx",
-        match_column_base=["ID"],
-        match_column_additional=["受试者编号"],
-        selected_columns="ALL_EXCEPT_MATCH",
+        base_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\raw\rawdata_20260303.xlsx",
+        additional_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\source\brainage_results.xlsx",
+        match_column_base=["Subject", "Session"],
+        match_column_additional=["Subject", "Session"],
+        selected_columns=["BrainAge_brainageR"],
         prefix="",
         zfill_columns={},
         update_same_name_mode="fillna",   # "overwrite" or "fillna" or "keep_base"

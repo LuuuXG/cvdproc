@@ -2,6 +2,7 @@ import os
 import gzip
 import numpy as np
 import nibabel as nib
+from scipy.io import loadmat
 from nibabel.streamlines import Tractogram, TckFile
 
 from nipype.interfaces.base import (
@@ -9,72 +10,27 @@ from nipype.interfaces.base import (
     BaseInterfaceInputSpec,
     TraitedSpec,
     File,
-    traits,
 )
 
 
-def locate_tt_data_offset(track_bytes, min_consecutive=3, max_scan_bytes=8 * 1024 * 1024):
-    buf = memoryview(track_bytes)
-    L = len(buf)
-    scan_limit = min(L, max_scan_bytes)
-
-    def valid_record_at(p):
-        if p + 4 > L:
-            return None
-        size = np.frombuffer(buf[p:p+4], dtype="<u4", count=1)[0]
-        if size == 0 or (size % 3) != 0:
-            return None
-        npts = int(size // 3)
-        if npts < 2:
-            return None
-        total_len = int(size + 13)
-        if p + total_len > L:
-            return None
-        payload = buf[p+4:p+total_len]
-        if len(payload) != (12 + (npts - 1) * 3):
-            return None
-        return total_len
-
-    p = 0
-    while p + 4 < scan_limit:
-        rec_len = valid_record_at(p)
-        if rec_len is None:
-            p += 1
-            continue
-
-        ok = 1
-        q = p + rec_len
-        while ok < min_consecutive:
-            rec_len2 = valid_record_at(q)
-            if rec_len2 is None:
-                break
-            ok += 1
-            q += rec_len2
-
-        if ok >= min_consecutive:
-            return p
-
-        p += 1
-
-    raise RuntimeError("Cannot locate TT streamline data offset.")
-
-
-def parse_tt(track_bytes, start_offset=0):
-    buf1 = np.frombuffer(track_bytes, dtype=np.uint8)
+def parse_tt(track_bytes):
+    buf1 = np.array(track_bytes, dtype=np.uint8)
     buf2 = buf1.view(np.int8)
 
     streamlines = []
-    i = int(start_offset)
+    i = 0
     L = len(buf1)
 
     while i + 4 <= L:
         size = np.frombuffer(buf1[i:i+4].tobytes(), dtype=np.uint32)[0]
+
         if size == 0 or (size % 3) != 0:
             break
 
         npts = int(size // 3)
         rec_len = int(size + 13)
-        if i + rec_len > L or npts < 2:
+
+        if npts < 2 or i + rec_len > L:
             break
 
         x = np.frombuffer(buf1[i+4:i+8].tobytes(), dtype=np.int32)[0]
@@ -116,10 +72,13 @@ def tt_gz_to_tck_mm(tt_gz_path, ref_nii, out_tck):
     affine = img.affine
 
     with gzip.open(tt_gz_path, "rb") as f:
-        track_bytes = f.read()
+        mat = loadmat(f, squeeze_me=True, struct_as_record=False)
 
-    start_offset = locate_tt_data_offset(track_bytes)
-    streamlines_vox = parse_tt(track_bytes, start_offset=start_offset)
+    if "track" not in mat:
+        raise KeyError("No 'track' field found in TT file.")
+
+    track_bytes = np.asarray(mat["track"], dtype=np.uint8).ravel()
+    streamlines_vox = parse_tt(track_bytes)
 
     if len(streamlines_vox) == 0:
         raise RuntimeError("No streamlines parsed from TT.")
@@ -142,7 +101,7 @@ def tt_gz_to_tck_mm(tt_gz_path, ref_nii, out_tck):
 
 class TTGZToTCKInputSpec(BaseInterfaceInputSpec):
     tt_gz_path = File(exists=True, mandatory=True, desc="Input DSI Studio TT.GZ file")
-    ref_nii = File(exists=True, mandatory=True, desc="Reference NIfTI (defines target space and affine)")
+    ref_nii = File(exists=True, mandatory=True, desc="Reference NIfTI defining target affine")
     out_tck = File(mandatory=True, desc="Output TCK file path")
 
 
@@ -184,10 +143,13 @@ def tt_gz_to_prob_tdi(tt_gz_path, ref_nii, out_tdi):
     shape = img.shape[:3]
 
     with gzip.open(tt_gz_path, "rb") as f:
-        track_bytes = f.read()
+        mat = loadmat(f, squeeze_me=True, struct_as_record=False)
 
-    start_offset = locate_tt_data_offset(track_bytes)
-    streamlines_vox = parse_tt(track_bytes, start_offset=start_offset)
+    if "track" not in mat:
+        raise KeyError("No 'track' field found in TT file.")
+
+    track_bytes = np.asarray(mat["track"], dtype=np.uint8).ravel()
+    streamlines_vox = parse_tt(track_bytes)
 
     if len(streamlines_vox) == 0:
         raise RuntimeError("No streamlines parsed from TT.")
@@ -196,14 +158,13 @@ def tt_gz_to_prob_tdi(tt_gz_path, ref_nii, out_tdi):
     n_streamlines = len(streamlines_vox)
 
     for s in streamlines_vox:
-        # voxel -> mm
         pts = np.asarray(s, dtype=np.float64)
-        ones = np.ones((pts.shape[0], 1))
+
+        ones = np.ones((pts.shape[0], 1), dtype=np.float64)
         pts_h = np.concatenate([pts, ones], axis=1)
         pts_mm = (affine @ pts_h.T).T[:, :3]
 
-        # mm -> voxel (ref grid)
-        ones = np.ones((pts_mm.shape[0], 1))
+        ones = np.ones((pts_mm.shape[0], 1), dtype=np.float64)
         pts_mm_h = np.concatenate([pts_mm, ones], axis=1)
         ijk = (inv_affine @ pts_mm_h.T).T[:, :3]
 
@@ -219,28 +180,34 @@ def tt_gz_to_prob_tdi(tt_gz_path, ref_nii, out_tdi):
         if ijk.shape[0] == 0:
             continue
 
-        # unique voxels per streamline
         ijk_unique = np.unique(ijk, axis=0)
         tdi[ijk_unique[:, 0], ijk_unique[:, 1], ijk_unique[:, 2]] += 1.0
 
     tdi /= float(n_streamlines)
 
+    out_dir = os.path.dirname(os.path.abspath(out_tdi))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     out_img = nib.Nifti1Image(tdi, affine, img.header)
     out_img.set_data_dtype(np.float32)
     nib.save(out_img, out_tdi)
 
+    if not os.path.isfile(out_tdi):
+        raise RuntimeError(f"Failed to write TDI: {out_tdi}")
+
     return out_tdi
 
-# -------------------------
-# Nipype Interface
-# -------------------------
+
 class TTGZToTDIInputSpec(BaseInterfaceInputSpec):
     tt_gz_path = File(exists=True, mandatory=True, desc="Input DSI Studio TT.GZ file")
     ref_nii = File(exists=True, mandatory=True, desc="Reference NIfTI defining target grid")
     out_tdi = File(mandatory=True, desc="Output probabilistic TDI NIfTI")
 
+
 class TTGZToTDIOutputSpec(TraitedSpec):
     out_tdi = File(exists=True, desc="Output TDI NIfTI")
+
 
 class TTGZToTDI(BaseInterface):
     input_spec = TTGZToTDIInputSpec

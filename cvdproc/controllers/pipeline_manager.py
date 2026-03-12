@@ -62,6 +62,12 @@ class PipelineManager:
         elif pipeline_name.lower() == "anat_seg":
             from ..pipelines.smri.anat_seg_pipeline import AnatSegPipeline
             return AnatSegPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "brain_age":
+            from ..pipelines.smri.brainage_pipeline import BrainAgePipeline
+            return BrainAgePipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "hipsta":
+            from ..pipelines.smri.hipsta_pipeline import HipstaPipeline
+            return HipstaPipeline(subject, session, output_path=output_path, **kwargs)
         ########################
 
         #### Diffusion MRI ####

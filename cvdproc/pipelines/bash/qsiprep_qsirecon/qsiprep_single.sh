@@ -27,12 +27,14 @@ if [ -z "$preproc_dwi_file" ]; then
             --skip-bids-validation \
             --participant-label $subject_id \
             --session-id $session_id \
-            --nprocs 6 \
+            --nprocs 12 \
             --omp-nthreads 1 \
+            --mem-mb 16000 \
             --anat-modality T1w \
             --ignore t2w flair \
             --subject-anatomical-reference sessionwise \
             --skip-anat-based-spatial-normalization \
+            --b1-biascorrect-stage none \
             --output-resolution 2 \
             --hmc-model 3dSHORE \
             --fs-license-file /opt/freesurfer/license.txt \

@@ -31,11 +31,11 @@ class PrepareVPROIInputSpec(CommandLineInputSpec):
 class PrepareVPROIOutputSpec(TraitedSpec):
     lh_lgn_roi = File(desc="Left LGN ROI in DWI space")
     lh_lgn_dil1_roi = File(desc="Left LGN ROI dilated by 1 voxel in DWI space")
-    lh_lgn_dil3x_roi = File(desc="Left LGN ROI dilated by 3 voxels (in x axis) in DWI space")
+    lh_lgn_dilx_roi = File(desc="Left LGN ROI dilated (in x axis) in DWI space")
     lh_lgn_extendpart_roi = File(desc="Left LGN ROI extended part in DWI space")
     rh_lgn_roi = File(desc="Right LGN ROI in DWI space")
     rh_lgn_dil1_roi = File(desc="Right LGN ROI dilated by 1 voxel in DWI space")
-    rh_lgn_dil3x_roi = File(desc="Right LGN ROI dilated by 3 voxels (in x axis) in DWI space")
+    rh_lgn_dilx_roi = File(desc="Right LGN ROI dilated (in x axis) in DWI space")
     rh_lgn_extendpart_roi = File(desc="Right LGN ROI extended part in DWI space")
     lh_v1_roi = File(desc="Left V1 ROI in DWI space")
     lh_v1_ext2_roi = File(desc="Left V1 ROI extended by 2mm in DWI space")
@@ -47,7 +47,7 @@ class PrepareVPROIOutputSpec(TraitedSpec):
 class PrepareVPROI(CommandLine):
     input_spec = PrepareVPROIInputSpec
     output_spec = PrepareVPROIOutputSpec
-    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'visual_pathway_project', 'prepare_roi2.sh')
+    _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'visual_pathway_project', 'prepare_roi.sh')
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -55,11 +55,11 @@ class PrepareVPROI(CommandLine):
 
         outputs['lh_lgn_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-LGN_mask.nii.gz")
         outputs['lh_lgn_dil1_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-LGN_desc-dilate1_mask.nii.gz")
-        outputs['lh_lgn_dil3x_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-LGN_desc-dilate3x_mask.nii.gz")
+        outputs['lh_lgn_dilx_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-LGN_desc-dilate5x_mask.nii.gz")
         outputs['lh_lgn_extendpart_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-LGN_desc-extendpart_mask.nii.gz")
         outputs['rh_lgn_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-R_space-{self.inputs.space_entity}_label-LGN_mask.nii.gz")
         outputs['rh_lgn_dil1_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-R_space-{self.inputs.space_entity}_label-LGN_desc-dilate1_mask.nii.gz")
-        outputs['rh_lgn_dil3x_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-R_space-{self.inputs.space_entity}_label-LGN_desc-dilate3x_mask.nii.gz")
+        outputs['rh_lgn_dilx_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-R_space-{self.inputs.space_entity}_label-LGN_desc-dilate5x_mask.nii.gz")
         outputs['rh_lgn_extendpart_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-R_space-{self.inputs.space_entity}_label-LGN_desc-extendpart_mask.nii.gz")
         outputs['lh_v1_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-V1exvivo_mask.nii.gz")
         outputs['lh_v1_ext2_roi'] = os.path.join(output_dir, f"sub-{self.inputs.subject_id}_ses-{self.inputs.session_id}_hemi-L_space-{self.inputs.space_entity}_label-V1exvivo_desc-extend2mm_mask.nii.gz")

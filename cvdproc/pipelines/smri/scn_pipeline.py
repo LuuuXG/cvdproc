@@ -40,21 +40,23 @@ class SCNPipeline:
 
         # handle freesurfer outputs
         if self.use_freesurfer_clinical:
-            fs_subjects_dir = os.path.dirname(self.session.freesurfer_clinical_dir)
-            fs_subject_id = os.path.basename(self.session.freesurfer_clinical_dir)
             if self.session.freesurfer_clinical_dir is None:
                 raise FileNotFoundError("[SCN Pipeline] Freesurfer clinical directory not found, but use_freesurfer_clinical is set to True.")
+            
+            fs_subjects_dir = os.path.dirname(self.session.freesurfer_clinical_dir)
+            fs_subject_id = os.path.basename(self.session.freesurfer_clinical_dir)
         else:
-            fs_subjects_dir = os.path.dirname(self.session.freesurfer_dir)
-            fs_subject_id = os.path.basename(self.session.freesurfer_dir)
             if self.session.freesurfer_dir is None:
                 raise FileNotFoundError("[SCN Pipeline] Freesurfer directory not found.")
+            
+            fs_subjects_dir = os.path.dirname(self.session.freesurfer_dir)
+            fs_subject_id = os.path.basename(self.session.freesurfer_dir)
         
         inputnode = Node(IdentityInterface(fields=['fs_subjects_dir', 'fs_subject_id', 'fs_dir']),
                          name='inputnode')
         inputnode.inputs.fs_subjects_dir = fs_subjects_dir
         inputnode.inputs.fs_subject_id = fs_subject_id
-        inputnode.inputs.fs_dir = self.session.freesurfer_dir
+        inputnode.inputs.fs_dir = os.path.join(fs_subjects_dir, fs_subject_id)
 
         if 'MIND' in self.method:
             from cvdproc.pipelines.smri.scn.scn_nipype import MINDCompute

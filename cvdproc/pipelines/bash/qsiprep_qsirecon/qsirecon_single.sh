@@ -25,7 +25,7 @@ if [ -z "$fib_file" ]; then
     --session-id $session_id \
     --fs-license-file /opt/freesurfer/license.txt \
     --recon-spec dsi_studio_gqi \
-    --nprocs 8 \
+    --nprocs 2 \
     --omp-nthreads 1 \
     --atlases AAL116 \
     --input-type qsiprep \

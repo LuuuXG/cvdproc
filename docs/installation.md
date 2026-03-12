@@ -8,6 +8,10 @@ git clone https://github.com/LuuuXG/cvdproc.git
 ```
 Or download it manually from the [GitHub homepage](https://github.com/LuuuXG/cvdproc).
 
+The `cvdproc/data/` directory is excluded from the repository due to its large size. Please download the required data files from the following link: [Download data.zip](https://drive.google.com/file/d/1hFVFhlc0BE4_db81LN7yEU-JIhXySN85/view?usp=sharing)
+
+After downloading, unzip and place the contents into `./cvdproc/data/` (the same level with `pipelines`)
+
 ## Installation
 Please create a new conda environment, which is more suitable for this package.
 

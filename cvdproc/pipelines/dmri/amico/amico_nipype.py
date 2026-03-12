@@ -16,13 +16,34 @@ class AmicoNoddiInputSpec(BaseInterfaceInputSpec):
     mask = File(exists=True, desc="Path to the brain mask NIfTI file", mandatory=True)
     output_dir = Directory(desc="Directory to save AMICO NODDI results", mandatory=True)
 
-    direction_filename = Str("fit_dir.nii.gz", desc="Filename for the direction map")
-    icvf_filename = Str("fit_NDI.nii.gz", desc="Filename for the ICVF map")
-    isovf_filename = Str("fit_FWF.nii.gz", desc="Filename for the ISOVF map")
-    od_filename = Str("fit_ODI.nii.gz", desc="Filename for the ODI map")
-    modulated_icvf_filename = Str("fit_NDI_modulated.nii.gz", desc="Filename for the modulated ICVF map")
-    modulated_od_filename = Str("fit_ODI_modulated.nii.gz", desc="Filename for the modulated ODI map")
-    config_filename = Str("config.pickle", desc="Filename for the AMICO config file")
+    direction_filename = traits.Str(
+    default_value="fit_dir.nii.gz", usedefault=True,
+    desc="Filename for the direction map"
+    )
+    icvf_filename = traits.Str(
+        default_value="fit_NDI.nii.gz", usedefault=True,
+        desc="Filename for the ICVF map"
+    )
+    isovf_filename = traits.Str(
+        default_value="fit_FWF.nii.gz", usedefault=True,
+        desc="Filename for the ISOVF map"
+    )
+    od_filename = traits.Str(
+        default_value="fit_ODI.nii.gz", usedefault=True,
+        desc="Filename for the ODI map"
+    )
+    modulated_icvf_filename = traits.Str(
+        default_value="fit_NDI_modulated.nii.gz", usedefault=True,
+        desc="Filename for the modulated ICVF map"
+    )
+    modulated_od_filename = traits.Str(
+        default_value="fit_ODI_modulated.nii.gz", usedefault=True,
+        desc="Filename for the modulated ODI map"
+    )
+    config_filename = traits.Str(
+        default_value="config.pickle", usedefault=True,
+        desc="Filename for the AMICO config file"
+    )
 
 
 class AmicoNoddiOutputSpec(TraitedSpec):
@@ -147,3 +168,12 @@ class AmicoNoddi(BaseInterface):
 
 # class AmicoSANDIInputSpec(BaseInterfaceInputSpec):
 #     dwi = File(exists=True, mandatory=True, desc="Input DWI file")
+
+if __name__ == "__main__":
+    noddi_test_node = AmicoNoddi()
+    noddi_test_node.inputs.dwi = "/mnt/e/Neuroimage/workdir/amico/sub-HC0128_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.nii.gz"
+    noddi_test_node.inputs.bval = "/mnt/e/Neuroimage/workdir/amico/sub-HC0128_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi.bval"
+    noddi_test_node.inputs.bvec = "/mnt/e/Neuroimage/workdir/amico/sub-HC0128_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-preproc_dwi_flipped.bvec"
+    noddi_test_node.inputs.mask = "/mnt/e/Neuroimage/workdir/amico/sub-HC0128_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_desc-brain_mask.nii.gz"
+    noddi_test_node.inputs.output_dir = "/mnt/e/Neuroimage/workdir/amico/output_flipped"
+    noddi_test_node.run()

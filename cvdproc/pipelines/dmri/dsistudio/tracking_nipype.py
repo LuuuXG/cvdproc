@@ -46,6 +46,7 @@ class DSIstudioTrackingInputSpec(CommandLineInputSpec):
     # additional args
     args = Str(desc='Additional command-line arguments', argstr='%s')
 
+    overwrite = Bool(True, usedefault=True, desc="Overwrite output if it already exists")
 class DSIstudioTrackingOutputSpec(TraitedSpec):
     output = Str(desc='Output tractography file.')
 
@@ -54,8 +55,17 @@ class DSIstudioTracking(CommandLine):
     input_spec = DSIstudioTrackingInputSpec
     output_spec = DSIstudioTrackingOutputSpec
 
+    def _run_interface(self, runtime):
+
+        output_file = self.inputs.output
+
+        if (not self.inputs.overwrite) and output_file and os.path.exists(output_file):
+            print(f"[DSIstudioTracking] Output exists, skipping: {output_file}")
+            return runtime
+
+        return super()._run_interface(runtime)
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['output'] = self.inputs.output
-        
         return outputs

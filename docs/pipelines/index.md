@@ -35,11 +35,13 @@ The detailed parameters for each pipeline can be found in the respective documen
 - [x] Lesion Preprocess ([lesion_analysis](./sMRI/lesion_analysis.md))
 - [x] Freesurfer recon-all/recon-all-clinical.sh ([freesurfer](./sMRI/freesurfer.md))
 - [x] FSL anat (fsl_anat)
-- [x] T1w Registration to MNI space (t1_register)
+- [x] T1w Registration to MNI space ([t1_register](./sMRI/t1_register.md))
 - [x] Anatomical Segmentation ([anat_seg](./sMRI/anat_seg.md))
 - [x] WMH Quantification ([wmh_quantification](./sMRI/wmh_quantification.md))
 - [x] PVS Quantification ([pvs_quantification](./sMRI/pvs_quantification.md))
-- [x] CMB Quantification (cmb_quantification)
+- [x] CMB Quantification (cmb_quantification)mkdocs serve
+- [x] Brain Age Estimation ([brain_age](./sMRI/brainage.md))
+- [x] HIPSTA ([hipsta](./sMRI/hipsta.md))
 
 ### Diffusion MRI (dMRI) Pipelines
 - [x] General DWI Processing ([dwi_pipeline](./dMRI/dwi_pipeline.md))

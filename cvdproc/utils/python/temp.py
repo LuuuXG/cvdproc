@@ -1,165 +1,80 @@
 import os
-import glob
-import subprocess
-from typing import List, Dict, Optional
-
-import pandas as pd
-
-from cvdproc.utils.python.basic_image_processor import extract_roi_means
+import gzip
+import numpy as np
+from collections import Counter
+from scipy.io import loadmat
 
 
-DWI_PIPELINE_ROOT = "/mnt/f/BIDS/SVD_BIDS/derivatives/dwi_pipeline"
-REMOVE_TRACK_REGION_SCRIPT = "/mnt/e/codes/cvdproc/cvdproc/pipelines/bash/mrtrix3/remove_conn_region.sh"
+def parse_tt(track_bytes):
+    buf1 = np.array(track_bytes, dtype=np.uint8)
+    buf2 = buf1.view(np.int8)
+    pos, i, L = [], 0, len(buf1)
 
-OUTPUT_CSV = os.path.join(DWI_PIPELINE_ROOT, "NAWM_without_track_mean_FA_MD.csv")
+    while i < L:
+        pos.append(i)
+        size = np.frombuffer(buf1[i:i+4].tobytes(), dtype=np.uint32)[0]
+        i += size + 13
 
-THR = "2e-4"  # passed via environment variable THR to the bash script
-FORCE_RERUN_MASK = False  # if True, rerun mask generation even if outputs exist
+    streamlines = []
+    for p in pos:
+        npts = np.frombuffer(buf1[p:p+4].tobytes(), dtype=np.uint32)[0] // 3
+        x = np.frombuffer(buf1[p+4:p+8].tobytes(), dtype=np.int32)[0]
+        y = np.frombuffer(buf1[p+8:p+12].tobytes(), dtype=np.int32)[0]
+        z = np.frombuffer(buf1[p+12:p+16].tobytes(), dtype=np.int32)[0]
 
+        coords = np.zeros((npts, 3), dtype=np.float32)
+        coords[0] = [x, y, z]
 
-def parse_subject_session(dwi_pipeline_output_dir: str) -> Dict[str, str]:
-    parts = os.path.normpath(dwi_pipeline_output_dir).split(os.sep)
-    subj = ""
-    ses = ""
-    for p in parts:
-        if p.startswith("sub-"):
-            subj = p
-        if p.startswith("ses-"):
-            ses = p
-    return {"subject": subj, "session": ses}
+        q = p + 16
+        for j in range(1, npts):
+            x += int(buf2[q])
+            y += int(buf2[q + 1])
+            z += int(buf2[q + 2])
+            q += 3
+            coords[j] = [x, y, z]
 
+        streamlines.append(coords / 32.0)
 
-def required_inputs_exist(dwi_dir: str) -> Optional[Dict[str, str]]:
-    fa_file = os.path.join(dwi_dir, "dti_FA.nii.gz")
-    md_file = os.path.join(dwi_dir, "dti_MD.nii.gz")
-    nawm_mask = os.path.join(dwi_dir, "dwi_metrics_stats", "WM_final.nii.gz")
-    track = os.path.join(dwi_dir, "tckgen_output", "tracked.tck")
-
-    req = {
-        "fa_file": fa_file,
-        "md_file": md_file,
-        "nawm_mask": nawm_mask,
-        "track": track,
-    }
-
-    for k, v in req.items():
-        if not os.path.isfile(v):
-            return None
-
-    return req
+    return streamlines
 
 
-def ensure_dir(path: str) -> None:
-    d = os.path.dirname(path)
-    if d:
-        os.makedirs(d, exist_ok=True)
+tt_file = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/visual_pathway_analysis/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OR_desc-voxelspace_streamlines.tt.gz"
 
+if not os.path.isfile(tt_file):
+    raise FileNotFoundError(f"TT file not found: {tt_file}")
 
-def run_remove_track_region(
-    nawm_mask: str,
-    track: str,
-    out_tract_mask: str,
-    out_tdi_norm: str,
-    out_wm_mask: str,
-) -> None:
-    ensure_dir(out_tract_mask)
-    ensure_dir(out_tdi_norm)
-    ensure_dir(out_wm_mask)
+with gzip.open(tt_file, "rb") as f:
+    mat = loadmat(f, squeeze_me=True, struct_as_record=False)
 
-    env = os.environ.copy()
-    env["THR"] = THR
+if "track" not in mat:
+    raise KeyError("No 'track' field found in TT file.")
 
-    cmd = [
-        "bash",
-        REMOVE_TRACK_REGION_SCRIPT,
-        nawm_mask,
-        track,
-        out_tract_mask,
-        out_tdi_norm,
-        out_wm_mask,
-    ]
-    subprocess.run(cmd, check=True, env=env)
+streamlines = parse_tt(mat["track"])
+point_counts = np.array([len(sl) for sl in streamlines], dtype=int)
 
+if point_counts.size == 0:
+    raise RuntimeError("No streamlines found in the TT file.")
 
-def extract_mean_in_mask(metric_nii: str, mask_nii: str, out_csv: str) -> float:
-    ensure_dir(out_csv)
-    _, means = extract_roi_means(
-        input_image=metric_nii,
-        roi_image=mask_nii,
-        ignore_background=True,
-        roi_label=[1],
-        output_csv=out_csv,
-    )
-    if means is None or len(means) == 0:
-        raise RuntimeError(f"Empty mean result for: metric={metric_nii}, mask={mask_nii}")
-    return float(means[0])
+print(f"TT file: {tt_file}")
+print(f"Number of streamlines: {point_counts.size}")
+print(f"Min points per streamline: {point_counts.min()}")
+print(f"Max points per streamline: {point_counts.max()}")
+print(f"Mean points per streamline: {point_counts.mean():.2f}")
+print(f"Median points per streamline: {np.median(point_counts):.2f}")
+print()
 
+count_table = Counter(point_counts)
+print("Point count distribution:")
+for n_points in sorted(count_table):
+    print(f"{n_points}: {count_table[n_points]}")
 
-def main() -> None:
-    if not os.path.isfile(REMOVE_TRACK_REGION_SCRIPT):
-        raise FileNotFoundError(f"remove_track_region script not found: {REMOVE_TRACK_REGION_SCRIPT}")
-
-    session_dirs = sorted(glob.glob(os.path.join(DWI_PIPELINE_ROOT, "sub-*", "ses-*")))
-    rows: List[Dict[str, object]] = []
-
-    for dwi_dir in session_dirs:
-        meta = parse_subject_session(dwi_dir)
-        subject = meta["subject"]
-        session = meta["session"]
-
-        req = required_inputs_exist(dwi_dir)
-        if req is None:
-            continue
-
-        fa_file = req["fa_file"]
-        md_file = req["md_file"]
-        nawm_mask = req["nawm_mask"]
-        track = req["track"]
-
-        out_tract_mask = os.path.join(dwi_dir, "tckgen_output", "track_mask.nii.gz")
-        out_tdi_norm = os.path.join(dwi_dir, "tckgen_output", "track_tdi_norm.nii.gz")
-        out_wm_mask = os.path.join(dwi_dir, "dwi_metrics_stats", "NAWM_without_track.nii.gz")
-
-        try:
-            if FORCE_RERUN_MASK or (not os.path.isfile(out_wm_mask)):
-                run_remove_track_region(
-                    nawm_mask=nawm_mask,
-                    track=track,
-                    out_tract_mask=out_tract_mask,
-                    out_tdi_norm=out_tdi_norm,
-                    out_wm_mask=out_wm_mask,
-                )
-
-            fa_mean = extract_mean_in_mask(
-                metric_nii=fa_file,
-                mask_nii=out_wm_mask,
-                out_csv=os.path.join(dwi_dir, "dwi_metrics_stats", "NAWM_without_track_FA.csv"),
-            )
-            md_mean = extract_mean_in_mask(
-                metric_nii=md_file,
-                mask_nii=out_wm_mask,
-                out_csv=os.path.join(dwi_dir, "dwi_metrics_stats", "NAWM_without_track_MD.csv"),
-            )
-
-            rows.append(
-                {
-                    "subject": subject,
-                    "session": session,
-                    "FA": fa_mean,
-                    "MD": md_mean,
-                }
-            )
-
-        except Exception as e:
-            print(f"[WARN] Failed: {subject} {session} | {dwi_dir} | {e}")
-
-    df = pd.DataFrame(rows, columns=["subject", "session", "FA", "MD"])
-    df = df.sort_values(["subject", "session"]).reset_index(drop=True)
-    df.to_csv(OUTPUT_CSV, index=False)
-
-    print(f"Saved: {OUTPUT_CSV}")
-    print(f"Rows: {len(df)}")
-
-
-if __name__ == "__main__":
-    main()
+print()
+if np.all(point_counts == 100):
+    print("All streamlines have exactly 100 points.")
+else:
+    print("Not all streamlines have 100 points.")
+    bad_idx = np.where(point_counts != 100)[0]
+    print(f"Number of streamlines not equal to 100 points: {len(bad_idx)}")
+    print("First 20 abnormal streamlines:")
+    for idx in bad_idx[:20]:
+        print(f"Streamline {idx}: {point_counts[idx]} points")

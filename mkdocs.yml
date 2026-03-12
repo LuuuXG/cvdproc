@@ -16,6 +16,8 @@ nav:
           - Anatomical Segmentation: pipelines/sMRI/anat_seg.md
           - WMH Quantification: pipelines/sMRI/wmh_quantification.md
           - PVS Quantification: pipelines/sMRI/pvs_quantification.md
+          - Brain Age Estimation: pipelines/sMRI/brainage.md
+          - HIPSTA: pipelines/sMRI/hipsta.md
       - Diffusion MRI (dMRI) Pipelines:
           - DWI Preprocessing and Analysis: pipelines/dMRI/dwi_pipeline.md
           - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
@@ -24,7 +26,7 @@ nav:
           - Sepia QSM: pipelines/qMRI/sepia_qsm.md
       - Perfusion MRI (PWI) Pipelines:
           - PWI Pipeline: pipelines/pwi/pwi_pipeline.md
-  - Containers Used: containers.md
+  - Containers Used and Docker Notes: containers.md
   - Publications: publications.md
 
 markdown_extensions:

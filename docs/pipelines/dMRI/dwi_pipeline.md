@@ -75,11 +75,15 @@ PSMD (Peak Width of Skeletonized Mean Diffusivity), considered a marker of white
 
 #### DTI-ALPS
 
+![DTI-ALPS](./DTI-ALPS.png)
+
 DTI-ALPS (Diffusion Tensor Image Analysis along the Perivascular Space) is calculated using a customized [script](https://github.com/gbarisano/alps).
 
 The original method was proposed in [@taoka2017evaluation]. It is important to note that multiple studies have suggested that DTI-ALPS should not be simply interpreted as a reflection of glymphatic function. Instead, DTI-ALPS likely reflects complex changes in brain microstructure, pointing to a more comprehensive neurodegenerative mechanism [@li2025microstructural].
 
 #### PVeD
+
+![PVeD](./PVeD.png)
 
 periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain [@chen2025periventricular]. It is calculated using the official [EstPVeD](https://github.com/ChangleChen/EstPVeD) script.
 

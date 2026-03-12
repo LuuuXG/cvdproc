@@ -1308,33 +1308,3 @@ class RefineVP(BaseInterface):
         outputs["refined_lh_ml"] = self._refined_lh_ml
         outputs["refined_rh_ml"] = self._refined_rh_ml
         return outputs
-
-if __name__== "__main__":
-
-    filter_split_by_meyersloop_keep_lgn_segment(
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR.tt.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/anat/sub-HC0062_ses-baseline_hemi-L_space-ACPC_label-LGN_desc-dilate3x_mask.nii.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/anat/sub-HC0062_ses-baseline_hemi-L_space-ACPC_desc-roi4meyersloop_mask.nii.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_1.tt.gz'
-    )
-
-    refine_and_orient_tt_by_roi(
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_1.tt.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/anat/sub-HC0062_ses-baseline_hemi-L_space-ACPC_label-LGN_desc-dilate3x_mask.nii.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/anat/sub-HC0062_ses-baseline_hemi-L_space-ACPC_label-V1exvivo_desc-extend2mm_mask.nii.gz',
-        '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_2.tt.gz',
-        distance_limit=None,
-        direction="roi_to_end",
-        keep_full_end=True
-    )
-
-    interpolate_tt('/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_2.tt.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_3.tt.gz', n_points_new=100, tie_at_center=True)
-
-    filter_or_tt_by_direction_window(
-        input_tt='/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_3.tt.gz',
-        output_tt='/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0062/ses-baseline/visual_pathway_analysis/raw_tracts/lh_OR_4.tt.gz',
-        side="right",
-        start_idx=20,
-        end_idx=40,
-        threshold=0.01
-    )

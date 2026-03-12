@@ -221,3 +221,37 @@ if __name__ == "__main__":
     node.inputs.ignore_background = True
 
     res = node.run()
+
+# ------------------------
+# Combine Two Binary Masks
+# ------------------------
+class CombineMasksInputSpec(BaseInterfaceInputSpec):
+    mask1 = File(exists=True, mandatory=True, desc="First binary mask NIfTI file")
+    mask2 = File(exists=True, mandatory=True, desc="Second binary mask NIfTI file")
+    output_mask = File(mandatory=True, desc="Output combined binary mask NIfTI file")
+
+class CombineMasksOutputSpec(TraitedSpec):
+    output_mask = File(exists=True, desc="Output combined binary mask NIfTI file")
+
+class CombineMasks(BaseInterface):
+    input_spec = CombineMasksInputSpec
+    output_spec = CombineMasksOutputSpec
+
+    def _run_interface(self, runtime):
+        # Load the two binary masks
+        mask1_img = nib.load(self.inputs.mask1)
+        mask2_img = nib.load(self.inputs.mask2)
+
+        # Combine the masks using logical OR
+        combined_data = np.logical_or(mask1_img.get_fdata(), mask2_img.get_fdata()).astype(np.uint8)
+
+        # Save the combined mask
+        combined_img = nib.Nifti1Image(combined_data, mask1_img.affine, mask1_img.header)
+        nib.save(combined_img, self.inputs.output_mask)
+
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["output_mask"] = os.path.abspath(self.inputs.output_mask)
+        return outputs

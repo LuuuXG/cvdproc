@@ -3,7 +3,6 @@ from nipype.interfaces.base import (CommandLineInputSpec, CommandLine, traits, T
 from traits.api import Directory, Str, List, Bool, Enum, Int, Float, TraitError, Either
 
 # binarize an image under a threshold
-
 class FSLMathsUnderThrInputSpec(CommandLineInputSpec):
     in_file = File(exists=True, mandatory=True, argstr='%s', position=0, desc='Input image file')
     threshold = Float(mandatory=True, argstr='-uthr %f', position=1, desc='Upper threshold value')

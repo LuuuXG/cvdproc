@@ -567,13 +567,9 @@ class TckSampleMultiScalarBundle(BaseInterface):
 
 if __name__ == "__main__":
     from nipype import Node
-    tck_dwimap_node = Node(TckSampleMultiScalarBundle(), name="tck_dwimap")
-    tck_dwimap_node.inputs.tck_file = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/visual_pathway_analysis/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OR_streamlines.tck"
-    tck_dwimap_node.inputs.stat_tck = 'mean'
-    tck_dwimap_node.inputs.scalar_files = [
-        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/NODDI/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz",
-        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/NODDI/sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-isovf_dwimap.nii.gz"
-    ]
-    tck_dwimap_node.inputs.scalar_names = ["ICVF", "ISOVF"]
-    tck_dwimap_node.inputs.output_csv = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-AFib0241/ses-baseline/visual_pathway_analysis/L_OR_ICVF_ISOVF.csv"
+    tck_dwimap_node = Node(TckSampleMultiScalarProfile(), name="tck_dwimap")
+    tck_dwimap_node.inputs.tck_file = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/visual_pathway_analysis/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OR_streamlines.tck"
+    tck_dwimap_node.inputs.scalar_files = ['/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/dtifit/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-tensor_param-fa_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/dtifit/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-tensor_param-md_dwimap.nii.gz', '', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/NODDI/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-odi_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/NODDI/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/NODDI/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-isovf_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/qsirecon-DSIStudio/sub-HC0086/ses-baseline/dwi/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-gqi_param-gfa_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/qsirecon-DSIStudio/sub-HC0086/ses-baseline/dwi/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-gqi_param-iso_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/qsirecon-DSIStudio/sub-HC0086/ses-baseline/dwi/sub-HC0086_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-gqi_param-qa_dwimap.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/anat/sub-HC0086_ses-baseline_space-ACPC_Chidia.nii.gz', '/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/anat/sub-HC0086_ses-baseline_space-ACPC_label-WMH_desc-truenet_probmap.nii.gz']
+    tck_dwimap_node.inputs.scalar_names = ['FA', 'MD', 'FW (MarkVCID2)', 'ODI', 'ICVF', 'ISOVF', 'GQI_GFA', 'GQI_ISO', 'GQI_QA', 'CHIDIA', 'WMHprobmap']
+    tck_dwimap_node.inputs.output_csv = "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/sub-HC0086/ses-baseline/dwi_metrics_stats/sub-HC0086_ses-baseline_hemi-L_label-OR_desc-alongtract_dwimap.csv"
     tck_dwimap_node.run()

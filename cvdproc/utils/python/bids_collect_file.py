@@ -43,9 +43,9 @@ def collect_files_by_pattern(bids_deriv_root, subfolder_path, target_filename, h
 
 if __name__ == '__main__':
     collect_files_by_pattern(
-        bids_deriv_root="/mnt/f/BIDS/SVD_BIDS/derivatives/nemo",
-        subfolder_path="",
-        target_filename="seed_mask_in_mni_nemo_output_ifod2act_chacovol_res1mm_smooth6mm_mean.nii.gz",
-        have_id=True,
-        output_dir="/mnt/f/BIDS/SVD_BIDS/derivatives/nemo_mean_mni"
+        bids_deriv_root="/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline",
+        subfolder_path="visual_pathway_analysis",
+        target_filename="QC.png",
+        have_id=False,
+        output_dir="/mnt/f/BIDS/WCH_AF_Project/derivatives/population/vp_QC"
     )

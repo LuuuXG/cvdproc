@@ -1,13 +1,7 @@
 import os
-import shutil
-import subprocess
+import glob
 import nibabel as nib
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-import re
-from scipy.ndimage import label, sum
-from skimage.measure import marching_cubes, mesh_surface_area
 from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Merge, Function
 from ....bids_data.rename_bids_file import rename_bids_file
@@ -23,8 +17,7 @@ from ..fsl.distancemap_nipype import DistanceMap
 from cvdproc.pipelines.common.files import CopyFileCommandLine
 from cvdproc.pipelines.smri.fsl.fslmaths_thr import FSLMathsUnderThr, FSLMathsThr
 from cvdproc.pipelines.smri.fsl.make_bianca_mask_nipype import MakeBIANCAMask
-from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApplyWarp, TwoStepNormalization
-from ..freesurfer.synthSR import SynthSR
+from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApplyWarp
 from ..freesurfer.synthstrip import SynthStrip
 from cvdproc.pipelines.smri.freesurfer.synthseg import SynthSeg
 from ...common.register import ModalityRegistration, Tkregister2fs2t1w
@@ -32,6 +25,7 @@ from ...common.register import ModalityRegistration, Tkregister2fs2t1w
 from cvdproc.pipelines.common.extract_region import ExtractRegion
 from cvdproc.pipelines.common.calculate_volume import CalculateVolume
 from cvdproc.pipelines.common.calculate_roi_volume import CalculateROIVolume
+from cvdproc.pipelines.common.image_calc import CombineMasks
 
 from cvdproc.config.paths import get_package_path
 
@@ -52,6 +46,7 @@ class WMHSegmentationPipeline:
                  use_bianca_mask: bool = False,
                  normalize_to_mni: bool = False,
                  shape_features: bool = False,
+                 extract_from: str = None,
                  **kwargs):
         """
         WMH Segmentation and Quantification Pipeline
@@ -69,6 +64,7 @@ class WMHSegmentationPipeline:
             use_bianca_mask: whether to use BIANCA white matter mask to constrain WMH segmentation
             normalize_to_mni: whether to normalize the WMH mask to MNI space
             shape_features: whether to calculate shape features for each WMH cluster (need normalize_to_mni=True and location_method contains 'Fazekas')
+            extract_from (str, optional): Folder name to extract results from
         """
         self.subject = subject
         self.session = session
@@ -82,6 +78,7 @@ class WMHSegmentationPipeline:
         self.use_bianca_mask = use_bianca_mask
         self.normalize_to_mni = normalize_to_mni
         self.shape_features = shape_features
+        self.extract_from = extract_from
         self.kwargs = kwargs
 
     def check_data_requirements(self):
@@ -462,7 +459,7 @@ class WMHSegmentationPipeline:
             else:
                 wmh_workflow.connect(truenet_postprocess, 'wmh_mask', wmh_mask_node, 'wmh_mask_flair')
                 wmh_workflow.connect(truenet_postprocess, 'wmh_prob_map', wmh_mask_node, 'wmh_probmap_flair')
-            
+
         final_wmh_mask_node = Node(IdentityInterface(fields=["final_wmh_mask_flair", "final_wmh_mask_t1w"]), name="final_wmh_mask_node")
 
         if self.use_bianca_mask:
@@ -489,7 +486,36 @@ class WMHSegmentationPipeline:
         else:
             wmh_workflow.connect(wmh_mask_node, 'wmh_mask_flair', final_wmh_mask_node, 'final_wmh_mask_flair')
             wmh_workflow.connect(wmh_mask_node, 'wmh_mask_t1w', final_wmh_mask_node, 'final_wmh_mask_t1w')
-        
+
+        # --------------------------------
+        # Check T1 <-> MNI non-linear warp
+        # --------------------------------
+        if t1w_file != '':
+            t1_to_mni_warp_node = Node(IdentityInterface(fields=["warp_image"]), name="t1_to_mni_warp_node")
+            mni_to_t1_warp_node = Node(IdentityInterface(fields=["warp_image"]), name="mni_to_t1_warp_node")
+
+            # will use the T1w to MNI warp to transform WMH to MNI space
+            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+            target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+
+            if not os.path.exists(target_warp) or not os.path.exists(target_inverse_warp):
+                print(f"[WMH Pipeline] No existing T1w to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
+                print(f"[WMH Pipeline] If you want a different resolution, please run a separate T1 registration pipeline first.")
+                t1w_to_mni_registration = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
+                wmh_workflow.connect(inputnode, 't1w', t1w_to_mni_registration, 't1')
+                t1w_to_mni_registration.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
+                t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'T1w', '.nii.gz'))
+                t1w_to_mni_registration.inputs.t1_2_mni_warp = target_warp
+                t1w_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+                t1w_to_mni_registration.inputs.register_between_stripped = True
+
+                wmh_workflow.connect(t1w_to_mni_registration, 't1_2_mni_warp', t1_to_mni_warp_node, 'warp_image')
+                wmh_workflow.connect(t1w_to_mni_registration, 'mni_2_t1_warp', mni_to_t1_warp_node, 'warp_image')
+            else:
+                print(f"[WMH Pipeline] Found existing T1w to MNI warp file: {target_warp}. Will use it to transform WMH to MNI space.")
+                t1_to_mni_warp_node.inputs.warp_image = target_warp
+                mni_to_t1_warp_node.inputs.warp_image = target_inverse_warp
+
         # --------------------------
         # Part 2: WMH Quantification
         # --------------------------
@@ -522,9 +548,21 @@ class WMHSegmentationPipeline:
                     extract_ventmask.inputs.binarize = True
                     extract_ventmask.inputs.output_nii = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-LateralVentricle_desc-SynthSeg_mask.nii.gz")
 
+                    # Merge native-space LV mask with standard-space LV mask
+                    mni_lv_mask_to_native_space = Node(MRIConvertApplyWarp(), name='mni_lv_mask_to_native_space')
+                    mni_lv_mask_to_native_space.inputs.input_image = get_package_path('data', 'standard', 'MNI152', 'LV_mask_for_Fazekas.nii.gz')
+                    mni_lv_mask_to_native_space.inputs.output_image = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-LateralVentricle_desc-Predefined_mask.nii.gz")
+                    wmh_workflow.connect(mni_to_t1_warp_node, 'warp_image', mni_lv_mask_to_native_space, 'warp_image')
+                    mni_lv_mask_to_native_space.inputs.interp = 'nearest'
+
+                    merge_lv_masks = Node(CombineMasks(), name='merge_lv_masks')
+                    wmh_workflow.connect(extract_ventmask, 'out_nii', merge_lv_masks, 'mask1')
+                    wmh_workflow.connect(mni_lv_mask_to_native_space, 'output_image', merge_lv_masks, 'mask2')
+                    merge_lv_masks.inputs.output_mask = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-LateralVentricle_desc-Merged_mask.nii.gz")
+
                     # Calculate distancemap
                     distancemap = Node(DistanceMap(), name='distancemap')
-                    wmh_workflow.connect(extract_ventmask, 'out_nii', distancemap, 'in_file')
+                    wmh_workflow.connect(merge_lv_masks, 'output_mask', distancemap, 'in_file')
                     distancemap.inputs.out_file = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-SynthSeg_LateralVentricleDistancemap.nii.gz")
 
                     # Calculate 3mm and 10mm mask
@@ -542,7 +580,7 @@ class WMHSegmentationPipeline:
                     mask_10mm_vent_mask.inputs.binarize = True
                     mask_10mm_vent_mask.inputs.out_file = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-LateralVentricle10mm_desc-SynthSeg_mask.nii.gz")
 
-                    wmh_workflow.connect(extract_ventmask, 'out_nii', fazekas_classification, 'vent_mask')
+                    wmh_workflow.connect(merge_lv_masks, 'output_mask', fazekas_classification, 'vent_mask')
                     wmh_workflow.connect(mask_10mm_vent_mask, 'out_file', fazekas_classification, 'perivent_mask_10mm')
                     wmh_workflow.connect(mask_3mm_vent_mask, 'out_file', fazekas_classification, 'perivent_mask_3mm')
                     fazekas_classification.inputs.output_dir = self.output_path
@@ -768,33 +806,12 @@ class WMHSegmentationPipeline:
                     ]
                     wmh_to_mni_transform_node.inputs.interp = ['nearest', 'interpolate']
 
-                # will use the T1w to MNI warp to transform WMH to MNI space (2-step)
-                target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
-                
-                if not os.path.exists(target_warp):
-                    print(f"[WMH Pipeline] No existing T1w to MNI warp file found: {target_warp}. Will run Synthmorph registration to get the warp (1mm resolution).")
-                    print(f"[WMH Pipeline] If you want a different resolution, please run a separate T1 registration pipeline first.")
-                    t1w_to_mni_registration = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
-                    wmh_workflow.connect(inputnode, 't1w', t1w_to_mni_registration, 't1')
-                    t1w_to_mni_registration.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                    t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(os.path.dirname(target_warp), rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'T1w', '.nii.gz'))
-                    t1w_to_mni_registration.inputs.t1_2_mni_warp = target_warp
-                    t1w_to_mni_registration.inputs.mni_2_t1_warp = os.path.join(os.path.dirname(target_warp), f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
-                    t1w_to_mni_registration.inputs.register_between_stripped = True
+                wmh_workflow.connect(t1_to_mni_warp_node, 'warp_image', wmh_to_mni_transform_node, 'warp_image')
 
-                    wmh_workflow.connect(t1w_to_mni_registration, 't1_2_mni_warp', wmh_to_mni_transform_node, 'warp_image')
-                else:
-                    print(f"[WMH Pipeline] Found existing T1w to MNI warp file: {target_warp}. Will use it to transform WMH to MNI space.")
-                    wmh_to_mni_transform_node.inputs.warp_image = target_warp
-                
                 if 'JHU' in self.location_method:
                     # transform JHU WM atlas to T1w space
                     jhu_to_t1w_transform = Node(MRIConvertApplyWarp(), name='jhu_to_t1w_transform')
-                    target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
-                    if not os.path.exists(target_inverse_warp):
-                        wmh_workflow.connect(t1w_to_mni_registration, 'mni_2_t1_warp', jhu_to_t1w_transform, 'warp_image')
-                    else:
-                        jhu_to_t1w_transform.inputs.warp_image = target_inverse_warp
+                    wmh_workflow.connect(mni_to_t1_warp_node, 'warp_image', jhu_to_t1w_transform, 'warp_image')
                     jhu_to_t1w_transform.inputs.input_image = get_package_path('data', 'standard', 'JHU', 'JHU-ICBM-labels-1mm.nii.gz')
                     jhu_to_t1w_transform.inputs.output_image = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_desc-JHU_atlas.nii.gz")
                     jhu_to_t1w_transform.inputs.interp = 'nearest'
