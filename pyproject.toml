@@ -38,40 +38,31 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
+preprocess = [
+    "SimpleITK",
+    "dmri-amico",
+    "dmipy",
+    "h5py",
+    "monai",
+    "nilearn",
+    "niworkflows",
+    "scikit-learn",
+    "tensorflow",
+    "torch",
+    "tqdm",
 ]
 quality = [
     "fsqc",
 ]
-network = [
+visualization = [
+    "enigmatoolbox",
+    "fury",
+    "neuromaps",
+    "pillow",
+]
+analysis = [
     "bctpy",
     "nctpy",
-]
-surface = [
-    "neuromaps",
-    "enigmatoolbox",
-]
-visualization = [
-    "pillow",
-    "fury",
-]
-image-io = [
-    "SimpleITK",
-]
-dmri-models = [
-    "dmipy",
-    "dmri-amico",
-]
-pwi = [
-    "scikit-learn",
-]
-deep-learning = [
-    "tensorflow",
-    "torch",
-    "monai",
-    "h5py",
-    "tqdm",
 ]
 
 [project.scripts]

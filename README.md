@@ -25,34 +25,40 @@ Our imaging data involves:
 #### Required
 
    - **Linux** environment (This package has been tested on WSL2 with Ubuntu22.04)
-   - **Python 3.7** (Due to the features of the [SHIVA model](https://github.com/pboutinaud/SHIVA_PVS), higher versions of Python are not supported. If you wish to run the parts of the code related to PVS and CMB segmentation, we recommend creating a Python environment with version 3.7.)
+   - **Python 3.10** is recommended for general use. Some legacy or deep-learning based pipelines may require separate environments with their own Python/CUDA/TensorFlow/PyTorch versions.
+   - External neuroimaging tools: **FSL**, **FreeSurfer**, **ANTs**, **MATLAB**, **Docker**, and **MRtrix3**.
 
 As an example using WSL2 with Ubuntu 22.04, you can create a new conda environment using the following commands (assuming that conda or miniconda is already installed):
 ```bash
-conda create -n <env_name> python=3.7 openssl=1.1.1
+conda create -n <env_name> python=3.10
 conda activate <env_name>
 sudo apt update
 sudo apt install build-essential python3-dev python3-pip
 ```
 
-#### Optional
-   - **Matlab**
-   - **Docker**
-   - Common neuroimaging tools: **Freesurfer**, **FSL**, **SPM**, **ANTS**.
-
-These tools are optional but **strongly recommended**. Although installing the software listed above is not required for installing this package via `pip`, many workflows rely on them — especially FSL and Freesurfer. Different pipelines may depend on different tools, so having them pre-installed will ensure full functionality.
+These external tools are not installed by `pip`. Please install them separately and make sure their command-line tools are available in your shell environment. Some specific pipelines may require additional tools, such as **SPM**, **DSI Studio**, **dcm2niix**, or Singularity/Apptainer.
 
 ### 1. Clone the repository or download it directly
 
 ### 2. Install via `pip`:
-```
+```bash
 # Use -e to allow modification of the code without needing to reinstall.
-# Here </path/to/cvdproc> is the folder containing `setup.py`
+# Here </path/to/cvdproc> is the folder containing `pyproject.toml`
 pip install -e /path/to/cvdproc
 
 # If it is necessary to use mirror
 pip install -e /path/to/cvdproc -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
+
+Optional dependency groups can be installed when needed. For example:
+
+```bash
+pip install -e "/path/to/cvdproc[preprocess]"
+pip install -e "/path/to/cvdproc[quality]"
+pip install -e "/path/to/cvdproc[analysis,visualization]"
+```
+
+Available optional groups include `preprocess`, `quality`, `visualization`, and `analysis`. See the installation documentation for details.
 
 ### 3. Data Files
 
