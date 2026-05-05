@@ -1,0 +1,726 @@
+function [CBF_nocalib, ATT_map, ABV_map, Tex_map, ITT_map, resultExternal] = xASL_quant_External(path_PWI4D, x)
+%xASL_quant_External Perform quantification using FSL BASIL/FABBER/VABY
+%
+% FORMAT: [CBF_nocalib, ATT_map, ABV_map, Tex_map, ITT_map, resultExternal] = xASL_quant_External(path_PWI4D, x)
+% 
+% INPUT:
+%   path_PWI4D      - path to PWI4D (OPTIONAL, defaults to x.P.Path_PWI4D)
+%                     e.g., alternatives could be another space, or a concatenated PWI4D
+%   x               - struct containing pipeline environment parameters (REQUIRED)
+%
+% OUTPUT:
+% CBF_nocalib       - Quantified CBF image
+%                     (if there is no external tool installed, we return the original PWI)
+% ATT_map           - ATT map (if possible to calculate with multi-PLD, otherwise empty)
+% ABV_map           - arterial blood volume map (if possible to calculate with multi-PLD, otherwise empty)
+% Tex_map           - Time of exchange map of transport across BBB (if possible to calculate with multi-TE, otherwise empty)
+% ITT_map           - Intravoxel transit time (if possible to calculate with multi-TE, otherwise empty)
+% resultExternal    - describes if the execution was successful
+%                     (0 = successful, NaN = no BASIL/FABBER/VABY found, 1 or other = something failed)
+%
+% -----------------------------------------------------------------------------------------------------------------------------------------------------
+% DESCRIPTION: This script performs quantification of the PWI using the FSL-BASIL/FABBER or VABY pipelines. Final calibration to
+%              physiological units is performed by dividing the quantified PWI by the M0 image/value.
+%              FABBER/VABY is used instead of BASIL for multiTE data.
+%
+%              This function performs the following steps:
+%
+% 1. Define paths
+% 2. Delete previous external output
+% 3. Write the PWI as Nifti file for BASIL/FABBER/VABY to read as input
+% 4. Create option_file that contains options which are passed to the FSL command
+% 5. Run external quantification and retrieve CBF output
+% 6. Scaling to physiological units
+% 7. Householding
+%
+% -----------------------------------------------------------------------------------------------------------------------------------------------------
+% EXAMPLE: CBF_nocalib = xASL_quant_External(PWI, x);
+%
+% __________________________________
+% Copyright 2015-2024 ExploreASL 
+% Licensed under Apache 2.0, see permissions and limitations at
+% https://github.com/ExploreASL/ExploreASL/blob/main/LICENSE
+% you may only use this file in compliance with the License.
+% __________________________________
+
+
+    %% 0. Admin
+    fprintf('%s\n','External CBF quantification:');   
+
+    if nargin<1 || isempty(path_PWI4D)
+        path_PWI4D = x.P.Path_PWI4D;
+    end
+
+    % Define defaults
+	Tex_map = [];
+	ATT_map = [];
+	ABV_map = [];
+	ITT_map = [];
+
+	if ~isfield(x.modules.asl, 'bCleanUpExternal') || isempty(x.modules.asl.bCleanUpExternal)
+		x.modules.asl.bCleanUpExternal = true;
+	end
+    
+    %% 1. Define temporary paths for external quantifications
+	% Create an output directory for external tools
+    dirExternalOutput = 'External_Output';
+	pathExternalOutput = fullfile(x.dir.SESSIONDIR, dirExternalOutput);
+	
+    % For input, output, and options
+    pathExternalInput = fullfile(x.dir.SESSIONDIR, 'PWI4D_ExternalInput.nii');
+    pathExternalOptions = fullfile(x.dir.SESSIONDIR, 'External_ModelOptions.txt');
+
+    %% 2. Delete previous output
+    xASL_adm_DeleteFileList(x.dir.SESSIONDIR, ['(?i)^' dirExternalOutput '.*$'], 1, [0 Inf]);
+    FolderList = xASL_adm_GetFileList(x.dir.SESSIONDIR, ['(?i)^' dirExternalOutput '.*$'], 'FPList', [0 Inf], 1);
+    for iFolder=1:numel(FolderList)
+        xASL_delete(FolderList{iFolder}, 1);
+    end
+    fprintf('%s\n', 'Note that any file not found warnings can be ignored, this pertains to the use of symbolic links by BASIL/FABBER/VABY');
+    
+    % Remove residual files from external quantifications
+    xASL_delete(pathExternalOptions);
+    xASL_delete(pathExternalInput);
+	xASL_delete(pathExternalOutput, 1);
+    
+    %% 3. Write the PWI4D as Nifti file as an input to external quantifications
+    [PWI4D, PWI4D_json] = xASL_io_Nifti2Im(path_PWI4D, [], [], true);
+	    
+	PWI4D_nii = xASL_io_ReadNifti(path_PWI4D);
+    % First, we extrapolate values to fill NaNs with a small kernel only, inside the brainmask
+    % We don't have a brainmask here yet, so now we just run this small kernel once
+    voxelSize = PWI4D_nii.hdr.pixdim(2:4);
+    kernelSize = round([8 8 8]./voxelSize);
+	for i4D = 1:size(PWI4D,4)
+        PWI4D(:,:,:,i4D) = xASL_im_ndnanfilter(PWI4D(:,:,:,i4D), 'gauss', double(kernelSize), 2);
+	end
+
+	% Then, we extrapolate all outside the brain mask to ensure that there are no NaNs left
+	PWI4D = xASL_im_FillNaNs(PWI4D, 1, 1, voxelSize);
+
+    xASL_io_SaveNifti(path_PWI4D, pathExternalInput, PWI4D);
+
+	if length(unique(PWI4D_json.Q.EchoTime)) > 1
+		bQuantifyMultiTE = true;
+	else
+		bQuantifyMultiTE = false;
+	end
+
+	if bQuantifyMultiTE && length(unique(PWI4D_json.Q.EchoTime)) < 3
+		error('Multi-TE quantification with less than 3 TEs is not possible');
+	end
+	
+    %% 4. Create option_file that contains options which are passed to the FSL command
+    % ExternalOptions is a character array containing CLI args for the BASIL/FABBER/VABY command
+	
+	% Define if BASIL or FABBER or VABY is used - multiTE needs FABBER. VABY is an alternative
+	% Allow external input of quantification type
+	if isfield(x, 'modules') && isfield(x.modules, 'asl') && isfield(x.modules.asl, 'ExternalQuantificationType')
+		localQuantificationType = x.modules.asl.ExternalQuantificationType;
+	else
+		if (isfield(x.modules.asl, 'bQuantifyMultiTE') && x.modules.asl.bQuantifyMultiTE) || bQuantifyMultiTE
+			localQuantificationType = 'FABBER';% Default for multi-TE
+		else
+			localQuantificationType = 'BASIL';% Default for single-TE
+		end
+	end
+
+	ExternalOptions = xASL_sub_ExternalOptions(pathExternalOptions, x, localQuantificationType, PWI4D_json, pathExternalInput, pathExternalOutput);
+
+    %% 5. Run external quantification and retrieve CBF output
+	% Define the correct command name
+	switch (lower(localQuantificationType))
+		case 'basil'
+			ExternalFunctionName = 'basil';
+			[~, resultExternal] = xASL_ext_FSLRun([ExternalFunctionName ' ' ExternalOptions], x);
+		case 'fabber'
+			ExternalFunctionName = 'fabber_asl';
+			[~, resultExternal] = xASL_ext_FSLRun([ExternalFunctionName ' ' ExternalOptions], x);
+		case 'vaby'
+			ExternalFunctionName = 'vaby_asl';
+			[~, resultExternal] = xASL_ext_VABYRun([ExternalFunctionName ' ' ExternalOptions], x);
+		case other
+			error('Unknown type of external quantification: %s', localQuantificationType);
+	end
+    
+    % Check if external quantification failed
+    if isnan(resultExternal)
+        error([ExternalFunctionName ' was not found, exiting...']);
+    elseif resultExternal~=0
+		error(['Something went wrong running ' ExternalFunctionName '...']);
+    end
+    
+	switch (lower(localQuantificationType))
+		case 'basil' 
+			fprintf('%s\n', 'The following warning (if mentioned above) can be ignored:');
+			fprintf('%s\n', '/.../fsl/bin/basil: line 124: imcp: command not found');
+	end
+
+	% Set the correct paths to the output files based on the Quantification type
+	switch (lower(localQuantificationType))
+		case {'basil', 'fabber'}
+			% CBF/nocalib, mean fit (->> is this what "ftiss" means?)
+			pathExternalCBF = xASL_adm_GetFileList(pathExternalOutput, '^mean_ftiss\.nii$', 'FPListRec');
+			pathExternalATT = xASL_adm_GetFileList(pathExternalOutput, '^mean_delttiss\.nii$', 'FPListRec');
+			pathExternalITT = xASL_adm_GetFileList(pathExternalOutput, '^mean_itt\.nii$', 'FPListRec');
+			pathExternalABV = xASL_adm_GetFileList(pathExternalOutput, '^mean_fblood\.nii$', 'FPListRec');
+			pathExternalTex = xASL_adm_GetFileList(pathExternalOutput, '^mean_T_exch\.nii$', 'FPListRec');
+		case 'vaby'
+			pathExternalCBF = xASL_adm_GetFileList(pathExternalOutput, '^mean_cbf\.nii$', 'FPListRec');
+			pathExternalATT = xASL_adm_GetFileList(pathExternalOutput, '^mean_att\.nii$', 'FPListRec');
+			pathExternalITT = xASL_adm_GetFileList(pathExternalOutput, '^mean_itt\.nii$', 'FPListRec');
+			pathExternalABV = xASL_adm_GetFileList(pathExternalOutput, '^mean_fblood\.nii$', 'FPListRec');
+			pathExternalTex = xASL_adm_GetFileList(pathExternalOutput, '^mean_texch\.nii$', 'FPListRec');
+	end
+
+	% Check and load all output files
+	if isempty(pathExternalCBF)
+        error([ExternalFunctionName ' failed']);
+	end
+   
+    pathExternalCBF = pathExternalCBF{end}; % we assume the latest iteration (alphabetically) is optimal. also converting cell to char array
+    CBF_nocalib = xASL_io_Nifti2Im(pathExternalCBF);
+    
+    % ATT
+	if ~isempty(pathExternalATT)
+		ATT_map = xASL_io_Nifti2Im(pathExternalATT{end}); % we assume the latest iteration (alphabetically) is optimal. also converting cell to char array
+	end
+
+	% ITT
+	if ~isempty(pathExternalITT)
+		ITT_map = xASL_io_Nifti2Im(pathExternalITT{end}); % we assume the latest iteration (alphabetically) is optimal. also converting cell to char array
+	end
+    
+    % ABV
+	if ~isempty(pathExternalABV)
+		ABV_map = xASL_io_Nifti2Im(pathExternalABV{end}); % we assume the latest iteration (alphabetically) is optimal. also converting cell to char array
+	end
+    
+    % Tex
+	if ~isempty(pathExternalTex)
+		Tex_map = xASL_io_Nifti2Im(pathExternalTex{end}); % we assume the latest iteration (alphabetically) is optimal. also converting cell to char array
+	end
+	
+    %% 6. Scaling to physiological units
+    % Note different to xASL_quant_ASL since BASIL/FABBER/VABY have T1 in seconds
+    % and does not take into account labeling efficiency
+    
+    CBF_nocalib = CBF_nocalib .* 6000 .* x.Q.Lambda ./ x.Q.LabelingEfficiency;
+    % (For some reason, GE sometimes doesn't need the 1 gr->100 gr conversion)
+    % & old Siemens sequence also didn't need the 1 gr->100 gr conversion
+
+	ABV_map = ABV_map ./ x.Q.LabelingEfficiency;
+    
+    %% 7. Householding
+	% Output of the external quantification is in the subfolder 'External_Output' which contains multiple steps if there are multiple iterations, and always contains
+    % a symbolic link (symlink) to the foldername of the latest iteration/step ('stepX_latest').
+	
+	if x.modules.asl.bCleanUpExternal
+		xASL_delete(pathExternalInput);
+		xASL_delete(pathExternalOptions);
+		xASL_delete(pathExternalOutput, 1);
+	end
+    
+end
+
+function [ExternalOptions] = xASL_sub_ExternalOptions(pathExternalOptions, x, localQuantificationType, jsonPWI4D, pathExternalInput, pathExternalOutput)
+%xASL_sub_ExternalOptions generates the options and saves them in a file and returns some commandline options as well
+%
+% FORMAT: [ExternalOptions] = xASL_sub_ExternalOptions(pathExternalOptions, x, localQuantificationType, jsonPWI4D, pathExternalInput, pathExternalOutput)
+% 
+% INPUT:
+%   pathExternalOptions         - filepath to the options file (REQUIRED)
+%   x                      - struct containing pipeline environment parameters (REQUIRED)
+%   localQuantificationType  - Type of quantification 'FABBER', 'BASIL', 'VABY' (REQUIRED)
+%   jsonPWI4D              - JSON in Legacy of the PWI4D containing LD, PLD, JSON (REQUIRED)
+%   pathExternalInput           - Path to the data input file (REQUIRED)
+%   pathExternalOutput          - Path to the output directory (REQUIRED)
+%
+% OUTPUT:
+% ExternalOptions      - command-line options
+%
+% -----------------------------------------------------------------------------------------------------------------------------------------------------
+% DESCRIPTION: Options-file is saved and commandline options returned in a single string
+%
+% 0. Admin
+% 1. Create the options file
+% 2. Basic model and tissue parameters
+% 3. Basic acquisition parameters
+% 4. BASIL fiting parameters
+% 5. Save and close the options file
+% -----------------------------------------------------------------------------------------------------------------------------------------------------
+% EXAMPLE: [ExternalOptions] = xASL_sub_ExternalOptions(pathExternalOptions, x, localQuantificationType, jsonPWI4D, pathExternalInput, pathExternalOutput)
+%
+% __________________________________
+
+
+%% 0. Admin
+if nargin<6 
+	error('Require 6 input parameters.');
+end
+
+% Set dataPar options and their defaults for external quantifications
+if ~isfield(x.modules.asl, 'bMaskingExternal') || isempty(x.modules.asl.bMaskingExternal)
+	fprintf('External quantification: Setting default option bMaskingExternal = true\n');
+	x.modules.asl.bMaskingExternal = true;
+end
+
+% Set basic parameters newly as they might differ in case of a merged sequence
+%bQuantifyMultiPLD = x.modules.asl.bQuantifyMultiPLD;
+if length(unique(jsonPWI4D.Q.Initial_PLD))>1 || length(unique(jsonPWI4D.Q.LabelingDuration))>1
+	bQuantifyMultiPLD = true;
+else
+	bQuantifyMultiPLD = false;
+end
+
+% Define defaults for BASIL only options
+if strcmpi(localQuantificationType, 'basil')
+	% On Low quality settings, turn off all extra processing options
+	if isfield(x, 'settings') && isfield(x.settings, 'Quality') && ~x.settings.Quality
+		x.modules.asl.bSpatialBASIL = false;
+		x.modules.asl.bInferT1BASIL = false;
+		x.modules.asl.bInferArtBASIL = false;
+		x.modules.asl.ExchBASIL = 'simple';
+		x.modules.asl.DispBASIL = 'none';
+	end
+
+	if ~isfield(x.modules.asl,'bSpatialBASIL') || isempty(x.modules.asl.bSpatialBASIL)
+		fprintf('BASIL: Setting default option bSpatial = false\n');
+		x.modules.asl.bSpatialBASIL = false;
+	end
+
+	if ~isfield(x.modules.asl,'bInferT1BASIL') || isempty(x.modules.asl.bInferT1BASIL)
+		fprintf('BASIL: Setting default option bInferT1 = false\n');
+		x.modules.asl.bInferT1BASIL = false;
+	end
+
+	if ~isfield(x.modules.asl,'bInferArtBASIL') || isempty(x.modules.asl.bInferArtBASIL)
+		fprintf('BASIL: Setting default option bInferArt = true\n');
+		x.modules.asl.bInferArtBASIL = true;
+	end
+
+	if ~isfield(x.modules.asl,'ExchBASIL') || isempty(x.modules.asl.ExchBASIL)
+		fprintf('BASIL: Setting default option Exch = simple\n');
+		x.modules.asl.ExchBASIL = 'simple';
+	end
+
+	if ~isfield(x.modules.asl,'DispBASIL') || isempty(x.modules.asl.DispBASIL)
+		fprintf('BASIL: Setting default option Disp = none\n');
+		x.modules.asl.DispBASIL = 'none';
+	end
+
+	if ~isfield(x.modules.asl, 'ATTSDBASIL') || isempty(x.modules.asl.ATTSDBASIL)
+		x.modules.asl.ATTSDBASIL = 1.0;
+	end
+end
+
+x.modules.asl.bInferArtBASIL = false;
+
+%% 1. Create the options file
+% ExternalOptions is a character array containing CLI args for the external command
+% Path to the options file
+FIDoptionFile = [];
+switch (lower(localQuantificationType))
+	case 'fabber'
+		ExternalOptions = ['-@ ' xASL_adm_UnixPath(pathExternalOptions, ispc, true)];
+		FIDoptionFile = fopen(pathExternalOptions, 'w+');
+		fprintf(FIDoptionFile, '# FABBER options written by ExploreASL\n');
+
+	case 'basil'
+		ExternalOptions = ['--optfile ' xASL_adm_UnixPath(pathExternalOptions, ispc, true)];
+		FIDoptionFile = fopen(pathExternalOptions, 'w+');
+		fprintf(FIDoptionFile, '# BASIL options written by ExploreASL\n');
+
+	case 'vaby'
+		% VABY takes no options file
+		ExternalOptions = '';
+end
+
+% Define basic paths
+[~, fFile, fExt] = xASL_fileparts(pathExternalOutput);
+fileExternalOutput = [fFile fExt];
+
+[~, fFile, fExt] = xASL_fileparts(pathExternalInput);
+fileExternalInput = [fFile fExt];
+
+switch (lower(localQuantificationType))
+	case 'fabber'
+		fprintf(FIDoptionFile, '--output=%s\n', xASL_adm_UnixPath(fileExternalOutput, ispc));
+		fprintf(FIDoptionFile, '--data=%s\n', xASL_adm_UnixPath(fileExternalInput, ispc));
+
+	case 'basil'
+		% Path to input and output
+		ExternalOptions = [ExternalOptions ' -o ' xASL_adm_UnixPath(fileExternalOutput, ispc)];
+		ExternalOptions = [ExternalOptions ' -i ' xASL_adm_UnixPath(fileExternalInput, ispc)];
+
+	case 'vaby'
+		% Path to input and output
+		ExternalOptions = [ExternalOptions ' -o ' xASL_adm_UnixPath(fileExternalOutput, ispc)];
+		ExternalOptions = [ExternalOptions ' -i ' xASL_adm_UnixPath(fileExternalInput, ispc)];
+end
+
+% Define masking
+if x.modules.asl.bMaskingExternal
+	% Check for uninitialized Mask variable or file
+	if ~isfield(x.P, 'Path_BrainMaskProcessing')
+		warning('Masking in external quantification is set to TRUE, but the mask variable x.P.Path_BrainMaskProcessing is not initialized.');
+	elseif ~xASL_exist(x.P.Path_BrainMaskProcessing, 'file')
+		warning('Masking in external quantification is set to TRUE, but the mask is missing: %s\n', x.P.Path_BrainMaskProcessing);
+	else
+		% Add the mask to the options file
+
+        [~, fFile, fExt] = xASL_fileparts(x.P.Path_BrainMaskProcessing);
+        fileBrainMaskProcessing = [fFile fExt];
+
+		switch (lower(localQuantificationType))
+			case 'fabber'
+				fprintf(FIDoptionFile, '--mask=%s\n', xASL_adm_UnixPath(fileBrainMaskProcessing, ispc));
+			case 'basil'
+				ExternalOptions = [ExternalOptions ' -m ' xASL_adm_UnixPath(fileBrainMaskProcessing, ispc)];
+			case 'vaby'
+				ExternalOptions = [ExternalOptions ' -m ' xASL_adm_UnixPath(fileBrainMaskProcessing, ispc)];
+		end
+	end
+end
+
+%% 2. Basic model and tissue parameters
+% Basic model options
+switch (lower(localQuantificationType))
+	case 'fabber'
+		fprintf(FIDoptionFile, '--method=vb\n');
+		fprintf(FIDoptionFile, '--model=asl_multite\n');
+		fprintf(FIDoptionFile, '--infertexch\n'); % Fit Tex
+		fprintf(FIDoptionFile, '--inferitt\n');   % Fit ATT
+	case 'vaby'
+		ExternalOptions = [ExternalOptions ' --infer-itt'];
+		ExternalOptions = [ExternalOptions ' --infer-texch'];
+end
+
+% Basic fitting and output options
+switch (lower(localQuantificationType))
+	case 'fabber'
+		fprintf(FIDoptionFile, '--save-var\n');
+		fprintf(FIDoptionFile, '--save-residuals\n');
+		fprintf(FIDoptionFile, '--allow-bad-voxels\n');
+		fprintf(FIDoptionFile, '--save-model-fit\n');
+		fprintf(FIDoptionFile, '--noise=white\n');
+	case 'vaby'
+		ExternalOptions = [ExternalOptions ' --save-var'];
+		ExternalOptions = [ExternalOptions ' --save-residuals'];
+		ExternalOptions = [ExternalOptions ' --allow-bad-voxels'];
+		ExternalOptions = [ExternalOptions ' --save-model-fit'];
+		ExternalOptions = [ExternalOptions ' --max-iterations=100'];
+end
+
+switch (lower(localQuantificationType))
+	case 'fabber'
+		% Basic tissue parameters
+		fprintf(FIDoptionFile, '--t1b=%f\n', x.Q.BloodT1/1000);
+		fprintf(FIDoptionFile, '--t1=%f\n', x.Q.TissueT1/1000);
+
+		% T2-times needed for multi-TE quantification
+		fprintf(FIDoptionFile, '--t2b=%f\n', x.Q.T2art/1000);
+		fprintf(FIDoptionFile, '--t2=%f\n', x.Q.T2/1000);
+	case 'basil'
+		% Basic tissue parameters
+		fprintf(FIDoptionFile, '--t1b=%f\n', x.Q.BloodT1/1000);
+		fprintf(FIDoptionFile, '--t1=%f\n', x.Q.TissueT1/1000);
+
+	case 'vaby'
+		% Basic tissue parameters
+		ExternalOptions = [ExternalOptions, sprintf(' --t1b=%f', x.Q.BloodT1/1000)];
+		ExternalOptions = [ExternalOptions, sprintf(' --t1=%f', x.Q.TissueT1/1000)];
+
+		% T2-times needed for multi-TE quantification
+		ExternalOptions = [ExternalOptions, sprintf(' --t2b=%f', x.Q.T2art/1000)];
+		ExternalOptions = [ExternalOptions, sprintf(' --t2=%f', x.Q.T2/1000)];
+end
+
+%% 3. Basic acquisition parameters
+switch lower(x.Q.LabelingType)
+	% PASL quantification
+	case 'pasl'
+		% PASL model is assumed by default and does not need to be specified in the config file
+		fprintf('BASIL: PASL model\n');
+		
+		if ~strcmpi(localQuantificationType, 'basil')
+			error('PASL is implemented for BASIL only and not for FABBER/VABY');
+		end
+
+		if length(unique(PWI4D_json.Q.EchoTime)) > 1
+			error('Multi-TE quantification is not implemented for PASL');
+		end
+
+		% For PASL, there can be only a single LabelingDuration, so unique PLD+LabDur combinations are uniquely based on PLDs
+		TIs = jsonPWI4D.Q.Initial_PLD'/1000;
+
+		% Print all the TIs
+		if bQuantifyMultiPLD	
+			for iTI = 1:length(TIs)
+				fprintf(FIDoptionFile, '--ti%d=%.2f\n', iTI, TIs(iTI));
+			end
+		else
+			fprintf(FIDoptionFile, '--ti=%.2f\n', TIs);
+		end
+
+		% Either print bolus duration or unspecify it
+		if isfield(jsonPWI4D.Q, 'LabelingDuration') && ~isempty(jsonPWI4D.Q.LabelingDuration) 
+			if length(unique(jsonPWI4D.Q.LabelingDuration))>1
+				warning('PASL multi-PLD in BASIL currently supports only a single Labeling Duration');
+			end
+			fprintf(FIDoptionFile, '--tau=%.2f\n', jsonPWI4D.Q.LabelingDuration(1)/1000);
+		else
+			% Bolus duration unknow. If multi-TI, then try to infer it
+			if length(TIs) > 1
+				fprintf(FIDoptionFile, '--infertau\n');
+				fprintf('BASIL: Infer bolus duration component\n')
+			end
+		end
+
+	% CASL and PCASL quantification
+	case {'casl','pcasl'}
+		% Prepare unique PLDs+LabDur combinations
+		
+		% First create a labeling duration vector of the same length
+		LabDurs = jsonPWI4D.Q.LabelingDuration/1000;
+		PLDs = jsonPWI4D.Q.Initial_PLD/1000;
+
+		switch (lower(localQuantificationType))
+			case 'fabber'
+				% For FABBER and multi-TE, we have to group TEs
+
+				% Convert Echo Times to seconds and keep 4 decimal digits
+				% TEs are kept fully with the same number as volumes
+				TEs = round(jsonPWI4D.Q.EchoTime'/1000,3);
+
+				% We go through the LabDurs, PLDs, and TEs and keep grouping similar LD+PLD with increasing TE into groups
+				LabDursGrouped = [];
+				PLDsGrouped = [];
+				nTEGrouped = [];
+				iTE = 1;
+
+				while iTE<=length(TEs)
+					% We define a block of several TEs for a single given PLD/LD combination
+					iTEstart = iTE;
+					iTEend   = iTE;
+
+					% We enlarge the block if PLD and LD are similar, but TE increasing
+					while (iTEend+1 <= length(TEs)) &&... % There are more values
+							(LabDurs(iTEend+1)==LabDurs(iTEstart)) && (PLDs(iTEend+1)==PLDs(iTEstart)) &&... % The further PLDs and LD are matching the block
+							(TEs(iTEend+1)>TEs(iTEend)) % And TE increases
+						% If all fulfilled, then we increase the block
+						iTEend = iTEend+1;
+					end
+					% We add the block to the grouped vector
+					LabDursGrouped = [LabDursGrouped, LabDurs(iTEstart)];
+					PLDsGrouped = [PLDsGrouped, PLDs(iTEstart)];
+					nTEGrouped = [nTEGrouped, iTEend-iTEstart+1];
+					iTE = iTEend+1;
+				end
+
+				LabDurs = LabDursGrouped;
+				PLDs = PLDsGrouped;
+				nTE = nTEGrouped;
+			case 'vaby'
+				TEs = round(jsonPWI4D.Q.EchoTime'/1000,3);
+				nTE = length(TEs);
+			case 'basil'
+				% Normal multi-PLD without multi-TE
+				TEs = [];
+				nTE = [];
+		end
+
+		switch (lower(localQuantificationType))
+			case 'fabber'
+				% Printing the values in the FSL option file (PLD=ti, LD=tau)
+				% If we have for a give PLD more TEs, then we print once the PLD, once nTE for each collection of multi-TE volumes
+				for iPLD = 1:length(PLDs)
+					fprintf(FIDoptionFile, '--ti%d=%.2f\n', iPLD, PLDs(iPLD) + LabDurs(iPLD));
+				end
+				for iNTE = 1:length(nTE)
+					fprintf(FIDoptionFile, '--nte%d=%d\n', iNTE, nTE(iNTE)); % --nte1=8 --nte2=8 --nte3=8 (if nTE=8)
+				end
+
+				if length(nTE) == 1 && nTE == 1
+					% For a single-TE, we have to repeat it for each volume
+					for iTE = 1:length(TEs) %So for each volume, we print a TE value
+						fprintf(FIDoptionFile, '--te%d=%.3f\n', iTE, TEs(1));
+					end
+				else
+					% For multi-TE, we print all of them
+					for iTE = 1:length(TEs) %So for each volume, we print a TE value
+						fprintf(FIDoptionFile, '--te%d=%.3f\n', iTE, TEs(iTE));
+					end
+				end
+
+				% Future extension - specify the repetitions explicitly
+				%fprintf(FIDoptionFile, '--repeats=%i\n', size(PWI, 4)/PLDAmount);
+				%fprintf(FIDoptionFile, '--repeats=1\n');
+			case 'vaby'
+				% Printing the values in the commandline (PLD=plds, LD=taus)
+				for iPLD = 1:length(PLDs)
+					if iPLD == 1
+						ExternalOptions = [ExternalOptions ' --plds=' sprintf('%.2f', PLDs(iPLD))];
+					else
+						ExternalOptions = [ExternalOptions ',' sprintf('%.2f', PLDs(iPLD))];
+					end
+				end
+
+				for iTE = 1:length(TEs) %So for each volume, we print a TE value
+					if iTE == 1
+						ExternalOptions = [ExternalOptions ' --tes=' sprintf('%.3f', TEs(iTE))];
+					else
+						ExternalOptions = [ExternalOptions ',' sprintf('%.3f', TEs(iTE))];
+					end
+				end
+			case 'basil'
+				% Specify that we run the PCASL/CASL model
+				fprintf(FIDoptionFile, '--casl\n');
+
+				% For BASIL, PLDs are specified
+				if bQuantifyMultiPLD
+					for iPLD = 1:length(PLDs)
+						fprintf(FIDoptionFile, '--pld%d=%.2f\n', iPLD, PLDs(iPLD));
+					end
+				else
+					fprintf(FIDoptionFile, '--pld=%.2f\n', PLDs(1));
+				end
+		end
+
+		switch (lower(localQuantificationType))
+			case {'fabber','basil'}
+				% Print labeling durations
+				if bQuantifyMultiPLD
+					for iLabDurs = 1:length(LabDurs)
+						fprintf(FIDoptionFile, '--tau%d=%.2f\n', iLabDurs, LabDurs(iLabDurs));
+					end
+				else
+					fprintf(FIDoptionFile, '--tau=%.2f\n', LabDurs(1));
+				end
+			case 'vaby'
+				for iLD = 1:length(LabDurs) 
+					if iLD == 1
+						ExternalOptions = [ExternalOptions ' --taus=' sprintf('%.2f', LabDurs(iLD))];
+					else
+						ExternalOptions = [ExternalOptions ',' sprintf('%.2f', LabDurs(iLD))];
+					end
+				end
+		end
+end
+
+switch (lower(localQuantificationType))
+	case {'basil'}
+		% Act as if we do not have repeats
+		%fprintf(FIDoptionFile, '--repeats=%i\n', size(PWI, 4)/PLDAmount);
+		fprintf(FIDoptionFile, '--repeats=1\n');
+
+		% Slice-timing
+		fprintf(FIDoptionFile, '--slicedt=%f\n', x.Q.SliceReadoutTimeDifference/1000);
+
+		if isfield(x.Q,'LookLocker') && x.Q.LookLocker
+			if isfield(x.Q,'FlipAngle')
+				if length(unique(x.Q.FlipAngle))>1
+					warning('Look-Locker quantification with multiple flip angles, e.g. QUASAR, is not implemented yet');
+				end
+				fprintf(option_file, '--FA=%f\n', x.Q.FlipAngle(1));
+				fprintf('BASIL: Flip angle for Look-Locker readout: %f\n', x.Q.FlipAngle(1));
+			else
+				warning('BASIL: Unknown flip angle for Look-Locker\n');
+			end
+		end
+	case {'fabber', 'vaby'}
+		if isfield(x.Q,'LookLocker') && x.Q.LookLocker
+			error('Lock-Locker quantification is not implemented for FABBER or VABY');
+		end
+end
+
+%% 4. BASIL fiting parameters
+if strcmpi(localQuantificationType, 'basil')
+	switch lower(x.Q.LabelingType)
+		case 'pasl'
+			% Default initial ATT for PASL is 0.7
+			fprintf(FIDoptionFile, '--bat=0.7\n');
+		case {'pcasl','casl'}
+			% Default initial ATT for PCASL is 1.3
+			fprintf(FIDoptionFile, '--bat=1.3\n');
+	end
+
+	if bQuantifyMultiPLD
+		% Multi-PLD or Time Encoded data allows to fit arrival times
+		fprintf(FIDoptionFile, '--batsd=%f\n', x.modules.asl.ATTSDBASIL);
+	end
+
+	if x.modules.asl.bSpatialBASIL
+		fprintf('BASIL: Use automated spatial smoothing\n');
+		ExternalOptions = [ExternalOptions ' --spatial'];
+	end
+
+	if x.modules.asl.bInferT1BASIL
+		if bQuantifyMultiPLD
+			fprintf('BASIL: Infer variable T1 values\n');
+			ExternalOptions = [ExternalOptions ' --infert1'];
+		end
+	end
+
+	if x.modules.asl.bInferArtBASIL
+		if bQuantifyMultiPLD
+			fprintf('BASIL: Infer arterial BV and arrival time\n');
+			ExternalOptions = [ExternalOptions ' --inferart'];
+		end
+	end
+
+	switch (x.modules.asl.ExchBASIL)
+		case 'simple'
+			fprintf('BASIL Exchange model: Simple single compartment with T1 of blood, per white paper\n');
+			ExternalOptions = [ExternalOptions ' --exch=simple'];
+		case 'mix'
+			fprintf('BASIL Exchange model: Well-mixed\n');
+			ExternalOptions = [ExternalOptions ' --exch=mix'];
+		case '2cpt'
+			fprintf('BASIL Exchange model: A two compartment exchange model following Parkes & Tofts\n');
+			ExternalOptions = [ExternalOptions ' --exch=2cpt'];
+		case 'spa'
+			fprintf('BASIL Exchange model: A single pass approximation from St. Lawrence\n');
+			ExternalOptions = [ExternalOptions ' --exch=spa'];
+		otherwise
+			warning(['BASIL Exchange model: ' x.modules.asl.ExchBASIL ' not recognized.'])
+	end
+
+	if bQuantifyMultiPLD
+		switch (x.modules.asl.DispBASIL)
+			case 'none'
+				fprintf('BASIL Dispersion model: none\n');
+				ExternalOptions = [ExternalOptions ' --disp=none'];
+			case 'gamma'
+				fprintf('BASIL Dispersion model: Gamma\n');
+				ExternalOptions = [ExternalOptions ' --disp=gamma'];
+			case 'gauss'
+				fprintf('BASIL Dispersion model: Temporal Gaussian dispersion kernel\n');
+				ExternalOptions = [ExternalOptions ' --disp=gauss'];
+			case 'sgauss'
+				fprintf('BASIL Dispersion model: Spatial Gaussian dispersion kernel\n');
+				ExternalOptions = [ExternalOptions ' --disp=sgauss'];
+			otherwise
+				warning(['BASIL Dispersion model: ' x.modules.asl.DispBASIL ' not recognized.'])
+		end
+	else
+		fprintf('BASIL Dispersion model: none\n');
+		ExternalOptions = [ExternalOptions ' --disp=none'];
+	end
+
+
+	% 	%% Aquisition options we might be able to use in the future
+	%   fprintf(option_file, '--sliceband=%i\n', sliceband);
+	%   fprintf('BASIL: Multi-band setup with number of slices per band: %i\n', slicedband);
+	%
+	% 	fprintf(option_file, '--t1im=%s\n', t1im)
+	%   fprintf('BASIL: Using supplied T1 (tissue) image in BASIL: %s\n', $t1im)
+	%
+end
+
+%% 5. Close options file
+if ~isempty(FIDoptionFile)
+	fclose(FIDoptionFile);
+end
+
+end

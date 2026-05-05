@@ -19,15 +19,16 @@ if [ -z "$fib_file" ]; then
     -v $bids_dir:/data/qsirecon \
     -v $bids_dir/derivatives/workflows/sub-${subject_id}/ses-${session_id}:/work \
     -v $bids_dir/code/license.txt:/opt/freesurfer/license.txt \
+    -v $bids_dir/code/qsirecon_custom.yml:/opt/qsirecon/qsirecon_custom.yml \
     pennlinc/qsirecon:1.0.0 \
     /data/qsiprep /data/qsirecon participant \
     --participant-label $subject_id \
     --session-id $session_id \
     --fs-license-file /opt/freesurfer/license.txt \
-    --recon-spec dsi_studio_gqi \
-    --nprocs 2 \
+    --recon-spec /opt/qsirecon/qsirecon_custom.yml \
+    --nprocs 16 \
     --omp-nthreads 1 \
-    --atlases AAL116 \
+    --atlases 4S156Parcels Brainnetome246Ext AICHA384Ext AAL116 \
     --input-type qsiprep \
     --work-dir /work
 else

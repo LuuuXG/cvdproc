@@ -164,6 +164,11 @@ def main():
             if fix_intendedfor:
                 processor.fix_intendedfor_for_subject_session(subject_id, session_id)
 
+            # Optional: resample to iso-resolution
+            resample_iso = dcm2bids_config.get("resample_to_iso", False)
+            if resample_iso:
+                processor.resample_to_iso(subject_id, session_id, resample_iso)
+
         print("DICOM to BIDS conversion completed.") 
     
     # === BIDS check ===
@@ -233,7 +238,8 @@ def main():
                 "t1_register",
                 "lesion_analysis",
                 "freesurfer_longitudinal",
-                "nemo_postprocess"
+                "nemo_postprocess",
+                "freesurfer"
             )):
                 os.makedirs(output_path, exist_ok=True)
 

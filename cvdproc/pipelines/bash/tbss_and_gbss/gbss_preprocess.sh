@@ -7,6 +7,7 @@ fa_image="$2"
 iso_image="$3"   # NODDI isotropic fraction (CSF)
 output_dir="$4"
 output_pseudo_t1_filename="$5"
+output_gm_fraction_filename="$6"
 
 mkdir -p "$output_dir"
 
@@ -47,7 +48,7 @@ fslmaths "$output_dir/wm_fraction.nii.gz" \
   -sub 1 -mul -1 \
   -thr 0 \
   -mul "$dwi_mask" \
-  "$output_dir/gm_fraction.nii.gz"
+  "$output_dir/$output_gm_fraction_filename"
 
 echo "==== Step 4: Remove rim artifact ===="
 
@@ -69,7 +70,7 @@ fslmaths "$output_dir/wm_fraction.nii.gz" \
   "$output_dir/wm_con.nii.gz"
 
 # GM contribution
-fslmaths "$output_dir/gm_fraction.nii.gz" \
+fslmaths "$output_dir/$output_gm_fraction_filename" \
   -thr 0 \
   -mul 1 \
   "$output_dir/gm_con.nii.gz"

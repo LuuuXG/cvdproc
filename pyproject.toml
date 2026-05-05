@@ -30,7 +30,8 @@ dependencies = [
     "openpyxl",
     "pydicom",
     "pytest",
-    "fsqc"
+    "fsqc",
+    "pydicom"
 ]
 
 [project.scripts]

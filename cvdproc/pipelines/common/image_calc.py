@@ -202,22 +202,10 @@ class TDWeightedMean(BaseInterface):
 
 if __name__ == "__main__":
     from nipype import Node
-    node = Node(TDWeightedMean(), name="or_icvf_weighted_mean")
-    node.inputs.scalar_nii = (
-        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
-        "sub-AFib0241/ses-baseline/NODDI/"
-        "sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_space-ACPC_model-noddi_param-icvf_dwimap.nii.gz"
-    )
-    node.inputs.weight_nii = (
-        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
-        "sub-AFib0241/ses-baseline/visual_pathway_analysis/"
-        "sub-AFib0241_ses-baseline_acq-DSIb4000_dir-AP_hemi-L_space-ACPC_bundle-OT_tdi.nii.gz"
-    )
-    node.inputs.out_txt = (
-        "/mnt/f/BIDS/WCH_AF_Project/derivatives/dwi_pipeline/"
-        "sub-AFib0241/ses-baseline/visual_pathway_analysis/"
-        "sub-AFib0241_ses-baseline_hemi-L_bundle-OT_icvf_weighted_mean.txt"
-    )
+    node = Node(CalcMeanInROIMask(), name="calc_mean_in_roi_mask")
+    node.inputs.image_file = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/sub-XUBAOGEN_baseline_space-MNI152NLin6ASym_cbf.nii.gz"
+    node.inputs.roi_mask_file = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/AAL_v4_on_MNI152NLin6ASym_cbfgrid.nii.gz"
+    node.inputs.output_csv = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/sub-XUBAOGEN_baseline_space-MNI152NLin6ASym_cbf_mean.csv"
     node.inputs.ignore_background = True
 
     res = node.run()

@@ -447,52 +447,94 @@ class SynthSRPipeline:
                  subject: object, 
                  session: object, 
                  output_path: str, 
-                 use_which_t1w: str = '',
+                 input_type: str = "T1w",
+                 use_which_t1w: str = None,
+                 use_which_flair: str = None,
                  **kwargs):
         """
-        SynthSR pipeline
+        SynthSR pipeline.
 
         Args:
             subject: The subject object containing BIDS information.
             session: The session object containing BIDS information.
             output_path: The output path for the pipeline results.
-            use_which_t1w (str, optional): Use specific T1w file if multiple are available. Defaults to "".
+            input_type (str): Input image type. Must be "T1w" or "FLAIR". Defaults to "T1w".
+            use_which_t1w (str, optional): Use specific T1w file if multiple are available.
+            use_which_flair (str, optional): Use specific FLAIR file if multiple are available.
         """
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
 
+        self.input_type = input_type
         self.use_which_t1w = use_which_t1w
+        self.use_which_flair = use_which_flair
+
+        if self.input_type not in ["T1w", "FLAIR"]:
+            raise ValueError("input_type must be either 'T1w' or 'FLAIR'.")
+
+        if self.use_which_t1w is not None and self.use_which_flair is not None:
+            raise ValueError("Only one input can be specified. Do not set both use_which_t1w and use_which_flair.")
+
+        if self.input_type == "T1w" and self.use_which_flair is not None:
+            raise ValueError("input_type is 'T1w', but use_which_flair was specified.")
+
+        if self.input_type == "FLAIR" and self.use_which_t1w is not None:
+            raise ValueError("input_type is 'FLAIR', but use_which_t1w was specified.")
 
     def check_data_requirements(self):
-        return self.session.get_t1w_files() is not None
+        if self.input_type == "T1w":
+            return len(self.session.get_t1w_files()) > 0
+        elif self.input_type == "FLAIR":
+            return len(self.session.get_flair_files()) > 0
 
     def create_workflow(self):
-        t1w_files = self.session.get_t1w_files()
+        if self.input_type == "T1w":
+            input_files = self.session.get_t1w_files()
+            use_which = self.use_which_t1w
+            input_suffix = "T1w"
+            desc_value = "SynthSR"
+        else:
+            input_files = self.session.get_flair_files()
+            use_which = self.use_which_flair
+            input_suffix = "FLAIR"
+            desc_value = "SynthSR"
 
-        if self.use_which_t1w:
-            t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
-            if len(t1w_files) != 1:
-                raise FileNotFoundError(f"No specific T1w file found for {self.use_which_t1w} or more than one found.")
-        
-        if len(t1w_files) != 1:
-            raise FileNotFoundError("SynthSR requires exactly one T1w file.")
-        
-        t1w_file = t1w_files[0]
-                
-        synthsr_workflow = Workflow(name='synthsr_workflow')
+        if use_which:
+            input_files = [f for f in input_files if use_which in f]
+            if len(input_files) != 1:
+                raise FileNotFoundError(
+                    f"No specific {input_suffix} file found for {use_which}, or more than one was found."
+                )
 
-        inputnode = Node(IdentityInterface(fields=["t1w_file", "output_path"]), name="inputnode")
-        inputnode.inputs.t1w_file = t1w_file
-        
-        synthsr_img_name = os.path.join(os.path.dirname(t1w_file), rename_bids_file(t1w_file, {'desc': 'SynthSRraw'}, 'T1w', '.nii.gz'))
+        if len(input_files) != 1:
+            raise FileNotFoundError(
+                f"SynthSR requires exactly one {input_suffix} file, but found {len(input_files)}."
+            )
+
+        input_file = input_files[0]
+
+        synthsr_workflow = Workflow(name="synthsr_workflow")
+
+        inputnode = Node(
+            IdentityInterface(fields=["input_file", "output_path"]),
+            name="inputnode"
+        )
+        inputnode.inputs.input_file = input_file
+
+        synthsr_img_name = os.path.join(
+            os.path.dirname(input_file),
+            rename_bids_file(
+                input_file,
+                {"acq": desc_value},
+                "T1w",
+                ".nii.gz"
+            )
+        )
         inputnode.inputs.output_path = synthsr_img_name
 
         synthsr_node = Node(SynthSR(), name="synthsr")
-        synthsr_workflow.connect(inputnode, "t1w_file", synthsr_node, "input")
+        synthsr_workflow.connect(inputnode, "input_file", synthsr_node, "input")
         synthsr_workflow.connect(inputnode, "output_path", synthsr_node, "output")
-
-        # set base directory
-        synthsr_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows')
 
         return synthsr_workflow

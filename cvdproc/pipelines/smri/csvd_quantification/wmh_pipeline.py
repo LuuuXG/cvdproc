@@ -40,6 +40,7 @@ class WMHSegmentationPipeline:
                  use_which_t1w: str = None,
                  use_which_flair: str = None,
                  seg_method: str = 'LST',
+                 ignore_t1w_in_truenet: bool = False,
                  seg_threshold: float = 0.5,
                  location_method: list = ['Fazekas'],
                  ventmask_method: str = 'SynthSeg',
@@ -58,6 +59,7 @@ class WMHSegmentationPipeline:
             use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used
             use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, FLAIR image is not used
             seg_method: WMH segmentation method, one of ['LST', 'LSTAI', 'WMHSynthSeg', 'truenet']
+            ignore_t1w_in_truenet: [EXPERIMENTAL] When using SynthSR T1w, ignore it in TrueNet (ukbb -> ukbb_flair)
             seg_threshold: threshold for WMH segmentation (not used for WMHSynthSeg method)
             location_method: list of location method, subset of ['Fazekas', 'bullseye', 'shiva', 'McDonald', 'JHU']
             ventmask_method: method to get ventricle mask, one of ['SynthSeg']
@@ -72,6 +74,7 @@ class WMHSegmentationPipeline:
         self.use_which_t1w = use_which_t1w
         self.use_which_flair = use_which_flair
         self.seg_method = seg_method
+        self.ignore_t1w_in_truenet = ignore_t1w_in_truenet
         self.seg_threshold = seg_threshold
         self.location_method = location_method
         self.ventmask_method = ventmask_method
@@ -399,7 +402,6 @@ class WMHSegmentationPipeline:
                 prepare_truenet_data = Node(PrepareTrueNetData2(), name='prepare_truenet_data')
                 evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
                 # truenet T1w + FLAIR
-                # Let truenet do the preprocess (but in T1w space)
                 wmh_workflow.connect(t1w_stripped_node, 't1w_stripped', prepare_truenet_data, 't1w')
                 wmh_workflow.connect(flair_in_t1w_node, 'flair_in_t1w', prepare_truenet_data, 'flair')
                 wmh_workflow.connect(t1w_stripped_node, 'brain_mask', prepare_truenet_data, 'brain_mask')
@@ -409,16 +411,21 @@ class WMHSegmentationPipeline:
 
                 wmh_workflow.connect(prepare_truenet_data, 'output_dir', evaluate_truenet_data, 'inp_dir')
                 evaluate_truenet_data.inputs.model_name = 'ukbb'
+                if self.ignore_t1w_in_truenet:
+                    prepare_truenet_data.inputs.keep_t1w = '0'
+                    evaluate_truenet_data.inputs.model_name = 'ukbb_flair'
                 evaluate_truenet_data.inputs.output_dir = truenet_output_dir
 
             elif t1w_file != '' and flair_file == '':
-                prepare_truenet_data = Node(PrepareTrueNetData(), name='prepare_truenet_data')
+                prepare_truenet_data = Node(PrepareTrueNetData2(), name='prepare_truenet_data')
                 evaluate_truenet_data = Node(TrueNetEvaluate(), name='evaluate_truenet_data')
                 # truenet T1w only
-                # Let truenet do the preprocess
-                wmh_workflow.connect(inputnode, 't1w', prepare_truenet_data, 'T1')
-                prepare_truenet_data.inputs.outname = truenet_preprocess_dir + '/truenet_preprocess'
-                prepare_truenet_data.inputs.verbose = True
+                wmh_workflow.connect(inputnode, 't1w', prepare_truenet_data, 't1w')
+                prepare_truenet_data.inputs.flair = 'NONE'  # no FLAIR image
+                wmh_workflow.connect(t1w_stripped_node, 'brain_mask', prepare_truenet_data, 'brain_mask')
+                wmh_workflow.connect(check_synthseg, 'synthseg_output', prepare_truenet_data, 'synthseg_img')
+                prepare_truenet_data.inputs.output_dir = truenet_preprocess_dir
+                prepare_truenet_data.inputs.prefix = 'truenet_preprocess'
 
                 wmh_workflow.connect(prepare_truenet_data, 'output_dir', evaluate_truenet_data, 'inp_dir')
                 evaluate_truenet_data.inputs.model_name = 'ukbb_t1'
@@ -453,7 +460,7 @@ class WMHSegmentationPipeline:
             truenet_postprocess.inputs.output_prob_map_name = probmap_filename_t1w if t1w_file != '' else probmap_filename_flair
 
             # connect to wmh_mask_node
-            if t1w_file != '' and flair_file != '':
+            if t1w_file != '':
                 wmh_workflow.connect(truenet_postprocess, 'wmh_mask', wmh_mask_node, 'wmh_mask_t1w')
                 wmh_workflow.connect(truenet_postprocess, 'wmh_prob_map', wmh_mask_node, 'wmh_probmap_t1w')
             else:
@@ -916,38 +923,282 @@ class WMHSegmentationPipeline:
         return wmh_workflow
 
     def extract_results(self):
+        import os
+        import pandas as pd
+
         os.makedirs(self.output_path, exist_ok=True)
 
         wmh_output_path = self.extract_from
 
-        # Create an empty DataFrame to store results
-        columns = ['Subject', 'Session', 'Total_WMH_volume(ml)', 'PWMH_volume(ml)', 'DWMH_volume(ml)', 'ICV(ml)',
-                   'Total_WMH_percentICV(%)', 'PWMH_percentICV(%)', 'DWMH_percentICV(%)',
-                'PWMH_Convexity', 'PWMH_Solidity', 'PWMH_Concavity_Index', 'PWMH_Inverse_Sphericity_Index', 
-                'PWMH_Eccentricity', 'PWMH_Fractal_Dimension', 'DWMH_Convexity', 'DWMH_Solidity', 
-                'DWMH_Concavity_Index', 'DWMH_Inverse_Sphericity_Index', 'DWMH_Eccentricity', 
-                'DWMH_Fractal_Dimension']
-        results_df = pd.DataFrame(columns=columns)
+        if not wmh_output_path or not os.path.exists(wmh_output_path):
+            raise FileNotFoundError(f"extract_from does not exist: {wmh_output_path}")
 
-        # Iterate through all sub-* folders
-        for subject_folder in os.listdir(wmh_output_path):
-            subject_id = subject_folder.split('-')[1]
+        jhu_label_map = {
+            1: "Middle_cerebellar_peduncle",
+            2: "Pontine_crossing_tract",
+            3: "Genu_of_corpus_callosum",
+            4: "Body_of_corpus_callosum",
+            5: "Splenium_of_corpus_callosum",
+            6: "Fornix",
+            7: "Corticospinal_tract_R",
+            8: "Corticospinal_tract_L",
+            9: "Medial_lemniscus_R",
+            10: "Medial_lemniscus_L",
+            11: "Inferior_cerebellar_peduncle_R",
+            12: "Inferior_cerebellar_peduncle_L",
+            13: "Superior_cerebellar_peduncle_R",
+            14: "Superior_cerebellar_peduncle_L",
+            15: "Cerebral_peduncle_R",
+            16: "Cerebral_peduncle_L",
+            17: "Anterior_limb_of_internal_capsule_R",
+            18: "Anterior_limb_of_internal_capsule_L",
+            19: "Posterior_limb_of_internal_capsule_R",
+            20: "Posterior_limb_of_internal_capsule_L",
+            21: "Retrolenticular_part_of_internal_capsule_R",
+            22: "Retrolenticular_part_of_internal_capsule_L",
+            23: "Anterior_corona_radiata_R",
+            24: "Anterior_corona_radiata_L",
+            25: "Superior_corona_radiata_R",
+            26: "Superior_corona_radiata_L",
+            27: "Posterior_corona_radiata_R",
+            28: "Posterior_corona_radiata_L",
+            29: "Posterior_thalamic_radiation_R",
+            30: "Posterior_thalamic_radiation_L",
+            31: "Sagittal_stratum_R",
+            32: "Sagittal_stratum_L",
+            33: "External_capsule_R",
+            34: "External_capsule_L",
+            35: "Cingulum_cingulate_gyrus_R",
+            36: "Cingulum_cingulate_gyrus_L",
+            37: "Cingulum_hippocampus_R",
+            38: "Cingulum_hippocampus_L",
+            39: "Fornix_stria_terminalis_R",
+            40: "Fornix_stria_terminalis_L",
+            41: "Superior_longitudinal_fasciculus_R",
+            42: "Superior_longitudinal_fasciculus_L",
+            43: "Superior_fronto_occipital_fasciculus_R",
+            44: "Superior_fronto_occipital_fasciculus_L",
+            45: "Inferior_fronto_occipital_fasciculus_R",
+            46: "Inferior_fronto_occipital_fasciculus_L",
+            47: "Uncinate_fasciculus_R",
+            48: "Uncinate_fasciculus_L",
+            49: "Tapetum_R",
+            50: "Tapetum_L",
+        }
+
+        lobarseg_label_map = {
+            52: "basal_ganglia",
+            251: "corpus_callosum",
+            3001: "left_frontal",
+            3002: "left_parietal",
+            3003: "left_occipital",
+            3004: "left_temporal",
+            4001: "right_frontal",
+            4002: "right_parietal",
+            4003: "right_occipital",
+            4004: "right_temporal",
+        }
+
+        bullseye_label_map = {
+            40011: "frontal_lh1",
+            40012: "frontal_lh2",
+            40013: "frontal_lh3",
+            40014: "frontal_lh4",
+            40021: "parietal_lh1",
+            40022: "parietal_lh2",
+            40023: "parietal_lh3",
+            40024: "parietal_lh4",
+            40031: "occipital_lh1",
+            40032: "occipital_lh2",
+            40033: "occipital_lh3",
+            40034: "occipital_lh4",
+            40041: "temporal_lh1",
+            40042: "temporal_lh2",
+            40043: "temporal_lh3",
+            40044: "temporal_lh4",
+            30011: "frontal_rh1",
+            30012: "frontal_rh2",
+            30013: "frontal_rh3",
+            30014: "frontal_rh4",
+            30021: "parietal_rh1",
+            30022: "parietal_rh2",
+            30023: "parietal_rh3",
+            30024: "parietal_rh4",
+            30031: "occipital_rh1",
+            30032: "occipital_rh2",
+            30033: "occipital_rh3",
+            30034: "occipital_rh4",
+            30041: "temporal_rh1",
+            30042: "temporal_rh2",
+            30043: "temporal_rh3",
+            30044: "temporal_rh4",
+            521: "bg1",
+            522: "bg2",
+            523: "bg3",
+            524: "bg4",
+            2551: "parstriangularis",
+            2552: "pericalcarine",
+            2553: "postcentral",
+            2554: "posteriorcingulate",
+        }
+
+        shiva_label_map = {
+            1: "Left_Shallow_WM",
+            2: "Left_Deep_WM",
+            3: "Left_PV_WM",
+            4: "Left_Cerebellar",
+            5: "Right_Shallow_WM",
+            6: "Right_Deep_WM",
+            7: "Right_PV_WM",
+            8: "Right_Cerebellar",
+            9: "Brainstem",
+        }
+
+        twmh_cols = ["Subject", "Session", "Total_WMH_Volume", "PWMH_Volume", "DWMH_Volume"]
+        jhu_cols = ["Subject", "Session"] + list(jhu_label_map.values())
+        lobarseg_cols = ["Subject", "Session"] + list(lobarseg_label_map.values())
+        bullseye_cols = ["Subject", "Session"] + list(bullseye_label_map.values())
+        shiva_cols = ["Subject", "Session"] + list(shiva_label_map.values())
+
+        twmh_rows = []
+        jhu_rows = []
+        lobarseg_rows = []
+        bullseye_rows = []
+        shiva_rows = []
+
+        def _safe_read_csv(csv_path):
+            if csv_path is None or not os.path.exists(csv_path):
+                return None
+            try:
+                return pd.read_csv(csv_path)
+            except Exception as e:
+                print(f"[WARN] Failed to read CSV: {csv_path}. Error: {e}")
+                return None
+
+        def _find_first_csv(base_path, include_keywords, exclude_keywords=None):
+            exclude_keywords = exclude_keywords or []
+            if not os.path.exists(base_path):
+                return None
+
+            matched = []
+            for f in os.listdir(base_path):
+                if not f.endswith("_volume.csv"):
+                    continue
+                if all(k in f for k in include_keywords) and not any(k in f for k in exclude_keywords):
+                    matched.append(os.path.join(base_path, f))
+
+            matched = sorted(matched)
+            return matched[0] if matched else None
+
+        def _extract_single_binary_volume(csv_path):
+            df = _safe_read_csv(csv_path)
+            if df is None or df.empty:
+                return None
+
+            if "Label" not in df.columns or "Volume (mm^3)" not in df.columns:
+                return None
+
+            df = df.copy()
+            df["Label"] = pd.to_numeric(df["Label"], errors="coerce")
+            df["Volume (mm^3)"] = pd.to_numeric(df["Volume (mm^3)"], errors="coerce")
+
+            hit = df.loc[df["Label"] == 1, "Volume (mm^3)"]
+            if not hit.empty:
+                return hit.iloc[0]
+
+            nonzero_hit = df.loc[df["Label"] != 0, "Volume (mm^3)"]
+            if not nonzero_hit.empty:
+                return nonzero_hit.iloc[0]
+
+            return None
+
+        def _extract_mapped_volumes(csv_path, label_map):
+            result = {v: None for v in label_map.values()}
+            df = _safe_read_csv(csv_path)
+            if df is None or df.empty:
+                return result
+
+            if "Label" not in df.columns or "Volume (mm^3)" not in df.columns:
+                return result
+
+            df = df.copy()
+            df["Label"] = pd.to_numeric(df["Label"], errors="coerce")
+            df["Volume (mm^3)"] = pd.to_numeric(df["Volume (mm^3)"], errors="coerce")
+
+            for label_id, col_name in label_map.items():
+                hit = df.loc[df["Label"] == label_id, "Volume (mm^3)"]
+                if not hit.empty:
+                    result[col_name] = hit.iloc[0]
+
+            return result
+
+        def _append_case(subject_id, session_id, base_path):
+            total_csv = _find_first_csv(
+                base_path,
+                include_keywords=["label-WMH"],
+                exclude_keywords=["JHU", "lobarseg", "bullseye", "shivaParcWMH"]
+            )
+            pwmh_csv = _find_first_csv(base_path, include_keywords=["label-PWMH"])
+            dwmh_csv = _find_first_csv(base_path, include_keywords=["label-DWMH"])
+            jhu_csv = _find_first_csv(base_path, include_keywords=["label-WMH", "desc-JHU"])
+            lobarseg_csv = _find_first_csv(base_path, include_keywords=["label-WMH", "desc-lobarseg"])
+            bullseye_csv = _find_first_csv(base_path, include_keywords=["label-WMH", "desc-bullseye"])
+            shiva_csv = _find_first_csv(base_path, include_keywords=["desc-shivaParcWMH"])
+
+            twmh_rows.append({
+                "Subject": subject_id,
+                "Session": session_id,
+                "Total_WMH_Volume": _extract_single_binary_volume(total_csv),
+                "PWMH_Volume": _extract_single_binary_volume(pwmh_csv),
+                "DWMH_Volume": _extract_single_binary_volume(dwmh_csv),
+            })
+
+            jhu_row = {"Subject": subject_id, "Session": session_id}
+            jhu_row.update(_extract_mapped_volumes(jhu_csv, jhu_label_map))
+            jhu_rows.append(jhu_row)
+
+            lobarseg_row = {"Subject": subject_id, "Session": session_id}
+            lobarseg_row.update(_extract_mapped_volumes(lobarseg_csv, lobarseg_label_map))
+            lobarseg_rows.append(lobarseg_row)
+
+            bullseye_row = {"Subject": subject_id, "Session": session_id}
+            bullseye_row.update(_extract_mapped_volumes(bullseye_csv, bullseye_label_map))
+            bullseye_rows.append(bullseye_row)
+
+            shiva_row = {"Subject": subject_id, "Session": session_id}
+            shiva_row.update(_extract_mapped_volumes(shiva_csv, shiva_label_map))
+            shiva_rows.append(shiva_row)
+
+        for subject_folder in sorted(os.listdir(wmh_output_path)):
             subject_folder_path = os.path.join(wmh_output_path, subject_folder)
+            if not os.path.isdir(subject_folder_path) or not subject_folder.startswith("sub-"):
+                continue
 
-            if os.path.isdir(subject_folder_path):
-                # Check for ses-* folders
-                session_folders = [f for f in os.listdir(subject_folder_path) if 'ses-' in f]
+            subject_id = subject_folder.replace("sub-", "", 1)
+            session_folders = sorted([
+                f for f in os.listdir(subject_folder_path)
+                if os.path.isdir(os.path.join(subject_folder_path, f)) and f.startswith("ses-")
+            ])
 
-                if session_folders:  # If there are ses-* folders
-                    for session_folder in session_folders:
-                        session_path = os.path.join(subject_folder_path, session_folder)
-                        new_data = self._process_wmh_data(subject_id, session_folder.split('-')[1], session_path)
-                        results_df = pd.concat([results_df, new_data], ignore_index=True)
-                else:  # If there are no ses-* folders
-                    new_data = self._process_wmh_data(subject_id, 'N/A', subject_folder_path)
-                    results_df = pd.concat([results_df, new_data], ignore_index=True)
+            if session_folders:
+                for session_folder in session_folders:
+                    session_id = session_folder.replace("ses-", "", 1)
+                    session_path = os.path.join(subject_folder_path, session_folder)
+                    _append_case(subject_id, session_id, session_path)
+            else:
+                _append_case(subject_id, "N/A", subject_folder_path)
 
-        # Save results to Excel file
-        output_excel_path = os.path.join(self.output_path, 'wmh_quantification_results.xlsx')
-        results_df.to_excel(output_excel_path, header=True, index=False)
-        print(f"Quantification results saved to {output_excel_path}")
+        twmh_df = pd.DataFrame(twmh_rows, columns=twmh_cols)
+        jhu_df = pd.DataFrame(jhu_rows, columns=jhu_cols)
+        lobarseg_df = pd.DataFrame(lobarseg_rows, columns=lobarseg_cols)
+        bullseye_df = pd.DataFrame(bullseye_rows, columns=bullseye_cols)
+        shiva_df = pd.DataFrame(shiva_rows, columns=shiva_cols)
+
+        twmh_df.to_excel(os.path.join(self.output_path, "wmh_total_quantification_results.xlsx"), index=False)
+        jhu_df.to_excel(os.path.join(self.output_path, "wmh_jhu_quantification_results.xlsx"), index=False)
+        lobarseg_df.to_excel(os.path.join(self.output_path, "wmh_lobarseg_quantification_results.xlsx"), index=False)
+        bullseye_df.to_excel(os.path.join(self.output_path, "wmh_bullseye_quantification_results.xlsx"), index=False)
+        shiva_df.to_excel(os.path.join(self.output_path, "wmh_shiva_quantification_results.xlsx"), index=False)
+
+        print(f"Results extracted successfully from: {wmh_output_path}")
+        print(f"Saved results to: {self.output_path}")

@@ -182,19 +182,94 @@ class DTIALPSsimple(BaseInterface):
 # t1_img='' # Input T1w image (NIfTI format): -t1_img <path>
 # t1_to_mni_warp='' # Input T1 to MNI warp file (ANTs format): -t1_to_mni_warp <path>
 class ALPSInputSpec(CommandLineInputSpec):
-    fa_img = Str(argstr='-fa_img %s', position=0, desc='Input FA image (NIfTI format)', mandatory=True)
-    output_dir = Str(argstr='-output_dir %s', position=1, desc='Output directory', mandatory=True)
-    alps_dir = Str(argstr='-alps_dir %s', position=2, desc='ALPS script directory', mandatory=True)
-    register_method = Str(argstr='-register_method %s', position=3, desc='Registration method: flirt or synthmorph', default_value='flirt')
-    xx_img = Str(argstr='-xx_img %s', position=4, desc='Input XX image (NIfTI format)', mandatory=False)
-    yy_img = Str(argstr='-yy_img %s', position=5, desc='Input YY image (NIfTI format)', mandatory=False)
-    zz_img = Str(argstr='-zz_img %s', position=6, desc='Input ZZ image (NIfTI format)', mandatory=False)
-    tensor_img = Str(argstr='-tensor_img %s', position=7, desc='Input 4D tensor image (NIfTI format)', mandatory=False)
-    t1_img = Str(argstr='-t1_img %s', position=8, desc='Input T1w image (NIfTI format)', mandatory=False)
-    t1_to_mni_warp = Str(argstr='-t1_to_mni_warp %s', position=9, desc='Input T1 to MNI warp file (Synthmorph format)', mandatory=False)
+    fa_img = File(
+        exists=True,
+        argstr='-fa_img %s',
+        position=0,
+        desc='Input FA image in NIfTI format',
+        mandatory=True
+    )
+    output_dir = Directory(
+        argstr='-output_dir %s',
+        position=1,
+        desc='Output directory',
+        mandatory=True
+    )
+    alps_dir = Directory(
+        exists=True,
+        argstr='-alps_dir %s',
+        position=2,
+        desc='ALPS script directory',
+        mandatory=True
+    )
+    register_method = traits.Enum(
+        'flirt',
+        'synthmorph',
+        argstr='-register_method %s',
+        position=3,
+        usedefault=True,
+        desc='Registration method'
+    )
+
+    xx_img = File(
+        exists=True,
+        argstr='-xx_img %s',
+        position=4,
+        desc='Input XX tensor component image',
+        mandatory=False
+    )
+    yy_img = File(
+        exists=True,
+        argstr='-yy_img %s',
+        position=5,
+        desc='Input YY tensor component image',
+        mandatory=False
+    )
+    zz_img = File(
+        exists=True,
+        argstr='-zz_img %s',
+        position=6,
+        desc='Input ZZ tensor component image',
+        mandatory=False
+    )
+    tensor_img = File(
+        exists=True,
+        argstr='-tensor_img %s',
+        position=7,
+        desc='Input 4D tensor image',
+        mandatory=False
+    )
+    t1_img = File(
+        exists=True,
+        argstr='-t1_img %s',
+        position=8,
+        desc='Input T1w image',
+        mandatory=False
+    )
+    fa_to_t1w_affine = File(
+        exists=True,
+        argstr='-fa_to_t1w_affine %s',
+        position=9,
+        desc='Input FA-to-T1w affine matrix',
+        mandatory=False
+    )
+    t1_to_mni_warp = File(
+        exists=True,
+        argstr='-t1_to_mni_warp %s',
+        position=10,
+        desc='Input T1w-to-MNI warp file',
+        mandatory=False
+    )
+
 
 class ALPSOutputSpec(TraitedSpec):
-    alps_stat = Str(desc='ALPS statistics file path')
+    output_dir = Directory(desc='Output directory')
+    alps_stat_dir = Directory(desc='ALPS statistics directory')
+    alps_csv = File(desc='ALPS statistics CSV file')
+    xx_to_template = File(desc='XX tensor component in template space')
+    yy_to_template = File(desc='YY tensor component in template space')
+    zz_to_template = File(desc='ZZ tensor component in template space')
+
 
 class ALPS(CommandLine):
     _cmd = 'bash ' + get_package_path('pipelines', 'bash', 'alps', 'alps.sh')
@@ -204,5 +279,13 @@ class ALPS(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['alps_stat'] = os.path.join(self.inputs.output_dir, 'alps.stat', 'alps.csv')
+        output_dir = os.path.abspath(self.inputs.output_dir)
+
+        outputs['output_dir'] = output_dir
+        outputs['alps_stat_dir'] = os.path.join(output_dir, 'alps.stat')
+        outputs['alps_csv'] = os.path.join(output_dir, 'alps.stat', 'alps.csv')
+        outputs['xx_to_template'] = os.path.join(output_dir, 'xx_to_template.nii.gz')
+        outputs['yy_to_template'] = os.path.join(output_dir, 'yy_to_template.nii.gz')
+        outputs['zz_to_template'] = os.path.join(output_dir, 'zz_to_template.nii.gz')
+
         return outputs

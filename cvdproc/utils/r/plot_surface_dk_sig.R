@@ -205,7 +205,7 @@ plot_dk_from_xlsx <- function(
 
 plot_dk_from_xlsx(
   xlsx_path = "D:/Codes/cvdproc/cvdproc/utils/r/rdata/aparc.xlsx",
-  out_png = "C:/Users/Xiaog/WPSDrive/1136007837/WPS云盘/paper/rssi_glymphatic_analysis/data/analysis/20260303_results/chacho_gmv_ipsi.png",
+  out_png = "C:/Users/Xiaog/WPSDrive/1136007837/WPS云盘/paper/rssi_glymphatic_analysis/data/analysis/20260303_results/dmv_contra_length_BL_gmv_ipsi.png",
   use_clean_atlas = TRUE,
   atlas_rds = "D:/Codes/cvdproc/cvdproc/utils/r/rdata/dk_nocc.rds",
   p_threshold = 0.05,

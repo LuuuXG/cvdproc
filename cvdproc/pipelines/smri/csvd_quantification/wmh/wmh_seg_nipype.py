@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from nipype import Node, Workflow
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
-from nipype.interfaces.utility import IdentityInterface
+from nipype.interfaces.utility import IdentityInterface, Function
 from traits.api import Bool, Int, Str, Float, Either
 
 from scipy.ndimage import label
@@ -354,12 +354,13 @@ class PrepareTrueNetData(CommandLine):
         return f"{self.inputs.outname}_{suffix}.nii.gz"
 
 class PrepareTrueNetData2InputSpec(CommandLineInputSpec):
-    flair = File(desc="Skull-stripped FLAIR image path (should be aligned with T1w)", argstr='%s', position=0, exists=True)
+    flair = Str(desc="Skull-stripped FLAIR image path (should be aligned with T1w)", argstr='%s', position=0, exists=True)
     t1w = File(desc="Skull-stripped T1 image path (should be aligned with FLAIR)", argstr='%s', position=1, exists=True)
     brain_mask = File(desc="Brain mask path", argstr='%s', position=2, exists=True)
     synthseg_img = File(desc="SynthSeg output image path", argstr='%s', position=3, exists=True)
     output_dir = Directory(desc="Output directory for processed images", argstr='%s', position=4, exists=False, mandatory=True)
     prefix = Str(desc="Prefix for output files", argstr='%s', position=5, exists=False, mandatory=True)
+    keep_t1w = Str(desc="Whether to keep T1w image", argstr='%s', position=6, exists=False, mandatory=False)
 
 class PrepareTrueNetData2OutputSpec(TraitedSpec):
     output_dir = Directory(desc="Output directory for processed images")
@@ -401,14 +402,25 @@ class TrueNetEvaluate(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['output_dir'] = os.path.abspath(self.inputs.output_dir)
+        outputs["output_dir"] = os.path.abspath(self.inputs.output_dir)
 
-        # get the prefix in the inp_dir (truenet_preprocess_FLAIR.nii.gz -> truenet_preprocess)
-        flair_file = [f for f in os.listdir(self.inputs.inp_dir) if f.endswith('FLAIR.nii.gz')]
-        prefix = flair_file[0].split('_FLAIR')[0] if flair_file else None
+        input_dir = self.inputs.inp_dir
+        prefix = None
 
-        if prefix:
-            outputs['pred_file'] = os.path.join(self.inputs.output_dir, f"Predicted_probmap_truenet_{prefix}.nii.gz")
+        t1_files = [f for f in os.listdir(input_dir) if f.endswith("_T1.nii.gz")]
+        flair_files = [f for f in os.listdir(input_dir) if f.endswith("_FLAIR.nii.gz")]
+
+        if t1_files:
+            prefix = t1_files[0].rsplit("_T1.nii.gz", 1)[0]
+        elif flair_files:
+            prefix = flair_files[0].rsplit("_FLAIR.nii.gz", 1)[0]
+
+        if prefix is not None:
+            outputs["pred_file"] = os.path.join(
+                outputs["output_dir"],
+                f"Predicted_probmap_truenet_{prefix}.nii.gz"
+            )
+
         return outputs
     
     

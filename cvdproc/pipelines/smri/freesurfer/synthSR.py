@@ -1,55 +1,91 @@
 import os
-import shutil
-from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine, BaseInterfaceInputSpec, BaseInterface
-from traits.api import Str, Int, Directory, Bool
+import json
+from nipype.interfaces.base import (
+    CommandLineInputSpec,
+    TraitedSpec,
+    CommandLine,
+)
+from traits.api import Str, Int, Bool
 
-# usage: mri_synthsr [-h] [--i I] [--o O] [--ct] [--disable_sharpening] [--disable_flipping] [--lowfield] [--v1]
-#                    [--threads THREADS] [--cpu] [--model MODEL]
-
-# Implementation of SynthSR that generates a synthetic 1mm MP-RAGE from a scan of any contrast and resolution
-
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   --i I                 Image(s) to super-resolve. Can be a path to an image or to a folder.
-#   --o O                 Output(s), i.e. synthetic 1mm MP-RAGE(s). Must be a folder if --i designates a folder.
-#   --ct                  (optional) Use this flag for CT scans in Hounsfield scale, it clips intensities to [0,80].
-#   --disable_sharpening  (optional) Use this flag to disable unsharp masking.
-#   --disable_flipping    (optional) Use this flag to disable flipping augmentation at test time.
-#   --lowfield            (optional) Use model for low-field scans (e.g., acquired with Hyperfine's Swoop scanner).
-#   --v1                  (optional) Use version 1 model from July 2021.
-#   --threads THREADS     (optional) Number of cores to be used. Default is 1.
-#   --cpu                 (optional) Enforce running with CPU rather than GPU.
-#   --model MODEL         (optional) Use a different model file.
 
 class SynthSRInputSpec(CommandLineInputSpec):
-    input = Str(mandatory=True, argstr="--i %s", position=0, desc="Image(s) to super-resolve. Can be a path to an image or to a folder.")
-    output = Str(mandatory=True, argstr="--o %s", position=1, desc="Output(s), i.e. synthetic 1mm MP-RAGE(s). Must be a folder if --i designates a folder.")
-    ct = Bool(False, usedefault=True, argstr="--ct", desc="Use this flag for CT scans in Hounsfield scale, it clips intensities to [0,80].")
-    disable_sharpening = Bool(False, usedefault=True, argstr="--disable_sharpening", desc="Use this flag to disable unsharp masking.")
-    disable_flipping = Bool(False, usedefault=True, argstr="--disable_flipping", desc="Use this flag to disable flipping augmentation at test time.")
-    lowfield = Bool(False, usedefault=True, argstr="--lowfield", desc="Use model for low-field scans (e.g., acquired with Hyperfine's Swoop scanner).")
-    v1 = Bool(False, usedefault=True, argstr="--v1", desc="Use version 1 model from July 2021.")
-    threads = Int(1, usedefault=True, argstr="--threads %d", desc="Number of cores to be used. Default is 1.")
-    cpu = Bool(False, usedefault=True, argstr="--cpu", desc="Enforce running with CPU rather than GPU.")
-    model = Str(argstr="--model %s", desc="Use a different model file. If not specified, the default model will be used.")
+    input = Str(
+        mandatory=True,
+        argstr="--i %s",
+        position=0,
+        desc="Image(s) to super-resolve."
+    )
+    output = Str(
+        mandatory=True,
+        argstr="--o %s",
+        position=1,
+        desc="Output synthetic image."
+    )
+    ct = Bool(False, usedefault=True, argstr="--ct")
+    disable_sharpening = Bool(False, usedefault=True, argstr="--disable_sharpening")
+    disable_flipping = Bool(False, usedefault=True, argstr="--disable_flipping")
+    lowfield = Bool(False, usedefault=True, argstr="--lowfield")
+    v1 = Bool(False, usedefault=True, argstr="--v1")
+    threads = Int(1, usedefault=True, argstr="--threads %d")
+    cpu = Bool(False, usedefault=True, argstr="--cpu")
+    model = Str(argstr="--model %s")
+
 
 class SynthSROutputSpec(TraitedSpec):
-    output = Str(desc='Output directory containing the synthetic 1mm MP-RAGE image(s)')
+    output = Str(desc="Synthetic image path")
+    json_file = Str(desc="BIDS JSON sidecar")
+
 
 class SynthSR(CommandLine):
-    _cmd = 'mri_synthsr'
+    _cmd = "mri_synthsr"
     input_spec = SynthSRInputSpec
     output_spec = SynthSROutputSpec
-    #terminal_output = 'allatonce'
+
+    def _run_interface(self, runtime):
+        runtime = super()._run_interface(runtime)
+        self._write_json_sidecar()
+        return runtime
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['output'] = self.inputs.output
+        outputs["output"] = self.inputs.output
+        outputs["json_file"] = self._get_json_path()
         return outputs
 
-if __name__ == '__main__':
-    # Example usage
+    def _get_json_path(self):
+        output = self.inputs.output
+
+        if output.endswith(".nii.gz"):
+            return output[:-7] + ".json"
+        elif output.endswith(".nii"):
+            return output[:-4] + ".json"
+        else:
+            return output + ".json"
+
+    def _write_json_sidecar(self):
+        json_path = self._get_json_path()
+
+        source = os.path.abspath(self.inputs.input)
+
+        metadata = {
+            "Description": "Synthetic 1mm MP-RAGE image generated by SynthSR.",
+            "RawSources": [source]
+        }
+
+        os.makedirs(os.path.dirname(self.inputs.output), exist_ok=True)
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=4)
+
+        return json_path
+
+
+if __name__ == "__main__":
     synthsr = SynthSR()
-    synthsr.inputs.input = '/mnt/f/BIDS/SVD_BIDS/sub-SVD0001/ses-01/anat/sub-SVD0001_ses-01_acq-lowres_T1w.nii.gz'
-    synthsr.inputs.output = '/mnt/f/BIDS/SVD_BIDS/sub-SVD0001/ses-01/anat/sub-SVD0001_ses-01_acq-synthsr_T1w.nii.gz'
+    synthsr.inputs.input = "/mnt/f/BIDS/SVD_BIDS/sub-SVD0001/ses-01/anat/sub-SVD0001_ses-01_acq-lowres_T1w.nii.gz"
+    synthsr.inputs.output = "/mnt/f/BIDS/SVD_BIDS/sub-SVD0001/ses-01/anat/sub-SVD0001_ses-01_acq-synthsr_T1w.nii.gz"
+
     result = synthsr.run()
-    print(result.outputs.output)  # Output directory containing the synthetic image(s)
+
+    print(result.outputs.output)
+    print(result.outputs.json_file)

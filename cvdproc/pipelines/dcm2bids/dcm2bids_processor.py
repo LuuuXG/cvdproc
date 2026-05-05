@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 
 import nipype
 from cvdproc.pipelines.smri.fsl.deface_nipype import FSLDeface
+from cvdproc.bids_data.rename_bids_file import rename_bids_file
 
 class Dcm2BidsProcessor:
     def __init__(self, BIDS_root_folder):
@@ -390,6 +391,145 @@ class Dcm2BidsProcessor:
                         print(f"Defaced {file_path} successfully.")
                     else:
                         print(f"[ERROR] Failed to deface {file_path}.")
+    
+    def resample_to_iso(self, subject_id, session_id, resample_config):
+        """
+        Resample matched NIfTI files to isotropic resolution using FSL flirt.
+
+        A new file will be created with an added res-XXX entity instead of
+        overwriting the original file.
+
+        Parameters
+        ----------
+        subject_id : str
+            Subject identifier without 'sub-' prefix.
+        session_id : str
+            Session identifier without 'ses-' prefix.
+        resample_config : list[dict]
+            Each item must contain:
+                - match: str
+                - resolution: int | float
+                - interp: str
+        """
+
+        def _format_res_str(resolution):
+            """
+            Convert numeric isotropic resolution to a BIDS-friendly string.
+
+            Examples
+            --------
+            1 -> "1"
+            1.0 -> "1"
+            1.5 -> "1p5"
+            0.8 -> "0p8"
+            1.25 -> "1p25"
+            """
+            value = float(resolution)
+            if value.is_integer():
+                return str(int(value))
+            text = f"{value:.10f}".rstrip("0").rstrip(".")
+            return text.replace(".", "p")
+
+        def _split_nii_filename(filename):
+            """
+            Split a NIfTI filename into stem and extension.
+
+            Returns
+            -------
+            stem : str
+                Filename without .nii or .nii.gz
+            extension : str
+                '.nii' or '.nii.gz'
+            """
+            basename = os.path.basename(filename)
+            if basename.endswith(".nii.gz"):
+                return basename[:-7], ".nii.gz"
+            elif basename.endswith(".nii"):
+                return basename[:-4], ".nii"
+            else:
+                raise ValueError(f"Unsupported NIfTI filename: {filename}")
+
+        subject_dir = os.path.join(
+            self.BIDS_root_folder,
+            f"sub-{subject_id}",
+            f"ses-{session_id}"
+        )
+
+        if not os.path.exists(subject_dir):
+            print(f"[WARN] Subject/session directory not found: {subject_dir}")
+            return
+
+        if not resample_config:
+            print("[INFO] No resample_config provided. Skipping resampling.")
+            return
+
+        for root, _, files in os.walk(subject_dir):
+            for file in files:
+                if not (file.endswith(".nii.gz") or file.endswith(".nii")):
+                    continue
+
+                file_path = os.path.join(root, file)
+
+                for item in resample_config:
+                    match_str = item.get("match", "")
+                    resolution = item.get("resolution", None)
+                    interp = item.get("interp", "trilinear")
+
+                    if not match_str or resolution is None:
+                        print(f"[WARN] Invalid resample item skipped: {item}")
+                        continue
+
+                    if match_str not in file:
+                        continue
+
+                    if not isinstance(resolution, (int, float)):
+                        raise ValueError(
+                            f"Invalid resolution for match '{match_str}': {resolution}. "
+                            "It must be a single number for isotropic resampling."
+                        )
+
+                    stem, extension = _split_nii_filename(file)
+                    suffix = stem.split("_")[-1]
+                    res_str = _format_res_str(resolution)
+
+                    new_filename = rename_bids_file(
+                        original_filename=file_path,
+                        entities={"res": res_str},
+                        suffix=suffix,
+                        extension=extension
+                    )
+                    #output_path = os.path.join(root, new_filename)
+                    output_path = file_path
+
+                    # if os.path.abspath(output_path) == os.path.abspath(file_path):
+                    #     print(f"[WARN] Output path is identical to input path, skipped: {file_path}")
+                    #     break
+
+                    # if os.path.exists(output_path):
+                    #     print(f"[INFO] Resampled file already exists, skipped: {output_path}")
+                    #     break
+
+                    print(
+                        f"Resampling {file_path} to {float(resolution)} mm isotropic "
+                        f"using flirt with interp={interp} -> {output_path}"
+                    )
+
+                    cmd = [
+                        "flirt",
+                        "-in", file_path,
+                        "-ref", file_path,
+                        "-applyisoxfm", str(float(resolution)),
+                        "-out", output_path,
+                        "-interp", interp
+                    ]
+
+                    try:
+                        subprocess.run(cmd, check=True)
+                        print(f"[OK] Resampled file created: {output_path}")
+                        break
+                    except subprocess.CalledProcessError as e:
+                        print(f"[ERROR] Failed to resample {file_path}: {e}")
+                        break
     
     def find_first_dicom(self, dicom_root):
         """Recursively find the first dicom file under dicom_root"""

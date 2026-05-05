@@ -31,7 +31,8 @@ setup(
         #"torch",
         #"dcm2niix",
         "dcm2bids",
-        "openpyxl"
+        "openpyxl",
+        'pydicom',
     ],
     entry_points={
         "console_scripts": [

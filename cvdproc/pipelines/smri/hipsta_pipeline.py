@@ -5,7 +5,7 @@ import numpy as np
 from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Merge
 
-from cvdproc.pipelines.smri.hipsta.hipsta_nipype import Hipsta
+from cvdproc.pipelines.smri.hipsta.hipsta_nipype import Hipsta, HipstaDocker
 
 from ...bids_data.rename_bids_file import rename_bids_file
 
@@ -64,7 +64,7 @@ class HipstaPipeline:
                          name='inputnode')
         inputnode.inputs.hip_subfield_seg = [lh_hip_subfield_seg, rh_hip_subfield_seg]
 
-        hipsta_node = MapNode(Hipsta(), name='hipsta_node', iterfield=['filename', 'hemi'])
+        hipsta_node = MapNode(HipstaDocker(), name='hipsta_node', iterfield=['filename', 'hemi'])
         hipsta_workflow.connect(inputnode, 'hip_subfield_seg', hipsta_node, 'filename')
         hipsta_node.inputs.hemi = ['lh', 'rh']
         hipsta_node.inputs.outputdir = self.output_path

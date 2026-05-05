@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import nibabel as nib
 import numpy as np
+import glob
 from cvdproc.config.paths import get_package_path
 from nipype import Node, Workflow, MapNode, Function
 from nipype.interfaces.utility import IdentityInterface, Merge, Select
@@ -24,7 +25,7 @@ from cvdproc.pipelines.dmri.synb0.synb0_nipype import Synb0
 from cvdproc.pipelines.dmri.psmd.psmd_nipype import PSMDCommandLine
 from cvdproc.pipelines.dmri.alps.alps_nipype import ALPS
 from cvdproc.pipelines.dmri.dsistudio.create_src_nipype import CreateSRC
-from cvdproc.pipelines.dmri.dsistudio.reconstruction_nipype import DSIstudioReconstruction
+from cvdproc.pipelines.dmri.dsistudio.reconstruction_nipype import DSIstudioReconstruction, DSIstudioReconstruction2, DSIStudioBvecToFSL
 from cvdproc.pipelines.dmri.dsistudio.tracking_nipype import DSIstudioTracking
 from cvdproc.pipelines.dmri.dsistudio.tract_analysis import TractStatsInterface
 from cvdproc.pipelines.dmri.pved.pved_nipype import PVeD
@@ -78,6 +79,7 @@ class DWIPipeline:
                  psmd_exclude_seed_mask: bool = False,
                  visual_pathway_analysis: bool = False,
                  calculate_dwi_metrics: bool = False,
+                 use_synthseg_wm_mask: bool = False,
                  exclude_seed_mask: bool = True,
                  exclude_wmh_mask: bool = False,
                  extract_from: str = None,
@@ -97,7 +99,7 @@ class DWIPipeline:
             output_resolution (float, optional): Output resolution in mm. Defaults to 2.0.
             degibbs (bool, optional): Whether to perform degibbsing. Defaults to True.
             flip_b_table_axis (list, optional): List of axes to flip the b-table. Defaults to []. [0], [1], [2] for x, y, z axes.
-            preprocess_method (str, optional): Preprocessing method. 'fdt', 'mrtrix3' or 'post_qsiprep'. Defaults to 'fdt'.
+            preprocess_method (str, optional): Preprocessing method. 'fdt', 'mrtrix3', 'dsistudio_mc' or 'post_qsiprep'. Defaults to 'fdt'.
             synb0 (bool, optional): Whether to use Synb0 for TOPUP. Defaults to False.
             use_which_reverse_b0 (str, optional): Which reverse coded b0 image to use. Defaults to None.
             dti_fit (bool, optional): Whether to fit DTI model using FSL dtifit. Defaults to True.
@@ -117,6 +119,7 @@ class DWIPipeline:
             psmd_exclude_seed_mask (bool, optional): Whether to exclude seed mask in PSMD calculation. Defaults to False.
             visual_pathway_analysis (bool, optional): Whether to perform visual pathway analysis. Defaults to False. (An ongoing project! Experimental feature.)
             calculate_dwi_metrics (bool, optional): Whether to calculate DWI scalar maps. Defaults to False.
+            use_synthseg_wm_mask (bool, optional): Whether to use SynthSeg WM mask (instead of Freesurfer results). Defaults to False.
             exclude_seed_mask (bool, optional): Whether to exclude seed mask in DWI metrics calculation (For NAWM). Defaults to True.
             exclude_wmh_mask (bool, optional): Whether to exclude WMH mask in DWI metrics calculation (For NAWM). Defaults to False.
             extract_from (str, optional): Folder name to extract results from.
@@ -173,6 +176,7 @@ class DWIPipeline:
 
         # Calculate scalar maps
         self.calculate_dwi_metrics = calculate_dwi_metrics # whether to calculate DWI metrics
+        self.use_synthseg_wm_mask = use_synthseg_wm_mask # whether to use SynthSeg WM mask
         self.exclude_seed_mask = exclude_seed_mask # whether to exclude seed mask in DWI metrics calculation
         self.exclude_wmh_mask = exclude_wmh_mask # whether to exclude WMH mask in DWI metrics calculation
 
@@ -253,9 +257,8 @@ class DWIPipeline:
             phase_encoding_direction = dwi_json_data['PhaseEncodingDirection']     
         except KeyError:
             print("[Warn] Seems TotalReadoutTime or PhaseEncodingDirection not found in the json file.")
-            if not total_readout_time:
-                total_readout_time = '0.05'
-                print("[Warn] Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
+            total_readout_time = '0.05'
+            print("[Warn] Set TotalReadoutTime to 0.05. But make sure the value is the same in all acquisitions.")
 
         # Find Reverse b0 Image
         if not self.synb0 and self.use_which_reverse_b0 is not None:
@@ -300,20 +303,6 @@ class DWIPipeline:
             t1w_files = [t1w_files[0]]
             t1w_file = t1w_files[0]
             print(f"No specific T1w file selected. Using the first one: {t1w_file}.")
-        
-        # get FLAIR image
-        flair_files = self.session.get_flair_files()
-        if self.use_which_flair:
-            flair_files = [f for f in flair_files if self.use_which_flair in f]
-            if len(flair_files) != 1:
-                #raise FileNotFoundError(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
-                print(f"No specific FLAIR file found for {self.use_which_flair} or more than one found.")
-            flair_file = flair_files[0]
-            print(f"[DWI Pipeline] Using FLAIR: {flair_file}")
-        else:
-            # flair_files = [flair_files[0]]
-            # flair_file = flair_files[0]
-            print(f"No specific FLAIR file selected. If you want to include a FLAIR file, please specify it.")
 
         fs_output = self.session.freesurfer_dir
         # if fs_output exists
@@ -410,7 +399,7 @@ class DWIPipeline:
                     print(f"[DWI Pipeline] WMH probmap: {wmh_probmap_files[0]}.")
                     wmh_probmap_file = os.path.join(wmh_output_dir, wmh_probmap_files[0])
                 else:
-                    raise FileNotFoundError("WMH probmap in T1w space not found or multiple files found. Cannot exclude WMH probmap.")
+                    raise FileNotFoundError("[DWI Pipeline] WMH probmap in T1w space not found or multiple files found. Cannot exclude WMH probmap.")
 
         # Space entity ('preprocdwi' for our custom pipeline, 'ACPC' for QSIPrep)
         if self.preprocess_method == 'post_qsiprep':
@@ -454,6 +443,7 @@ class DWIPipeline:
         # ============================================
         # Directories for intermediate results
         preproc_intermediate_dir = os.path.join(self.output_path, 'preproc_intermediate')
+        os.makedirs(preproc_intermediate_dir, exist_ok=True)
 
         # Node to store the b0_all and acqparam for TOPUP
         b0_all_node = Node(IdentityInterface(fields=['b0_all', 'acqparam']), name='b0_all')
@@ -479,9 +469,7 @@ class DWIPipeline:
             # Denoise using MRtrix3
             denoise_node = Node(MrtrixDenoise(), name='denoise')
             dwi_workflow.connect(padding_node, 'out_file', denoise_node, 'dwi_img')
-            dwi_workflow.connect(padding_node, 'out_bvec', denoise_node, 'dwi_bvec')
-            dwi_workflow.connect(padding_node, 'out_bval', denoise_node, 'dwi_bval')
-            denoise_node.inputs.output_dir = preproc_intermediate_dir
+            denoise_node.inputs.output_dwi = os.path.join(preproc_intermediate_dir, 'dwi_denoised.nii.gz')
 
             # # Degibbs using MRtrix3
             # degibbs_node = Node(MrtrixDegibbs(), name='degibbs')
@@ -499,8 +487,8 @@ class DWIPipeline:
                 print("[DWI Pipeline] Skip degibbs.")
                 degibbs_node = Node(IdentityInterface(fields=['output_dwi_img', 'output_dwi_bvec', 'output_dwi_bval']), name='pesudo_degibbs')
                 dwi_workflow.connect(denoise_node, 'output_dwi_img', degibbs_node, 'output_dwi_img')
-                dwi_workflow.connect(denoise_node, 'output_dwi_bvec', degibbs_node, 'output_dwi_bvec')
-                dwi_workflow.connect(denoise_node, 'output_dwi_bval', degibbs_node, 'output_dwi_bval')
+                dwi_workflow.connect(inputnode, 'bvec_file', degibbs_node, 'output_dwi_bvec')
+                dwi_workflow.connect(inputnode, 'bval_file', degibbs_node, 'output_dwi_bval')
 
             # Get b0 image for TOPUP
             # Need a b0_all image and acqparam.txt file for FSL TOPUP
@@ -518,24 +506,27 @@ class DWIPipeline:
 
                 dwi_workflow.connect(synb0_node, 'acqparam', b0_all_node, 'acqparam')
                 dwi_workflow.connect(synb0_node, 'b0_all', b0_all_node, 'b0_all')
-            else:
+            elif reverse_b0_image is not None:
                 print("[DWI Pipeline] Use reverse b0 image for TOPUP.")
-                if reverse_b0_image is not None:
-                    create_b0_acqparam_node = Node(B0AllAndAcqparam(), name='create_b0_acqparam')
-                    dwi_workflow.connect([
-                        (inputnode, create_b0_acqparam_node, [('phase_encoding_number', 'phase_encoding_number'),
-                                                            ('total_readout_time', 'total_readout_time')]),
-                        (degibbs_node, create_b0_acqparam_node, [('output_dwi_img', 'dwi_img'),
-                                                                        ('output_dwi_bval', 'dwi_bval')])
-                    ])
-                    create_b0_acqparam_node.inputs.output_path = preproc_intermediate_dir
-                    create_b0_acqparam_node.inputs.reverse_dwi_img = reverse_b0_image
-                    create_b0_acqparam_node.inputs.reverse_dwi_bval = reverse_b0_bval
-                    create_b0_acqparam_node.inputs.reverse_phase_encoding_number = phase_encoding_direction_dict[reverse_b0_phase_encoding_direction]
-                    create_b0_acqparam_node.inputs.reverse_total_readout_time = reverse_b0_total_readout_time
+                create_b0_acqparam_node = Node(B0AllAndAcqparam(), name='create_b0_acqparam')
+                dwi_workflow.connect([
+                    (inputnode, create_b0_acqparam_node, [('phase_encoding_number', 'phase_encoding_number'),
+                                                        ('total_readout_time', 'total_readout_time')]),
+                    (degibbs_node, create_b0_acqparam_node, [('output_dwi_img', 'dwi_img'),
+                                                                    ('output_dwi_bval', 'dwi_bval')])
+                ])
+                create_b0_acqparam_node.inputs.output_path = preproc_intermediate_dir
+                create_b0_acqparam_node.inputs.reverse_dwi_img = reverse_b0_image
+                create_b0_acqparam_node.inputs.reverse_dwi_bval = reverse_b0_bval
+                create_b0_acqparam_node.inputs.reverse_phase_encoding_number = phase_encoding_direction_dict[reverse_b0_phase_encoding_direction]
+                create_b0_acqparam_node.inputs.reverse_total_readout_time = reverse_b0_total_readout_time
 
-                    dwi_workflow.connect(create_b0_acqparam_node, 'b0_all', b0_all_node, 'b0_all')
-                    dwi_workflow.connect(create_b0_acqparam_node, 'acqparam', b0_all_node, 'acqparam')
+                dwi_workflow.connect(create_b0_acqparam_node, 'b0_all', b0_all_node, 'b0_all')
+                dwi_workflow.connect(create_b0_acqparam_node, 'acqparam', b0_all_node, 'acqparam')
+            else:
+                if self.preprocess_method != "dsistudio_mc":
+                    raise FileNotFoundError("No reverse b0 image found for TOPUP. Please check the directory or set synb0 to True to use synthetic b0 image.")
+                print("[DWI Pipeline] No reverse b0 image available.")
 
             # Main preprocessing workflow, according to the preprocess method
             if self.preprocess_method == 'fdt':
@@ -563,13 +554,13 @@ class DWIPipeline:
                 create_dwi_mask_node.inputs.mask_file = dwi_mask_filepath
 
                 create_index_node = Node(IndexTxt(), name='create_index')
-                dwi_workflow.connect(denoise_node, 'output_dwi_bval', create_index_node, 'bval_file')
+                dwi_workflow.connect(inputnode, 'bval_file', create_index_node, 'bval_file')
                 create_index_node.inputs.output_dir = preproc_intermediate_dir
 
                 eddy_node = Node(EddyCuda(), name='eddy')
                 dwi_workflow.connect([
                     (degibbs_node, eddy_node, [('output_dwi_img', 'dwi_file')]),
-                    (denoise_node, eddy_node, [('output_dwi_bvec', 'bvec_file'), ('output_dwi_bval', 'bval_file')]),
+                    (inputnode, eddy_node, [('bval_file', 'bval_file'), ('bvec_file', 'bvec_file')]),
                     (b0_all_node, eddy_node, [('acqparam', 'acqparam_file')]),
                     (create_index_node, eddy_node, [('index_file', 'index_file')]),
                     (create_dwi_mask_node, eddy_node, [('mask_file', 'mask_file')]),
@@ -616,8 +607,8 @@ class DWIPipeline:
                 # Convert denoised and degibbsed DWI to mif
                 convert_denoised_degibbs_mif_node = Node(MRConvert(), name='convert_denoised_degibbs_mif')
                 dwi_workflow.connect(degibbs_node, 'output_dwi_img', convert_denoised_degibbs_mif_node, 'in_file')
-                dwi_workflow.connect(denoise_node, 'output_dwi_bvec', convert_denoised_degibbs_mif_node, 'in_bvec')
-                dwi_workflow.connect(denoise_node, 'output_dwi_bval', convert_denoised_degibbs_mif_node, 'in_bval')
+                dwi_workflow.connect(inputnode, 'bval_file', convert_denoised_degibbs_mif_node, 'in_bval')
+                dwi_workflow.connect(inputnode, 'bvec_file', convert_denoised_degibbs_mif_node, 'in_bvec')
                 convert_denoised_degibbs_mif_node.inputs.out_file = os.path.join(preproc_intermediate_dir, 'dwi_denoise_degibbs.mif')
                 convert_denoised_degibbs_mif_node.inputs.args = '-force'
 
@@ -660,6 +651,41 @@ class DWIPipeline:
                 dwi_workflow.connect(create_dwi_mask_node, 'mask_file', preproc_dwi_node, 'dwi_mask')
 
                 preproc_dwi_filename = rename_bids_file(dwi_image, {"space": space_entity, "desc": "preproc"}, 'dwi', '.nii.gz')
+            elif self.preprocess_method == 'dsistudio_mc':
+                print("[DWI Pipeline] Use DSI Studio for motion correction. This is designed for DSI acquisitions without reverse phase encoding.")
+                create_src_preprocess = Node(CreateSRC(), name='create_src_preprocess')
+                dwi_workflow.connect(degibbs_node, 'output_dwi_img', create_src_preprocess, 'source')
+                dwi_workflow.connect(inputnode, 'bval_file', create_src_preprocess, 'bval')
+                dwi_workflow.connect(inputnode, 'bvec_file', create_src_preprocess, 'bvec')
+                create_src_preprocess.inputs.output = os.path.join(preproc_intermediate_dir, 'dwi_temp.src.gz')
+
+                motion_correction_node = Node(DSIstudioReconstruction2(), name='dsistudio_hmc')
+                dwi_workflow.connect(create_src_preprocess, 'out_file', motion_correction_node, 'source')
+                motion_correction_node.inputs.thread_count = 12
+                motion_correction_node.inputs.motion_correction = 1
+                motion_correction_node.inputs.check_btable = 1
+                motion_correction_node.inputs.make_isotropic = self.output_resolution
+                motion_correction_node.inputs.save_nii = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": space_entity, "desc": "preproc"}, 'dwi', '.nii.gz'))
+
+                fix_bvec_node = Node(DSIStudioBvecToFSL(), name='fix_bvec')
+                dwi_workflow.connect(motion_correction_node, 'out_bvec', fix_bvec_node, 'in_bvec')
+                fix_bvec_node.inputs.out_bvec = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": space_entity, "desc": "preproc"}, 'dwi', '.bvec'))
+
+                create_b0ref_and_brainmask_node = Node(B0RefAndBrainMask(), name='create_b0ref_and_brainmask')
+                dwi_workflow.connect(motion_correction_node, 'out_nii', create_b0ref_and_brainmask_node, 'input_dwi')
+                dwi_workflow.connect(motion_correction_node, 'out_bval', create_b0ref_and_brainmask_node, 'input_bval')
+                create_b0ref_and_brainmask_node.inputs.output_dir = self.output_path
+                create_b0ref_and_brainmask_node.inputs.output_b0_filename = rename_bids_file(dwi_image, {"space": space_entity}, 'dwiref', '.nii.gz')
+                create_b0ref_and_brainmask_node.inputs.output_b0_mask_filename = rename_bids_file(dwi_image, {"space": space_entity, "desc": "brain"}, 'mask', '.nii.gz')
+
+                dwi_workflow.connect(motion_correction_node, 'out_nii', preproc_dwi_node, 'preproc_dwi')
+                dwi_workflow.connect(fix_bvec_node, 'out_bvec', preproc_dwi_node, 'bvec')
+                dwi_workflow.connect(motion_correction_node, 'out_bval', preproc_dwi_node, 'bval')
+                dwi_workflow.connect(create_b0ref_and_brainmask_node, 'b0_brain_mask', preproc_dwi_node, 'dwi_mask')
+                dwi_workflow.connect(create_b0ref_and_brainmask_node, 'b0_image', preproc_dwi_node, 'b0')
+
+                preproc_dwi_filename = rename_bids_file(dwi_image, {"space": space_entity, "desc": "preproc"}, 'dwi', '.nii.gz')
+
         elif not self.preprocess and self.preprocess_method == 'post_qsiprep':
             # search for preprocessed dwi in qsiprep output
             qsiprep_dwi_path = os.path.join(self.subject.bids_dir, 'derivatives', 'qsiprep', f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", 'dwi')
@@ -755,7 +781,7 @@ class DWIPipeline:
         # ===========================================
         # DWI scalar maps storage node
         dwi_scalarmaps_output_node = Node(IdentityInterface(fields=[
-            'fa_img', 'md_img', 'markvcid2_fw_img', # Tensor model
+            'fa_img', 'md_img', 'markvcid2_fw_img', 'ad', 'rd', # Tensor model
             'odi_img', 'icvf_img', 'isovf_img',  # NODDI model
             'gqi_gfa_img', 'gqi_iso_img', 'gqi_qa_img', # GQI model
             'chidia_img' # QSM!
@@ -764,6 +790,8 @@ class DWIPipeline:
         dwi_scalarmaps_output_node.inputs.fa_img = ''
         dwi_scalarmaps_output_node.inputs.md_img = ''
         dwi_scalarmaps_output_node.inputs.markvcid2_fw_img = ''
+        dwi_scalarmaps_output_node.inputs.ad = ''
+        dwi_scalarmaps_output_node.inputs.rd = ''
         dwi_scalarmaps_output_node.inputs.odi_img = ''
         dwi_scalarmaps_output_node.inputs.icvf_img = ''
         dwi_scalarmaps_output_node.inputs.isovf_img = ''
@@ -787,12 +815,15 @@ class DWIPipeline:
             os.makedirs(dtifit_output_dir, exist_ok=True)
 
             target_fa_output = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "fa"}, "dwimap", ".nii.gz"))
+            target_ad_output = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "ad"}, "dwimap", ".nii.gz"))
 
-            if os.path.exists(target_fa_output):
-                print(f"[DWI Pipeline] DTI FA image already exists: {target_fa_output}. Skipping DTI fit.")
+            if os.path.exists(target_ad_output):
+                print(f"[DWI Pipeline] DTI AD image already exists: {target_ad_output}. Skipping DTI fit.")
 
                 dti_fit_output_node.inputs.fa_img = target_fa_output
                 dti_fit_output_node.inputs.md_img = os.path.join(dtifit_output_dir,rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "md"}, "dwimap", ".nii.gz"))
+                dti_fit_output_node.inputs.ad_img = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "ad"}, "dwimap", ".nii.gz"))
+                dti_fit_output_node.inputs.rd_img = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "rd"}, "dwimap", ".nii.gz"))
                 dti_fit_output_node.inputs.tensor_img = os.path.join(dtifit_output_dir, rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "tensor", "param": "tensor"}, "dwimap", ".nii.gz"))
             else:
                 dti_fit_node = Node(DTIFitBIDS(), name='dti_fit')
@@ -807,12 +838,16 @@ class DWIPipeline:
 
                 dwi_workflow.connect(dti_fit_node, 'dti_fa',     dti_fit_output_node, 'fa_img')
                 dwi_workflow.connect(dti_fit_node, 'dti_md',     dti_fit_output_node, 'md_img')
+                dwi_workflow.connect(dti_fit_node, 'dti_ad',     dti_fit_output_node, 'ad_img')
+                dwi_workflow.connect(dti_fit_node, 'dti_rd',     dti_fit_output_node, 'rd_img')
                 dwi_workflow.connect(dti_fit_node, 'dti_tensor', dti_fit_output_node, 'tensor_img')
             
         # Connect DTI outputs to dwi_scalarmaps_output_node
         dwi_workflow.connect(dti_fit_output_node, 'fa_img', dwi_scalarmaps_output_node, 'fa_img')
         dwi_workflow.connect(dti_fit_output_node, 'md_img', dwi_scalarmaps_output_node, 'md_img')
-        
+        dwi_workflow.connect(dti_fit_output_node, 'ad_img', dwi_scalarmaps_output_node, 'ad_img')
+        dwi_workflow.connect(dti_fit_output_node, 'rd_img', dwi_scalarmaps_output_node, 'rd_img')
+
         # ============================================
         # DWI and T1w registration (And other anat preprocessing)
         # ============================================
@@ -862,7 +897,7 @@ class DWIPipeline:
                 seed_mask_to_dwi_node.inputs.interp = 'nearestneighbour'
                 seed_mask_to_dwi_node.inputs.apply_xfm = True
                 seed_mask_to_dwi_node.inputs.out_file = os.path.join(os.path.dirname(seed_mask), rename_bids_file(seed_mask, {'space': space_entity}, 'mask', '.nii.gz'))
-            
+
             if fs_output_process:
                 anat_output_dir = os.path.join(self.output_path, 'anat')
                 os.makedirs(anat_output_dir, exist_ok=True)
@@ -918,21 +953,6 @@ class DWIPipeline:
                 dwi_workflow.connect(fs_aparcaseg_to_dwi_node, 'out_file', refine_aseg_node, 'in_aseg')
                 refine_aseg_node.inputs.out_aseg = os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_desc-WMHremoved_aparcaseg.nii.gz")
 
-                # Create Tissue masks
-                create_WM_masks_node = MapNode(MRIBinarize(), name='create_WM_masks', iterfield=['output_volume', 'match'])
-                dwi_workflow.connect(refine_aseg_node, 'out_aseg', create_WM_masks_node, 'input_volume')
-                create_WM_masks_node.inputs.match = [
-                    [2, 41, 77, 251, 252, 253, 254, 255],  # Cerebral WM
-                    [2, 41, 77, 251, 252, 253, 254, 255, 7, 46], # All WM
-                    # [2, 41, 251, 252, 253, 254, 255, 7, 46] # NAWM (raw)
-                    [2, 41, 251, 252, 253, 254, 255] # NAWM (raw): only cerebral WM
-                ]
-                create_WM_masks_node.inputs.output_volume = [
-                    os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-cerebralWM_mask.nii.gz"),
-                    os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-WM_mask.nii.gz"),
-                    os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-rawNAWM_mask.nii.gz"),
-                ]
-
                 create_cortical_GM_mask_node = Node(MergeRibbon(), name='create_cortical_GM_mask')
                 dwi_workflow.connect(inputnode, 'fs_subjects_dir', create_cortical_GM_mask_node, 'subjects_dir')
                 dwi_workflow.connect(inputnode, 'fs_subject_id', create_cortical_GM_mask_node, 'subject_id')
@@ -946,108 +966,6 @@ class DWIPipeline:
                 cortical_GM_to_dwi_node.inputs.apply_xfm = True
                 cortical_GM_to_dwi_node.inputs.out_file = os.path.join(
                     anat_output_dir, rename_bids_file(create_cortical_GM_mask_node.inputs.output_gm_mask, {"space": space_entity}, "mask", ".nii.gz")
-                )
-
-                # refine NAWM mask by excluding WMH and seed mask (if configured)
-                get_raw_nawm_mask_node = Node(Select(index=2), name="select_raw_nawm_mask")
-                dwi_workflow.connect(create_WM_masks_node, 'output_volume', get_raw_nawm_mask_node, 'inlist')
-
-                def collect_exclusion_masks(seed_mask, wmh_mask, use_seed, use_wmh):
-                    import os
-                    masks = []
-                    if use_seed and seed_mask and os.path.exists(seed_mask):
-                        masks.append(seed_mask)
-                    if use_wmh and wmh_mask and os.path.exists(wmh_mask):
-                        masks.append(wmh_mask)
-                    return masks
-
-
-                collect_excl_node = Node(
-                    Function(
-                        input_names=["seed_mask", "wmh_mask", "use_seed", "use_wmh"],
-                        output_names=["masks"],
-                        function=collect_exclusion_masks,
-                    ),
-                    name="collect_exclusion_masks",
-                )
-
-                collect_excl_node.inputs.use_seed = bool(self.exclude_seed_mask and seed_mask != "")
-                collect_excl_node.inputs.use_wmh = bool(self.exclude_wmh_mask)
-
-                if self.exclude_seed_mask and seed_mask != "":
-                    dwi_workflow.connect(seed_mask_to_dwi_node, "out_file", collect_excl_node, "seed_mask")
-                else:
-                    collect_excl_node.inputs.seed_mask = ""
-
-                if self.exclude_wmh_mask:
-                    wmh_mask_to_dwi_node = Node(FLIRT(), name="wmh_mask_to_dwi")
-                    wmh_mask_to_dwi_node.inputs.in_file = wmh_mask_file
-                    dwi_workflow.connect(invert_dwi_to_t1w_reg_node, "out_file", wmh_mask_to_dwi_node, "in_matrix_file")
-                    dwi_workflow.connect(preproc_dwi_node, "b0", wmh_mask_to_dwi_node, "reference")
-                    wmh_mask_to_dwi_node.inputs.interp = "nearestneighbour"
-                    wmh_mask_to_dwi_node.inputs.apply_xfm = True
-                    wmh_mask_to_dwi_node.inputs.out_file = os.path.join(
-                        anat_output_dir, rename_bids_file(wmh_mask_file, {"space": space_entity}, "mask", ".nii.gz")
-                    )
-                    dwi_workflow.connect(wmh_mask_to_dwi_node, "out_file", collect_excl_node, "wmh_mask")
-                else:
-                    collect_excl_node.inputs.wmh_mask = ""
-
-
-                def merge_exclusion_masks(mask_files, ref_file, out_file):
-                    import os
-                    import subprocess
-
-                    if mask_files is None:
-                        mask_files = []
-                    mask_files = [m for m in mask_files if m]
-
-                    os.makedirs(os.path.dirname(out_file), exist_ok=True)
-
-                    if len(mask_files) == 0:
-                        subprocess.check_call(["fslmaths", ref_file, "-mul", "0", out_file])
-                        return out_file
-
-                    cmd = ["fslmaths", mask_files[0]]
-                    for m in mask_files[1:]:
-                        cmd += ["-add", m]
-                    cmd += ["-thr", "0.5", "-bin", out_file]
-                    subprocess.check_call(cmd)
-                    return out_file
-
-
-                merge_masks_to_exclude_node = Node(
-                    Function(
-                        input_names=["mask_files", "ref_file", "out_file"],
-                        output_names=["out_file"],
-                        function=merge_exclusion_masks,
-                    ),
-                    name="merge_masks_to_exclude",
-                )
-
-                dwi_workflow.connect(collect_excl_node, "masks", merge_masks_to_exclude_node, "mask_files")
-
-                # Use a reference image in the same target space to generate an all-zero mask if needed
-                dwi_workflow.connect(preproc_dwi_node, "b0", merge_masks_to_exclude_node, "ref_file")
-
-                merge_masks_to_exclude_node.inputs.out_file = os.path.join(
-                    anat_output_dir,
-                    f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_desc-exclusionMerged_mask.nii.gz",
-                )
-
-
-                get_final_nawm_node = Node(GenerateNAWMMask(), name="get_final_nawm_mask")
-                dwi_workflow.connect(get_raw_nawm_mask_node, "out", get_final_nawm_node, "wm_mask")
-                dwi_workflow.connect(merge_masks_to_exclude_node, "out_file", get_final_nawm_node, "exclude_mask")
-                get_final_nawm_node.inputs.erode_mm = 2
-                get_final_nawm_node.inputs.output_mask = os.path.join(
-                    anat_output_dir,
-                    f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-NAWM_mask.nii.gz",
-                )
-
-                final_nawm_mask = os.path.join(
-                    anat_output_dir,
-                    f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-NAWM_mask.nii.gz",
                 )
 
                 if self.visual_pathway_analysis:
@@ -1074,6 +992,266 @@ class DWIPipeline:
                         wmhprobmap_to_dwi_node.inputs.interp = 'trilinear'
                         wmhprobmap_to_dwi_node.inputs.apply_xfm = True
                         wmhprobmap_to_dwi_node.inputs.out_file = os.path.join(anat_output_dir, rename_bids_file(wmh_probmap_file, {'space': space_entity}, "probmap", ".nii.gz"))
+            
+            # NAWM mask creation
+            wm_source_available = False
+            wm_source_node = None
+            wm_source_output = None
+
+            if self.use_synthseg_wm_mask:
+                matches = glob.glob(os.path.join(
+                    self.subject.bids_dir,
+                    "derivatives",
+                    "anat_seg",
+                    f"sub-{self.subject.subject_id}",
+                    f"ses-{self.session.session_id}",
+                    "synthseg",
+                    "*synthseg.nii.gz",
+                ))
+
+                if len(matches) != 1:
+                    raise RuntimeError(
+                        f"Expected exactly 1 SynthSeg output, found {len(matches)}: {matches}"
+                    )
+
+                synthseg_target_output = matches[0]
+
+                synthseg_to_dwi_node = Node(FLIRT(), name="synthseg_to_dwi")
+                synthseg_to_dwi_node.inputs.in_file = synthseg_target_output
+                synthseg_to_dwi_node.inputs.interp = "nearestneighbour"
+                synthseg_to_dwi_node.inputs.apply_xfm = True
+                synthseg_to_dwi_node.inputs.out_file = os.path.join(
+                    anat_output_dir,
+                    rename_bids_file(
+                        synthseg_target_output,
+                        {"space": space_entity},
+                        "synthseg",
+                        ".nii.gz",
+                    ),
+                )
+
+                dwi_workflow.connect(
+                    invert_dwi_to_t1w_reg_node,
+                    "out_file",
+                    synthseg_to_dwi_node,
+                    "in_matrix_file",
+                )
+                dwi_workflow.connect(
+                    preproc_dwi_node,
+                    "b0",
+                    synthseg_to_dwi_node,
+                    "reference",
+                )
+
+                wm_source_available = True
+                wm_source_node = synthseg_to_dwi_node
+                wm_source_output = "out_file"
+
+            elif fs_output_process:
+                wm_source_available = True
+                wm_source_node = refine_aseg_node
+                wm_source_output = "out_aseg"
+
+            else:
+                print("[DWI Pipeline] No valid WM source found. Skip NAWM mask creation.")
+
+
+            if wm_source_available:
+                create_WM_masks_node = MapNode(
+                    MRIBinarize(),
+                    name="create_WM_masks",
+                    iterfield=["output_volume", "match"],
+                )
+
+                dwi_workflow.connect(
+                    wm_source_node,
+                    wm_source_output,
+                    create_WM_masks_node,
+                    "input_volume",
+                )
+
+                create_WM_masks_node.inputs.match = [
+                    [2, 41, 77, 251, 252, 253, 254, 255],
+                    [2, 41, 77, 251, 252, 253, 254, 255, 7, 46],
+                    [2, 41, 251, 252, 253, 254, 255],
+                ]
+
+                create_WM_masks_node.inputs.output_volume = [
+                    os.path.join(
+                        anat_output_dir,
+                        f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-cerebralWM_mask.nii.gz",
+                    ),
+                    os.path.join(
+                        anat_output_dir,
+                        f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-WM_mask.nii.gz",
+                    ),
+                    os.path.join(
+                        anat_output_dir,
+                        f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-rawNAWM_mask.nii.gz",
+                    ),
+                ]
+
+                # Select raw NAWM mask
+                get_raw_nawm_mask_node = Node(Select(index=2), name="select_raw_nawm_mask")
+                dwi_workflow.connect(
+                    create_WM_masks_node,
+                    "output_volume",
+                    get_raw_nawm_mask_node,
+                    "inlist",
+                )
+
+                def collect_exclusion_masks(seed_mask, wmh_mask, use_seed, use_wmh):
+                    import os
+
+                    masks = []
+
+                    if use_seed and seed_mask and os.path.exists(seed_mask):
+                        masks.append(seed_mask)
+
+                    if use_wmh and wmh_mask and os.path.exists(wmh_mask):
+                        masks.append(wmh_mask)
+
+                    return masks
+
+                collect_excl_node = Node(
+                    Function(
+                        input_names=["seed_mask", "wmh_mask", "use_seed", "use_wmh"],
+                        output_names=["masks"],
+                        function=collect_exclusion_masks,
+                    ),
+                    name="collect_exclusion_masks",
+                )
+
+                collect_excl_node.inputs.use_seed = bool(
+                    self.exclude_seed_mask and seed_mask != ""
+                )
+                collect_excl_node.inputs.use_wmh = bool(self.exclude_wmh_mask)
+
+                if self.exclude_seed_mask and seed_mask != "":
+                    dwi_workflow.connect(
+                        seed_mask_to_dwi_node,
+                        "out_file",
+                        collect_excl_node,
+                        "seed_mask",
+                    )
+                else:
+                    collect_excl_node.inputs.seed_mask = ""
+
+                if self.exclude_wmh_mask:
+                    wmh_mask_to_dwi_node = Node(FLIRT(), name="wmh_mask_to_dwi")
+                    wmh_mask_to_dwi_node.inputs.in_file = wmh_mask_file
+                    wmh_mask_to_dwi_node.inputs.interp = "nearestneighbour"
+                    wmh_mask_to_dwi_node.inputs.apply_xfm = True
+                    wmh_mask_to_dwi_node.inputs.out_file = os.path.join(
+                        anat_output_dir,
+                        rename_bids_file(
+                            wmh_mask_file,
+                            {"space": space_entity},
+                            "mask",
+                            ".nii.gz",
+                        ),
+                    )
+
+                    dwi_workflow.connect(
+                        invert_dwi_to_t1w_reg_node,
+                        "out_file",
+                        wmh_mask_to_dwi_node,
+                        "in_matrix_file",
+                    )
+                    dwi_workflow.connect(
+                        preproc_dwi_node,
+                        "b0",
+                        wmh_mask_to_dwi_node,
+                        "reference",
+                    )
+                    dwi_workflow.connect(
+                        wmh_mask_to_dwi_node,
+                        "out_file",
+                        collect_excl_node,
+                        "wmh_mask",
+                    )
+                else:
+                    collect_excl_node.inputs.wmh_mask = ""
+
+                def merge_exclusion_masks(mask_files, ref_file, out_file):
+                    import os
+                    import subprocess
+
+                    if mask_files is None:
+                        mask_files = []
+
+                    mask_files = [m for m in mask_files if m]
+
+                    os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+                    if len(mask_files) == 0:
+                        subprocess.check_call(["fslmaths", ref_file, "-mul", "0", out_file])
+                        return out_file
+
+                    cmd = ["fslmaths", mask_files[0]]
+                    for mask_file in mask_files[1:]:
+                        cmd += ["-add", mask_file]
+
+                    cmd += ["-thr", "0.5", "-bin", out_file]
+                    subprocess.check_call(cmd)
+
+                    return out_file
+
+                merge_masks_to_exclude_node = Node(
+                    Function(
+                        input_names=["mask_files", "ref_file", "out_file"],
+                        output_names=["out_file"],
+                        function=merge_exclusion_masks,
+                    ),
+                    name="merge_masks_to_exclude",
+                )
+
+                dwi_workflow.connect(
+                    collect_excl_node,
+                    "masks",
+                    merge_masks_to_exclude_node,
+                    "mask_files",
+                )
+                dwi_workflow.connect(
+                    preproc_dwi_node,
+                    "b0",
+                    merge_masks_to_exclude_node,
+                    "ref_file",
+                )
+
+                merge_masks_to_exclude_node.inputs.out_file = os.path.join(
+                    anat_output_dir,
+                    f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_desc-exclusionMerged_mask.nii.gz",
+                )
+
+                get_final_nawm_node = Node(
+                    GenerateNAWMMask(),
+                    name="get_final_nawm_mask",
+                )
+
+                dwi_workflow.connect(
+                    get_raw_nawm_mask_node,
+                    "out",
+                    get_final_nawm_node,
+                    "wm_mask",
+                )
+                dwi_workflow.connect(
+                    merge_masks_to_exclude_node,
+                    "out_file",
+                    get_final_nawm_node,
+                    "exclude_mask",
+                )
+
+                get_final_nawm_node.inputs.erode_mm = 2
+                get_final_nawm_node.inputs.output_mask = os.path.join(
+                    anat_output_dir,
+                    f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_label-NAWM_mask.nii.gz",
+                )
+
+                final_nawm_mask = get_final_nawm_node.inputs.output_mask
+
+            else:
+                final_nawm_mask = None
 
         # ============================================
         # DSI Studio Reconstruction
@@ -1094,6 +1272,7 @@ class DWIPipeline:
                 gqi_reconstruction_node.inputs.method = 4
                 gqi_reconstruction_node.inputs.other_output = 'fa,ad,rd,md,iso,rdi,nrdi,tensor'
                 gqi_reconstruction_node.inputs.output = gqi_out
+                gqi_reconstruction_node.inputs.check_btable = 1
 
             if self.dsistudio_qsdr:
                 qsdr_reconstruction_node = Node(DSIstudioReconstruction(), name='qsdr_reconstruction')
@@ -1102,7 +1281,9 @@ class DWIPipeline:
                 qsdr_reconstruction_node.inputs.qsdr_reso = 2.0
                 qsdr_reconstruction_node.inputs.other_output = 'fa,ad,rd,md,iso,rdi,nrdi,tensor'
                 qsdr_reconstruction_node.inputs.output = qsdr_out
-            
+                qsdr_reconstruction_node.inputs.thread_count = 8
+                qsdr_reconstruction_node.inputs.check_btable = 1
+
         if self.preprocess_method == 'post_qsiprep':
             qsirecon_output_dir = self.session._find_output('qsirecon-DSIStudio')
             gqi_fib = os.path.join(qsirecon_output_dir, 'dwi', rename_bids_file(preproc_dwi_filename, {"desc": None, "model": "gqi"}, 'dwimap', '.fib.gz'))
@@ -1190,6 +1371,7 @@ class DWIPipeline:
             prepare_fs_parcellation_node = MapNode(LabelConvert(), name='prepare_parcellation', iterfield=['in_config', 'out_file'])
             dwi_workflow.connect(refine_aseg_node, 'out_aseg', prepare_fs_parcellation_node, 'in_file')
             prepare_fs_parcellation_node.inputs.in_lut = get_package_path('data', 'labelconvert_in', 'FreeSurferColorLUT.txt')
+            prepare_fs_parcellation_node.inputs.args = '-force'
             dwi_workflow.connect(fs_parcellation_config, 'out', prepare_fs_parcellation_node, 'in_config')
             prepare_fs_parcellation_node.inputs.out_file = [
                 os.path.join(connectome_output_dir, rename_bids_file(preproc_dwi_filename, {'seg': 'aparcaseg', 'desc': None}, 'parcellation', '.mif')),
@@ -1332,7 +1514,8 @@ class DWIPipeline:
         # ===========================================
         # DTI-ALPS
         # ===========================================
-        if self.dtialps and self.preprocess_method != 'post_qsiprep':
+        #if self.dtialps and self.preprocess_method != 'post_qsiprep':
+        if self.dtialps:
             print("[DWI Pipeline] DTI-ALPS analysis: True")
             dti_alps_node = Node(ALPS(), name='dti_alps')
             dwi_workflow.connect(dti_fit_output_node, 'fa_img', dti_alps_node, 'fa_img')
@@ -1341,6 +1524,12 @@ class DWIPipeline:
             # self.dtialps_register_method: 1 for 'flirt', 2 for 'synthmorph'
             dti_alps_node.inputs.register_method = 'flirt' if self.dtialps_register_method == 1 else 'synthmorph' if self.dtialps_register_method == 2 else 'ants'
             dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dti_alps_node, 'tensor_img')
+
+            # If warp already exists
+            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+            if self.dtialps_register_method == 2 and os.path.exists(target_warp) and self.dwi_t1w_register:
+                dwi_workflow.connect(dwi_to_t1w_reg_node, 'out_matrix_file', dti_alps_node, 'fa_to_t1w_affine')
+                dti_alps_node.inputs.t1_to_mni_warp = target_warp
 
         # ===========================================
         # PVeD 
@@ -1649,17 +1838,19 @@ class DWIPipeline:
             dwi_metrics_output_dir = os.path.join(self.output_path, 'dwi_metrics_stats')
             os.makedirs(dwi_metrics_output_dir, exist_ok=True)
 
-            dwi_metrics_node = Node(Merge(10), name='dwi_metrics_node')
+            dwi_metrics_node = Node(Merge(12), name='dwi_metrics_node')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'fa_img', dwi_metrics_node, 'in1')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'md_img', dwi_metrics_node, 'in2')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'markvcid2_fw_img', dwi_metrics_node, 'in3')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'odi_img', dwi_metrics_node, 'in4')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'icvf_img', dwi_metrics_node, 'in5')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'isovf_img', dwi_metrics_node, 'in6')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_gfa_img', dwi_metrics_node, 'in7')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_iso_img', dwi_metrics_node, 'in8')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_qa_img', dwi_metrics_node, 'in9')
-            dwi_workflow.connect(dwi_scalarmaps_output_node, 'chidia_img', dwi_metrics_node, 'in10')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'ad_img', dwi_metrics_node, 'in4')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'rd_img', dwi_metrics_node, 'in5')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'odi_img', dwi_metrics_node, 'in6')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'icvf_img', dwi_metrics_node, 'in7')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'isovf_img', dwi_metrics_node, 'in8')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_gfa_img', dwi_metrics_node, 'in9')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_iso_img', dwi_metrics_node, 'in10')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'gqi_qa_img', dwi_metrics_node, 'in11')
+            dwi_workflow.connect(dwi_scalarmaps_output_node, 'chidia_img', dwi_metrics_node, 'in12')
 
             exist_dwi_metrics_node = Node(FilterExisting(), name='exist_dwi_metrics')
             dwi_workflow.connect(dwi_metrics_node, 'out', exist_dwi_metrics_node, 'input_file_list')
@@ -1677,7 +1868,7 @@ class DWIPipeline:
                 seed_tract_scalar_maps_node = Node(TckSampleMultiScalarBundle(), name='seed_tract_scalar_maps')
                 dwi_workflow.connect(seed_based_track_node, 'seed_based_track', seed_tract_scalar_maps_node, 'tck_file')
                 dwi_workflow.connect(dwi_metrics_node, 'out', seed_tract_scalar_maps_node, 'scalar_files')
-                seed_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                seed_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 seed_tract_scalar_maps_node.inputs.stat_tck = 'mean'
                 seed_tract_scalar_maps_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-ROIseedTract_desc-mean_dwimap.csv")
 
@@ -1685,7 +1876,7 @@ class DWIPipeline:
                 vp_tract_scalar_maps_node = MapNode(TckSampleMultiScalarProfile(), name='vp_tract_scalar_maps', iterfield=['tck_file', 'output_csv'])
                 dwi_workflow.connect(tt_to_tck_node, 'out_tck', vp_tract_scalar_maps_node, 'tck_file')
                 dwi_workflow.connect(vp_dwi_metrics_node, 'out', vp_tract_scalar_maps_node, 'scalar_files')
-                vp_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
+                vp_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
                 vp_tract_scalar_maps_node.inputs.output_csv = [
                     os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-L_label-OT_desc-alongtract_dwimap.csv"),
                     os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-R_label-OT_desc-alongtract_dwimap.csv"),
@@ -1701,7 +1892,7 @@ class DWIPipeline:
             # 1. Seed mask
             if seed_mask != '' and seed_mask is not None:
                 calc_seedmask_node = Node(CalculateScalarMaps(), name="scalar_maps_for_seedmask")
-                calc_seedmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                calc_seedmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 calc_seedmask_node.inputs.roi_label = 1
                 calc_seedmask_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-seedmask_desc-mean_dwimap.csv")
                 dwi_workflow.connect(seed_mask_to_dwi_node, 'out_file', calc_seedmask_node, 'mask_file')
@@ -1710,7 +1901,7 @@ class DWIPipeline:
             # 2. WMH mask
             if wmh_mask_file != '' and wmh_mask_file is not None:
                 scalar_maps_for_wmhmask_node = Node(CalculateScalarMaps(), name='scalar_maps_for_wmhmask')
-                scalar_maps_for_wmhmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                scalar_maps_for_wmhmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 scalar_maps_for_wmhmask_node.inputs.roi_label = 1
                 scalar_maps_for_wmhmask_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-WMH_desc-mean_dwimap.csv")
                 dwi_workflow.connect(wmh_mask_to_dwi_node, 'out_file', scalar_maps_for_wmhmask_node, 'mask_file')
@@ -1719,7 +1910,7 @@ class DWIPipeline:
             # 3. NAWM mask
             if self.dwi_t1w_register and fs_output_process:
                 scalar_maps_for_nawmmask_node = Node(CalculateScalarMaps(), name='scalar_maps_for_nawmmask')
-                scalar_maps_for_nawmmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                scalar_maps_for_nawmmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 scalar_maps_for_nawmmask_node.inputs.roi_label = 1
                 scalar_maps_for_nawmmask_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-NAWM_desc-mean_dwimap.csv")
                 dwi_workflow.connect(get_final_nawm_node, 'nawm_mask', scalar_maps_for_nawmmask_node, 'mask_file')
@@ -1728,7 +1919,7 @@ class DWIPipeline:
             # 4. NAWM without tract mask
             if self.dwi_t1w_register and fs_output_process and 'mrtrix3' in self.tractography:
                 scalar_maps_for_nawm_without_tract_node = Node(CalculateScalarMaps(), name='scalar_maps_for_nawm_without_tract')
-                scalar_maps_for_nawm_without_tract_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                scalar_maps_for_nawm_without_tract_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 scalar_maps_for_nawm_without_tract_node.inputs.roi_label = 1
                 scalar_maps_for_nawm_without_tract_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-NAWMwithoutTract_desc-mean_dwimap.csv")
                 dwi_workflow.connect(remove_tract_region_node, 'out_wm_mask', scalar_maps_for_nawm_without_tract_node, 'mask_file')
@@ -1737,7 +1928,7 @@ class DWIPipeline:
             # visual pathway analysis: TDI image
             if self.visual_pathway_analysis:
                 scalar_maps_for_vptdi_node = MapNode(CalculateTDIWeightedScalars(), name='scalar_maps_for_vptdi', iterfield=['weight_file', 'output_csv'])
-                scalar_maps_for_vptdi_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
+                scalar_maps_for_vptdi_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
                 dwi_workflow.connect(vp_dwi_metrics_node, 'out', scalar_maps_for_vptdi_node, 'data_files')
                 dwi_workflow.connect(tt_to_tdi_node, 'out_tdi', scalar_maps_for_vptdi_node, 'weight_file')
                 scalar_maps_for_vptdi_node.inputs.output_csv = [
@@ -1831,7 +2022,7 @@ class DWIPipeline:
         dwi_output_path = self.extract_from
 
         # DTI-ALPS
-        alps_columns = ["Subject", "Session", "ALPS_L", "ALPS_R", "ALPS_mean"]
+        alps_columns = ["Subject", "Session", "ALPS_L", "ALPS_R", "ALPS_mean", "G-ALPS_L", "G-ALPS_R", "G-ALPS_avg", "G-ALPS_sum"]
         alps_results_df = pd.DataFrame(columns=alps_columns)
 
         # PSMD
@@ -1959,7 +2150,11 @@ class DWIPipeline:
                             "Session": f"ses-{session_id}",
                             "ALPS_L": alps_df["alps_L"].values[0],
                             "ALPS_R": alps_df["alps_R"].values[0],
-                            "ALPS_mean": alps_df["alps"].values[0]
+                            "ALPS_mean": alps_df["alps"].values[0],
+                            "G-ALPS_L": alps_df["g_alps_L"].values[0] if "g_alps_L" in alps_df.columns else np.nan,
+                            "G-ALPS_R": alps_df["g_alps_R"].values[0] if "g_alps_R" in alps_df.columns else np.nan,
+                            "G-ALPS_avg": alps_df["g_alps_avg"].values[0] if "g_alps_avg" in alps_df.columns else np.nan,
+                            "G-ALPS_sum": alps_df["g_alps_sum"].values[0] if "g_alps_sum" in alps_df.columns else np.nan
                         }])
                         alps_results_df = pd.concat([alps_results_df, new_data], ignore_index=True)
 

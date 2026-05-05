@@ -67,7 +67,7 @@ fi
 echo "Creating acqparam.txt (overwrite)..."
 cat > "${INPUTS}/acqparam.txt" <<EOF
 $PE_VECTOR $TOTAL_READOUT_TIME
-$PE_VECTOR 0
+$PE_VECTOR 0.01
 EOF
 
 # === Check whether b0_all exists ===
@@ -120,7 +120,7 @@ echo "Writing fmap JSON with IntendedFor..."
 cat > "$FMAP_JSON" <<EOF
 {
   "PhaseEncodingDirection": "$FMAP_PE_DIR",
-  "TotalReadoutTime": 0.0000001,
+  "TotalReadoutTime": 0.000000001,
   "EffectiveEchoSpacing": 0.0,
   "IntendedFor": "$INTENDED_FOR"
 }

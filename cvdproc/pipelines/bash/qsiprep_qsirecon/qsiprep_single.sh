@@ -27,9 +27,8 @@ if [ -z "$preproc_dwi_file" ]; then
             --skip-bids-validation \
             --participant-label $subject_id \
             --session-id $session_id \
-            --nprocs 12 \
+            --nprocs 16 \
             --omp-nthreads 1 \
-            --mem-mb 16000 \
             --anat-modality T1w \
             --ignore t2w flair \
             --subject-anatomical-reference sessionwise \
@@ -62,14 +61,17 @@ if [ -f "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin20
   exit 0
 fi
 
+#mri_synthmorph -t $qsiprep_anat_dir/T1w_to_MNI.nii.gz -T $qsiprep_anat_dir/MNI_to_T1w.nii.gz $preproc_t1w_file /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz -j 12
 mri_synthmorph -t $qsiprep_anat_dir/T1w_to_MNI.nii.gz -T $qsiprep_anat_dir/MNI_to_T1w.nii.gz $preproc_t1w_file /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz -g
 python3 /mnt/e/Codes/cvdproc/cvdproc/utils/python/nifti_warp_to_h5.py \
     --input "$qsiprep_anat_dir/MNI_to_T1w.nii.gz" \
-    --output "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5"
+    --output "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5" \
+    --vector_image /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz
 
 python3 /mnt/e/Codes/cvdproc/cvdproc/utils/python/nifti_warp_to_h5.py \
     --input "$qsiprep_anat_dir/T1w_to_MNI.nii.gz" \
-    --output "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5"
+    --output "$qsiprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5" \
+    --vector_image /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz
 
 # delete the intermediate files (nifti warps)
 rm "$qsiprep_anat_dir/T1w_to_MNI.nii.gz" "$qsiprep_anat_dir/MNI_to_T1w.nii.gz"

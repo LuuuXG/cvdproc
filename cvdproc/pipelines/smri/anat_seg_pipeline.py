@@ -85,6 +85,7 @@ class AnatSegPipeline:
             synthseg.inputs.keepgeom = True
             if self.cpu_first:
                 synthseg.inputs.cpu = True
+                synthseg.inputs.threads = 16
             
             synthseg_postprocess = Node(SynthSegPostProcess(), name='synthseg_postprocess')
             anatseg_workflow.connect(synthseg, 'out', synthseg_postprocess, 'synthseg_input')

@@ -175,7 +175,8 @@ class EddyCudaInputSpec(CommandLineInputSpec):
     index_file = File(exists=True, mandatory=True, desc="Path to the index.txt file", argstr="--index=%s")
     acqparam_file = File(exists=True, mandatory=True, desc="Path to the acqparam.txt file", argstr="--acqp=%s")
     topup_basename = Str(desc="Path to the topup basename", argstr="--topup=%s")
-    output_basename = Str(desc="Path to the output basename", argstr="--out=%s")
+    output_basename = Str(desc="Path to the output basename", mandatory=True, argstr="--out=%s")
+
 
 class EddyCudaOutputSpec(TraitedSpec):
     eddy_output_dir = Directory(desc="Path to the eddy output directory")
@@ -185,47 +186,60 @@ class EddyCudaOutputSpec(TraitedSpec):
     eddy_corrected_bvecs = File(desc="Path to the eddy-corrected bvecs file")
     bvals = File(desc="Path to the bvals file")
 
-# class EddyCuda(CommandLine):
-#     _cmd = 'eddy_cuda10.2 diffusion'
-#     input_spec = EddyCudaInputSpec
-#     output_spec = EddyCudaOutputSpec
-#     terminal_output = 'allatonce'
-
-#     def _list_outputs(self):
-#         outputs = self.output_spec().get()
-#         outputs['eddy_corrected_data'] = os.path.abspath(self.inputs.output_basename + ".nii.gz")
-#         outputs['eddy_corrected_bvecs'] = os.path.abspath(self.inputs.output_basename + ".eddy_rotated_bvecs")
-#         outputs['bvals'] = os.path.abspath(self.inputs.bval_file)
-#         outputs['dwi_b0_brain_mask'] = os.path.abspath(self.inputs.mask_file)
-
-#         return outputs
 
 class EddyCuda(CommandLine):
-    _cmd = 'eddy_cuda10.2 diffusion'
     input_spec = EddyCudaInputSpec
     output_spec = EddyCudaOutputSpec
-    terminal_output = 'allatonce'
+    terminal_output = "allatonce"
+    _cmd = "eddy_cuda"
+
+    def __init__(self, **inputs):
+        self._cmd = self._get_eddy_command()
+        super().__init__(**inputs)
+
+    @staticmethod
+    def _get_eddy_command():
+        if shutil.which("eddy_cuda") is not None:
+            return "eddy_cuda diffusion"
+
+        if shutil.which("eddy_cuda10.2") is not None:
+            return "eddy_cuda10.2 diffusion"
+
+        raise RuntimeError(
+            "Neither eddy_cuda nor eddy_cuda10.2 was found in PATH. "
+            "Please check your FSL installation and environment variables."
+        )
 
     def _run_interface(self, runtime):
         output_path = os.path.abspath(self.inputs.output_basename + ".nii.gz")
+
         if os.path.exists(output_path):
             runtime.returncode = 0
             runtime.stdout = f"{output_path} exists, skipping eddy_cuda."
             runtime.stderr = ""
             return runtime
 
+        self._cmd = self._get_eddy_command()
         return super()._run_interface(runtime)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['eddy_output_dir'] = os.path.abspath(os.path.dirname(self.inputs.output_basename))
-        outputs['output_basename'] = self.inputs.output_basename
-        outputs['output_filename'] = os.path.basename(self.inputs.output_basename)
-        outputs['eddy_corrected_data'] = os.path.abspath(self.inputs.output_basename + ".nii.gz")
-        outputs['eddy_corrected_bvecs'] = os.path.abspath(self.inputs.output_basename + ".eddy_rotated_bvecs")
-        outputs['bvals'] = os.path.abspath(self.inputs.bval_file)
+
+        outputs["eddy_output_dir"] = os.path.abspath(
+            os.path.dirname(self.inputs.output_basename)
+        )
+        outputs["output_basename"] = self.inputs.output_basename
+        outputs["output_filename"] = os.path.basename(self.inputs.output_basename)
+        outputs["eddy_corrected_data"] = os.path.abspath(
+            self.inputs.output_basename + ".nii.gz"
+        )
+        outputs["eddy_corrected_bvecs"] = os.path.abspath(
+            self.inputs.output_basename + ".eddy_rotated_bvecs"
+        )
+        outputs["bvals"] = os.path.abspath(self.inputs.bval_file)
+
         return outputs
-    
+
 ######################
 # Order eddy outputs #
 ######################
@@ -253,7 +267,7 @@ class OrderEddyOutputs(CommandLine):
         outputs['ordered_bvec'] = os.path.join(self.inputs.new_output_dir, self.inputs.new_output_filename + ".bvec")
         outputs['ordered_bval'] = os.path.join(self.inputs.new_output_dir, self.inputs.new_output_filename + ".bval")
         return outputs
-
+    
 #########################
 # B0 ref and brain mask #
 #########################
@@ -287,13 +301,9 @@ class DTIFitBIDSInputSpec(CommandLineInputSpec):
     bvec_file = File(exists=True, mandatory=True, desc="Path to the .bvec file", argstr="-r %s")
     mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask", argstr="-m %s")
 
-    # This is the dtifit "-o" basename. We still use it as a temporary basename.
     output_basename = Str(mandatory=True, desc="Path to the output basename", argstr="-o %s")
 
-    # Whether to rename outputs into BIDS style after dtifit
     bids_rename = traits.Bool(True, usedefault=True, desc="Rename outputs to BIDS style after dtifit")
-
-    # Safety option: overwrite destination files if exist
     overwrite = traits.Bool(False, usedefault=True, desc="Overwrite destination files if they already exist")
 
 
@@ -310,15 +320,19 @@ class DTIFitBIDSOutputSpec(TraitedSpec):
     dti_l2 = File(desc="Path to the L2 image")
     dti_l3 = File(desc="Path to the L3 image")
 
+    dti_ad = File(desc="Path to the AD image")
+    dti_rd = File(desc="Path to the RD image")
+
     dti_v1 = File(desc="Path to the V1 image")
     dti_v2 = File(desc="Path to the V2 image")
     dti_v3 = File(desc="Path to the V3 image")
 
     dti_s0 = File(desc="Path to the S0 image")
 
+
 class DTIFitBIDS(CommandLine):
     """
-    Run FSL dtifit and (optionally) rename outputs to BIDS style.
+    Run FSL dtifit and optionally rename outputs to BIDS style.
     """
     _cmd = "dtifit"
     input_spec = DTIFitBIDSInputSpec
@@ -331,13 +345,6 @@ class DTIFitBIDS(CommandLine):
         return out_dir
 
     def _dtifit_expected_files(self):
-        """
-        dtifit uses uppercase suffixes for most outputs:
-          <base>_FA.nii.gz, <base>_MD.nii.gz, <base>_MO.nii.gz,
-          <base>_L1.nii.gz, <base>_L2.nii.gz, <base>_L3.nii.gz,
-          <base>_V1.nii.gz, <base>_V2.nii.gz, <base>_V3.nii.gz,
-          <base>_S0.nii.gz, <base>_tensor.nii.gz
-        """
         base = os.path.abspath(self.inputs.output_basename)
         mapping = {
             "fa": f"{base}_FA.nii.gz",
@@ -346,6 +353,8 @@ class DTIFitBIDS(CommandLine):
             "l1": f"{base}_L1.nii.gz",
             "l2": f"{base}_L2.nii.gz",
             "l3": f"{base}_L3.nii.gz",
+            "ad": f"{base}_AD.nii.gz",
+            "rd": f"{base}_RD.nii.gz",
             "v1": f"{base}_V1.nii.gz",
             "v2": f"{base}_V2.nii.gz",
             "v3": f"{base}_V3.nii.gz",
@@ -359,7 +368,11 @@ class DTIFitBIDS(CommandLine):
 
         out_dir = os.path.abspath(os.path.dirname(self.inputs.output_basename))
         dest = {}
-        for param in ["fa", "md", "mo", "tensor", "l1", "l2", "l3", "v1", "v2", "v3", "s0"]:
+        for param in [
+            "fa", "md", "mo", "tensor",
+            "l1", "l2", "l3", "ad", "rd",
+            "v1", "v2", "v3", "s0"
+        ]:
             fname = rename_bids_file(
                 self.inputs.dwi_file,
                 {"desc": None, "model": "tensor", "param": param},
@@ -369,29 +382,73 @@ class DTIFitBIDS(CommandLine):
             dest[param] = os.path.join(out_dir, fname)
         return dest
 
+    def _check_destination(self, path):
+        if os.path.exists(path):
+            if bool(self.inputs.overwrite):
+                os.remove(path)
+            else:
+                raise FileExistsError(f"Destination exists: {path}")
+
+    def _create_ad_rd(self, l1_file, l2_file, l3_file, ad_file, rd_file):
+        if not os.path.exists(l1_file):
+            raise FileNotFoundError(f"L1 file not found: {l1_file}")
+        if not os.path.exists(l2_file):
+            raise FileNotFoundError(f"L2 file not found: {l2_file}")
+        if not os.path.exists(l3_file):
+            raise FileNotFoundError(f"L3 file not found: {l3_file}")
+
+        self._check_destination(ad_file)
+        self._check_destination(rd_file)
+
+        shutil.copyfile(l1_file, ad_file)
+
+        cmd = [
+            "fslmaths",
+            l2_file,
+            "-add",
+            l3_file,
+            "-div",
+            "2",
+            rd_file,
+        ]
+        subprocess.run(cmd, check=True)
+
     def _run_interface(self, runtime):
         self._ensure_outdir()
 
-        # 1) Run dtifit
         runtime = super()._run_interface(runtime)
 
-        # 2) Rename/move outputs into BIDS style
         if bool(self.inputs.bids_rename):
             src = self._dtifit_expected_files()
             dst = self._bids_dest_files()
 
-            for param, src_path in src.items():
+            for param in ["fa", "md", "mo", "tensor", "l1", "l2", "l3", "v1", "v2", "v3", "s0"]:
+                src_path = src[param]
                 if not os.path.exists(src_path):
                     raise FileNotFoundError(f"dtifit output not found: {src_path}")
 
                 dst_path = dst[param]
-                if os.path.exists(dst_path):
-                    if bool(self.inputs.overwrite):
-                        os.remove(dst_path)
-                    else:
-                        raise FileExistsError(f"Destination exists: {dst_path}")
-
+                self._check_destination(dst_path)
                 shutil.move(src_path, dst_path)
+
+            self._create_ad_rd(
+                l1_file=dst["l1"],
+                l2_file=dst["l2"],
+                l3_file=dst["l3"],
+                ad_file=dst["ad"],
+                rd_file=dst["rd"],
+            )
+
+        else:
+            src = self._dtifit_expected_files()
+
+            self._create_ad_rd(
+                l1_file=src["l1"],
+                l2_file=src["l2"],
+                l3_file=src["l3"],
+                ad_file=src["ad"],
+                rd_file=src["rd"],
+            )
 
         return runtime
 
@@ -409,6 +466,8 @@ class DTIFitBIDS(CommandLine):
             outputs["dti_l1"] = dst["l1"]
             outputs["dti_l2"] = dst["l2"]
             outputs["dti_l3"] = dst["l3"]
+            outputs["dti_ad"] = dst["ad"]
+            outputs["dti_rd"] = dst["rd"]
             outputs["dti_v1"] = dst["v1"]
             outputs["dti_v2"] = dst["v2"]
             outputs["dti_v3"] = dst["v3"]
@@ -422,6 +481,8 @@ class DTIFitBIDS(CommandLine):
             outputs["dti_l1"] = src["l1"]
             outputs["dti_l2"] = src["l2"]
             outputs["dti_l3"] = src["l3"]
+            outputs["dti_ad"] = src["ad"]
+            outputs["dti_rd"] = src["rd"]
             outputs["dti_v1"] = src["v1"]
             outputs["dti_v2"] = src["v2"]
             outputs["dti_v3"] = src["v3"]

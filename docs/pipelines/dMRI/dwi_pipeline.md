@@ -21,6 +21,8 @@ The main steps of our DWI preprocessing pipeline are as follows:
 3. FSL's TOPUP and EDDY for distortion and motion correction, using the real or synthesized reverse PE b0 image.
 4. Resample the DWI data to a isotropic voxel size.
 
+**Update**: According to FSL update ([mails with FSL team](https://www.jiscmail.ac.uk/cgi-bin/wa-jisc.exe?A2=ind2604&F=3304556617341134&L=FSL&O=D&P=5235&X=289AA40A6ED6C397ED&Y=wyj2002%40qq.com)). Now we use the value 0.01 for TOPUP using synb0-DISCO synthesized b0 image.
+
 #### DSI preprocessing
 
 We use [QSIPrep](https://qsiprep.readthedocs.io/en/latest/index.html) for DSI preprocessing. Our DWI Pipeline starts from QSIPrep preprocessed DSI data for further analysis. TOPUP and EDDY-based distortion and motion correction are not suitable for q-space sampling schemes like DSI, this is the reason why we do not employ [DSIStudio](https://dsi-studio.labsolver.org/doc/) for DSI preprocessing.
