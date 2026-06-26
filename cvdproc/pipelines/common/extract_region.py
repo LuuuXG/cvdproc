@@ -67,3 +67,12 @@ class ExtractRegion(BaseInterface):
         outputs = self.output_spec().get()
         outputs['out_nii'] = getattr(self, 'out_nii', None)
         return outputs
+
+if __name__ == "__main__":
+    # Example usage
+    extract_region = ExtractRegion()
+    extract_region.inputs.in_nii = "/usr/local/freesurfer/7-dev/subjects/MNI152_T1_1mm/mri/wmparc.mgz"
+    extract_region.inputs.roi_list = [3001, 3002, 3003, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020, 3021, 3022, 3023, 3024, 3025, 3026, 3027, 3028, 3029, 3030, 3031, 3032, 3033, 3034, 3035, 4001, 4002, 4003, 4005, 4006, 4007, 4008, 4009, 4010, 4011, 4012, 4013, 4014, 4015, 4016, 4017, 4018, 4019, 4020, 4021, 4022, 4023, 4024, 4025, 4026, 4027, 4028, 4029, 4030, 4031, 4032, 4033, 4034, 4035]
+    extract_region.inputs.binarize = False
+    extract_region.inputs.output_nii = "/mnt/e/Neuroimage/workdir/wmparc.nii.gz"
+    extract_region.run()

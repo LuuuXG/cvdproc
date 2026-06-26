@@ -35,7 +35,10 @@ class BIDSSession:
         self.freesurfer_clinical_dir = self._find_output('freesurfer_clinical')
         self.lesion_mask_dir = self._find_output('lesion_mask')
         self.fsl_anat_dir = self._find_output('fsl_anat')
+        self.anat_seg_dir = self._find_output('anat_seg')
         self.xfm_dir = self._find_output('xfm')
+        self.wmh_quantification_dir = self._find_output('wmh_quantification')
+        self.dwi_pipeline_dir = self._find_output('dwi_pipeline')
 
     def _find_files(self, modality):
         """

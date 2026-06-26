@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # D:/Codes/cvdproc/cvdproc/pipelines/bash/brainage/brainageR_custom.sh
 # project root:
 # D:/Codes/cvdproc
-cvdproc_dir="$(realpath "${SCRIPT_DIR}/../../../..")"
+cvdproc_dir="$(realpath "${SCRIPT_DIR}/../../../../..")"
 
 brainageR_dir="${cvdproc_dir}/cvdproc/data/brainageR/"
 spm_dir="${cvdproc_dir}/cvdproc/data/matlab_toolbox/spm12/"

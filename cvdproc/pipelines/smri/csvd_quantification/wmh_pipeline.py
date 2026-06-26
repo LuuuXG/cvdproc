@@ -1,5 +1,4 @@
 import os
-import glob
 import nibabel as nib
 import pandas as pd
 from nipype import Node, Workflow, MapNode
@@ -12,20 +11,21 @@ from .wmh.wmh_shape_nipype import WMHShape
 
 from nipype.interfaces.fsl.maths import ApplyMask
 from nipype.interfaces.fsl.preprocess import ApplyXFM
-from ..fsl.fsl_anat_nipype import FSLANAT
-from ..fsl.distancemap_nipype import DistanceMap
-from cvdproc.pipelines.common.files import CopyFileCommandLine
+
+from cvdproc.pipelines.smri.fsl.fsl_anat_nipype import FSLANAT
+from cvdproc.pipelines.smri.fsl.distancemap_nipype import DistanceMap
 from cvdproc.pipelines.smri.fsl.fslmaths_thr import FSLMathsUnderThr, FSLMathsThr
 from cvdproc.pipelines.smri.fsl.make_bianca_mask_nipype import MakeBIANCAMask
-from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApplyWarp
-from ..freesurfer.synthstrip import SynthStrip
+from cvdproc.pipelines.smri.freesurfer.synthstrip import SynthStrip
 from cvdproc.pipelines.smri.freesurfer.synthseg import SynthSeg
-from ...common.register import ModalityRegistration, Tkregister2fs2t1w
 
 from cvdproc.pipelines.common.extract_region import ExtractRegion
 from cvdproc.pipelines.common.calculate_volume import CalculateVolume
 from cvdproc.pipelines.common.calculate_roi_volume import CalculateROIVolume
-from cvdproc.pipelines.common.image_calc import CombineMasks
+from cvdproc.pipelines.common.image_calc import CombineMasks, RemoveMaskRegion
+from cvdproc.pipelines.common.files import CopyFileCommandLine
+from cvdproc.pipelines.common.register import SynthmorphNonlinear, MRIConvertApplyWarp
+from cvdproc.pipelines.common.register import ModalityRegistration, Tkregister2fs2t1w
 
 from cvdproc.config.paths import get_package_path
 
@@ -40,6 +40,8 @@ class WMHSegmentationPipeline:
                  use_which_t1w: str = None,
                  use_which_flair: str = None,
                  seg_method: str = 'LST',
+                 exclude_mask: str = 'lesion_mask',
+                 use_which_exclude_mask: str = None,
                  ignore_t1w_in_truenet: bool = False,
                  seg_threshold: float = 0.5,
                  location_method: list = ['Fazekas'],
@@ -59,6 +61,8 @@ class WMHSegmentationPipeline:
             use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used
             use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, FLAIR image is not used
             seg_method: WMH segmentation method, one of ['LST', 'LSTAI', 'WMHSynthSeg', 'truenet']
+            exclude_mask: Folder name for exclude mask. Expected to find <bids_dir>/derivatives/<exclude_mask>/sub-<id>/ses-<id>/*<use_which_mask>*.nii.gz. Defaults to 'lesion_mask'. Must be in the T1w space.
+            use_which_exclude_mask: specific string to select exclude mask, e.g. 'desc-RSSI'. If None, exclude mask is not used
             ignore_t1w_in_truenet: [EXPERIMENTAL] When using SynthSR T1w, ignore it in TrueNet (ukbb -> ukbb_flair)
             seg_threshold: threshold for WMH segmentation (not used for WMHSynthSeg method)
             location_method: list of location method, subset of ['Fazekas', 'bullseye', 'shiva', 'McDonald', 'JHU']
@@ -74,6 +78,8 @@ class WMHSegmentationPipeline:
         self.use_which_t1w = use_which_t1w
         self.use_which_flair = use_which_flair
         self.seg_method = seg_method
+        self.exclude_mask = exclude_mask
+        self.use_which_exclude_mask = use_which_exclude_mask
         self.ignore_t1w_in_truenet = ignore_t1w_in_truenet
         self.seg_threshold = seg_threshold
         self.location_method = location_method
@@ -133,6 +139,23 @@ class WMHSegmentationPipeline:
             flair_file = ''         
         if t1w_file is None:
             t1w_file = ''
+
+        if self.use_which_exclude_mask is not None:
+            lesion_mask_dir = self.session._find_output(self.exclude_mask)
+            exclude_mask = [file for file in os.listdir(lesion_mask_dir) if f'{self.use_which_exclude_mask}' in file]
+
+            if exclude_mask is not None and len(exclude_mask) == 1:
+                print(f"[WMH Pipeline] Using exclude mask: {exclude_mask[0]}.")
+                exclude_mask = os.path.join(lesion_mask_dir, exclude_mask[0])
+            elif exclude_mask is not None and len(exclude_mask) > 1:
+                #print(f"Using the first mask found: {exclude_mask[0]}.")
+                exclude_mask = os.path.join(lesion_mask_dir, exclude_mask[0])
+                print(f"[WMH Pipeline] Using exclude mask: {exclude_mask}.")
+            else:
+                exclude_mask = None
+                print("[WMH Pipeline] No exclude mask found.")
+        else:
+            exclude_mask = None
 
         #########################################
         # Display selected files and parameters #
@@ -257,45 +280,45 @@ class WMHSegmentationPipeline:
                 
                 wmh_workflow.connect(t1w_synthstrip, 'out_file', t1w_stripped_node, 't1w_stripped')
                 wmh_workflow.connect(t1w_synthstrip, 'mask_file', t1w_stripped_node, 'brain_mask')
-        
-        # Determine whether need to run SynthSeg in prior
-        # 1: Fazekas + SynthSeg ventricle mask
-        # 2: shiva
-        # 3: truenet
-        run_synthseg = False
-        synthseg_outfile = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
-        if 'Fazekas' in self.location_method and self.ventmask_method == 'SynthSeg':
-            run_synthseg = True
-        if 'shiva' in self.location_method:
-            run_synthseg = True
-        if self.seg_method == 'truenet':
-            run_synthseg = True
-        if os.path.exists(synthseg_outfile):
+            
+            # Determine whether need to run SynthSeg in prior
+            # 1: Fazekas + SynthSeg ventricle mask
+            # 2: shiva
+            # 3: truenet
             run_synthseg = False
-            synthseg_img = nib.load(synthseg_outfile)
-            if synthseg_img.shape != nib.load(t1w_file).shape:
-                print(f"[WMH Pipeline] Sorry... SynthSeg output has different shape with current T1w image.")
+            synthseg_outfile = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
+            if 'Fazekas' in self.location_method and self.ventmask_method == 'SynthSeg':
                 run_synthseg = True
-        if run_synthseg:
-            print(f"[WMH Pipeline] Will run SynthSeg on T1w image: {t1w_file}.")
-            if t1w_file == '':
-                raise ValueError("SynthSeg requires T1w image, but no T1w image provided.")
-            synthseg_node = Node(SynthSeg(), name='synthseg')
-            wmh_workflow.connect(inputnode, 't1w', synthseg_node, 'image')
-            synthseg_node.inputs.out = synthseg_outfile
-            synthseg_node.inputs.vol = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-synthseg_volume.csv')
-            synthseg_node.inputs.robust = True
-            synthseg_node.inputs.parc = True
-            synthseg_node.inputs.keepgeom = True
+            if 'shiva' in self.location_method:
+                run_synthseg = True
+            if self.seg_method == 'truenet':
+                run_synthseg = True
+            if os.path.exists(synthseg_outfile):
+                run_synthseg = False
+                synthseg_img = nib.load(synthseg_outfile)
+                if synthseg_img.shape != nib.load(t1w_file).shape:
+                    print(f"[WMH Pipeline] Sorry... SynthSeg output has different shape with current T1w image.")
+                    run_synthseg = True
+            if run_synthseg:
+                print(f"[WMH Pipeline] Will run SynthSeg on T1w image: {t1w_file}.")
+                if t1w_file == '':
+                    raise ValueError("SynthSeg requires T1w image, but no T1w image provided.")
+                synthseg_node = Node(SynthSeg(), name='synthseg')
+                wmh_workflow.connect(inputnode, 't1w', synthseg_node, 'image')
+                synthseg_node.inputs.out = synthseg_outfile
+                synthseg_node.inputs.vol = os.path.join(self.subject.bids_dir, 'derivatives', 'anat_seg', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', 'synthseg', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_desc-synthseg_volume.csv')
+                synthseg_node.inputs.robust = True
+                synthseg_node.inputs.parc = True
+                synthseg_node.inputs.keepgeom = True
+            
+            # check whether already have synthseg output
+            check_synthseg = Node(IdentityInterface(fields=["synthseg_output"]), name="synthseg_output")
+            if run_synthseg:
+                wmh_workflow.connect(synthseg_node, 'out', check_synthseg, 'synthseg_output')
+            else:
+                print(f"[WMH Pipeline] Found existing SynthSeg output: {synthseg_outfile}. Will use it directly.")
+                check_synthseg.inputs.synthseg_output = synthseg_outfile
         
-        # check whether already have synthseg output
-        check_synthseg = Node(IdentityInterface(fields=["synthseg_output"]), name="synthseg_output")
-        if run_synthseg:
-            wmh_workflow.connect(synthseg_node, 'out', check_synthseg, 'synthseg_output')
-        else:
-            print(f"[WMH Pipeline] Found existing SynthSeg output: {synthseg_outfile}. Will use it directly.")
-            check_synthseg.inputs.synthseg_output = synthseg_outfile
-
         if self.seg_method == 'LST':
             # As inplement in the LST segmentation script, still use raw FLAIR image instead of registered one
             # FLAIR -> 'wmh_mask_t1w' and 'wmh_prob_t1w' will be empty ('')
@@ -467,11 +490,11 @@ class WMHSegmentationPipeline:
                 wmh_workflow.connect(truenet_postprocess, 'wmh_mask', wmh_mask_node, 'wmh_mask_flair')
                 wmh_workflow.connect(truenet_postprocess, 'wmh_prob_map', wmh_mask_node, 'wmh_probmap_flair')
 
-        final_wmh_mask_node = Node(IdentityInterface(fields=["final_wmh_mask_flair", "final_wmh_mask_t1w"]), name="final_wmh_mask_node")
+        filter1_wmh_mask_node = Node(IdentityInterface(fields=["filter1_wmh_mask_flair", "filter1_wmh_mask_t1w"]), name="filter1_wmh_mask_node")
 
         if self.use_bianca_mask:
             if t1w_file == '':
-                raise ValueError("If use_bianca_mask is True, T1w image must be provided.")
+                raise ValueError("[WMH Pipeline] If use_bianca_mask is True, T1w image must be provided.")
             # first need to run fsl_anat pipeline
             fsl_anat_node = Node(FSLANAT(), name="fsl_anat")
             wmh_workflow.connect(inputnode, "t1w", fsl_anat_node, "input_image")
@@ -488,11 +511,28 @@ class WMHSegmentationPipeline:
             wmh_workflow.connect(wmh_mask_node, 'wmh_mask_t1w', apply_bianca_mask_node, 'in_file')
             apply_bianca_mask_node.inputs.out_file = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-{self.seg_method}{thr_string}Filtered_mask.nii.gz")
 
-            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_flair', final_wmh_mask_node, 'final_wmh_mask_flair')
-            wmh_workflow.connect(apply_bianca_mask_node, 'out_file', final_wmh_mask_node, 'final_wmh_mask_t1w')
+            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_flair', filter1_wmh_mask_node, 'filter1_wmh_mask_flair')
+            wmh_workflow.connect(apply_bianca_mask_node, 'out_file', filter1_wmh_mask_node, 'filter1_wmh_mask_t1w')
         else:
-            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_flair', final_wmh_mask_node, 'final_wmh_mask_flair')
-            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_t1w', final_wmh_mask_node, 'final_wmh_mask_t1w')
+            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_flair', filter1_wmh_mask_node, 'filter1_wmh_mask_flair')
+            wmh_workflow.connect(wmh_mask_node, 'wmh_mask_t1w', filter1_wmh_mask_node, 'filter1_wmh_mask_t1w')
+
+        final_wmh_mask_node = Node(IdentityInterface(fields=["final_wmh_mask_flair", "final_wmh_mask_t1w"]), name="final_wmh_mask_node")
+
+        if exclude_mask is not None:
+            if t1w_file == '':
+                raise ValueError("[WMH Pipeline] If exclude_mask is True, T1w image must be provided.")
+            
+            exclude_mask_from_wmh_mask = Node(RemoveMaskRegion(), name="exclude_mask_from_wmh_mask")
+            wmh_workflow.connect(filter1_wmh_mask_node, 'filter1_wmh_mask_t1w', exclude_mask_from_wmh_mask, 'input_image')
+            exclude_mask_from_wmh_mask.inputs.mask_image = exclude_mask
+            exclude_mask_from_wmh_mask.inputs.output_image = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-T1w_label-WMH_desc-{self.seg_method}{thr_string}MaskExcluded_mask.nii.gz")
+
+            wmh_workflow.connect(filter1_wmh_mask_node, 'filter1_wmh_mask_flair', final_wmh_mask_node, 'final_wmh_mask_flair')
+            wmh_workflow.connect(exclude_mask_from_wmh_mask, 'output_image', final_wmh_mask_node, 'final_wmh_mask_t1w')
+        else:
+            wmh_workflow.connect(filter1_wmh_mask_node, 'filter1_wmh_mask_flair', final_wmh_mask_node, 'final_wmh_mask_flair')
+            wmh_workflow.connect(filter1_wmh_mask_node, 'filter1_wmh_mask_t1w', final_wmh_mask_node, 'final_wmh_mask_t1w')
 
         # --------------------------------
         # Check T1 <-> MNI non-linear warp

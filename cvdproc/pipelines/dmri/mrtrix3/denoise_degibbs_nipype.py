@@ -26,20 +26,42 @@ class DenoiseDegibbs(CommandLine):
 
 # Separate to Denoise and Degibbs
 class MrtrixDenoiseInputSpec(CommandLineInputSpec):
-    dwi_img = File(desc="Path to the DWI image", mandatory=True, argstr="%s", position=0)
-    #dwi_bvec = File(desc="Path to the DWI bvec file", mandatory=True, argstr="%s", position=1)
-    #dwi_bval = File(desc="Path to the DWI bval file", mandatory=True, argstr="%s", position=2)
-    #output_dir = Directory(desc="Output directory for the denoised DWI image", mandatory=True, argstr="%s", position=3)
-    output_dwi = File(desc="Path to the denoised DWI image", mandatory=True, argstr="%s", position=1)
+    dwi_img = File(
+        desc="Path to the DWI image",
+        mandatory=True,
+        exists=True,
+        argstr="%s",
+        position=0,
+    )
+
+    output_dwi = File(
+        desc="Path to the denoised DWI image",
+        mandatory=True,
+        argstr="%s",
+        position=1,
+    )
+
 
 class MrtrixDenoiseOutputSpec(TraitedSpec):
-    output_dwi_img = File(desc="Path to the denoised DWI image")
+    output_dwi_img = File(desc="Path to the denoised DWI image", exists=True)
+
 
 class MrtrixDenoise(CommandLine):
-    #_cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "mrtrix3", "mrtrix_denoise.sh"))
-    _cmd = 'dwidenoise -force'
+    _cmd = "dwidenoise -force"
+
     input_spec = MrtrixDenoiseInputSpec
     output_spec = MrtrixDenoiseOutputSpec
+
+    def _run_interface(self, runtime):
+        output_file = os.path.abspath(self.inputs.output_dwi)
+
+        if os.path.exists(output_file):
+            print(f"Output already exists, skipping dwidenoise: {output_file}")
+            return runtime
+
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        return super()._run_interface(runtime)
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

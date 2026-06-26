@@ -26,6 +26,9 @@ class DSIstudioReconstructionInputSpec(CommandLineInputSpec):
     # Preprocessing Options
     check_btable = Int(desc="Check b-table consistency", argstr="--check_btable=%d", mandatory=False, default_value=0)
     motion_correction = Int(desc="Apply motion correction", argstr="--motion_correction=%d", mandatory=False, default_value=0)
+    # Masking
+    mask = Str(desc="Mask File (NIfTI)", argstr="--mask=%s", mandatory=False)
+    apply_mask = Bool(desc="Apply Mask", argstr="--apply_mask", mandatory=False, default_value=False)
     # I/O & Miscellaneous
     output = Str(desc="Output Fib File Name or Directory", argstr="--output=%s", mandatory=False)
     save_nii = Bool(desc="Save intermediate NIfTI files", argstr="--save_nii", mandatory=False, default_value=False)
@@ -34,6 +37,44 @@ class DSIstudioReconstructionOutputSpec(TraitedSpec):
     out_file = File(desc="Output Fib File")
 
 class DSIstudioReconstruction(CommandLine):
+    #_cmd = dsi_studio_path + " --action=rec"
+    _cmd = dsi_studio_newver_path + " --action=rec"
+    input_spec = DSIstudioReconstructionInputSpec
+    output_spec = DSIstudioReconstructionOutputSpec
+
+    def _expected_out_file(self):
+        """
+        Determine the expected output fib file path.
+        """
+        if self.inputs.output:
+            if os.path.isdir(self.inputs.output):
+                base_name = os.path.basename(self.inputs.source)
+                base_name_noext = os.path.splitext(os.path.splitext(base_name)[0])[0]
+                return os.path.join(self.inputs.output, base_name_noext + ".fib.gz")
+            else:
+                return self.inputs.output
+        else:
+            base_name = os.path.basename(self.inputs.source)
+            base_name_noext = os.path.splitext(os.path.splitext(base_name)[0])[0]
+            return os.path.abspath(base_name_noext + ".fib.gz")
+
+    def _run_interface(self, runtime):
+        out_file = self._expected_out_file()
+
+        if out_file and os.path.exists(out_file):
+            runtime.stdout = f"DSI Studio reconstruction skipped (output exists): {out_file}\n"
+            runtime.stderr = ""
+            runtime.returncode = 0
+            return runtime
+
+        return super()._run_interface(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._expected_out_file()
+        return outputs
+
+class DSIstudioReconstructionOldVer(CommandLine):
     _cmd = dsi_studio_path + " --action=rec"
     input_spec = DSIstudioReconstructionInputSpec
     output_spec = DSIstudioReconstructionOutputSpec
@@ -70,7 +111,6 @@ class DSIstudioReconstruction(CommandLine):
         outputs['out_file'] = self._expected_out_file()
         return outputs
 
-
 ###################################
 # Using New Version of DSI-Studio #
 ###################################
@@ -88,7 +128,6 @@ class DSIstudioReconstruction2InputSpec(CommandLineInputSpec):
 
     output = Str(desc="Output Fib File Name or Directory", argstr="--output=%s", mandatory=False)
     save_nii = Str(desc="Save intermediate NIfTI files", argstr="--save_nii=%s", mandatory=False)
-
 
 class DSIstudioReconstruction2OutputSpec(TraitedSpec):
     out_file = Str(desc="Output Fib File")

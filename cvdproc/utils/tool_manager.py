@@ -33,7 +33,7 @@ def main():
     parser.add_argument("args", nargs=argparse.REMAINDER, help="Additional arguments to pass to the tool.")
     args = parser.parse_args()
 
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
 
     if args.tool == "list":
         list_tools(base_dir)

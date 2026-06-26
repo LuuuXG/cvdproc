@@ -57,17 +57,29 @@ class GenerateNAWMMask(BaseInterface):
 #########################
 # Calculate scalar maps #
 #########################
-from cvdproc.utils.python.basic_image_processor import extract_roi_means
+import os
+import csv
+import numpy as np
+import nibabel as nib
+
+from nipype.interfaces.base import (
+    BaseInterface,
+    BaseInterfaceInputSpec,
+    TraitedSpec,
+    File,
+    traits,
+    Undefined,
+)
+
 
 class CalculateScalarMapsInputSpec(BaseInterfaceInputSpec):
     data_files = traits.List(traits.Str, desc="List of scalar map files to process", mandatory=True)
-    mask_file = File(exists=True, desc="Mask/ROI file", mandatory=True)
-
-    roi_label = traits.Int(desc="ROI label to compute mean value", mandatory=True)
-
-    colnames = traits.List(traits.Str, desc="Column names for the output CSV", mandatory=True)
-
+    mask_file = File(exists=True, desc="Binary mask or multi-label ROI file", mandatory=True)
+    roi_label = traits.Either(traits.Int, traits.Any, desc="Single ROI label. If Undefined, all nonzero ROI labels are used.")
+    colnames = traits.List(traits.Str, desc="Column names for scalar maps", mandatory=True)
     output_csv = traits.File(desc="Output CSV file", mandatory=True)
+    ignore_background = traits.Bool(True, usedefault=True)
+    statistic = traits.Enum("mean", "median", desc="Statistic to extract from ROI", usedefault=True)
 
 
 class CalculateScalarMapsOutputSpec(TraitedSpec):
@@ -78,13 +90,51 @@ class CalculateScalarMaps(BaseInterface):
     input_spec = CalculateScalarMapsInputSpec
     output_spec = CalculateScalarMapsOutputSpec
 
-    def _safe_exists(self, p):
-        if p is None:
+    @staticmethod
+    def _safe_exists(path):
+        if path is None:
             return False
-        p = str(p).strip()
-        if p == "":
-            return False
-        return os.path.exists(p)
+        path = str(path).strip()
+        return path != "" and os.path.exists(path)
+
+    @staticmethod
+    def _same_grid(img, roi_img):
+        return img.shape[:3] == roi_img.shape[:3] and np.allclose(img.affine, roi_img.affine, atol=1e-4)
+
+    @staticmethod
+    def _load_3d_data(image_file, roi_img):
+        img = nib.load(image_file)
+
+        if not CalculateScalarMaps._same_grid(img, roi_img):
+            raise RuntimeError(f"Grid mismatch between scalar map and ROI mask: {image_file}")
+
+        data = img.get_fdata(dtype=np.float64)
+
+        if data.ndim == 4:
+            if data.shape[3] != 1:
+                raise RuntimeError(f"Scalar map must be 3D or 4D with one volume, got {data.shape}: {image_file}")
+            data = data[..., 0]
+
+        return data
+
+    @staticmethod
+    def _extract_value(data, roi_mask, ignore_background, statistic):
+        valid = roi_mask & np.isfinite(data)
+
+        if ignore_background:
+            valid &= data != 0
+
+        if not np.any(valid):
+            return float("nan")
+
+        values = data[valid]
+
+        if statistic == "mean":
+            return float(np.mean(values))
+        if statistic == "median":
+            return float(np.median(values))
+
+        raise ValueError(f"Unsupported statistic: {statistic}")
 
     def _run_interface(self, runtime):
         data_files = list(self.inputs.data_files)
@@ -93,45 +143,75 @@ class CalculateScalarMaps(BaseInterface):
         if len(data_files) != len(colnames):
             raise ValueError(f"Length mismatch: data_files={len(data_files)} vs colnames={len(colnames)}")
 
-        mask_file = self.inputs.mask_file
-        roi_label = int(self.inputs.roi_label)
-        out_csv = str(self.inputs.output_csv)
+        mask_file = str(self.inputs.mask_file)
+        out_csv = os.path.abspath(str(self.inputs.output_csv))
+        ignore_background = bool(self.inputs.ignore_background)
+        statistic = str(self.inputs.statistic)
+
+        roi_img = nib.load(mask_file)
+        roi_data = roi_img.get_fdata(dtype=np.float64)
+
+        if roi_data.ndim == 4:
+            if roi_data.shape[3] != 1:
+                raise RuntimeError(f"ROI mask must be 3D or 4D with one volume, got {roi_data.shape}: {mask_file}")
+            roi_data = roi_data[..., 0]
+
+        scalar_data = []
+        for image_file in data_files:
+            if self._safe_exists(image_file):
+                scalar_data.append(self._load_3d_data(image_file, roi_img))
+            else:
+                scalar_data.append(None)
+
+        single_roi_mode = self.inputs.roi_label is not Undefined
+
+        if single_roi_mode:
+            roi_label = int(self.inputs.roi_label)
+            roi_mask = roi_data > 0 if roi_label == 0 else np.isclose(roi_data, roi_label)
+
+            row = []
+            for data in scalar_data:
+                if data is None:
+                    row.append(float("nan"))
+                else:
+                    row.append(self._extract_value(data, roi_mask, ignore_background, statistic))
+
+            header = colnames
+            rows = [row]
+
+        else:
+            roi_labels = np.unique(roi_data[np.isfinite(roi_data)])
+            roi_labels = [int(x) for x in roi_labels if x != 0]
+
+            header = ["roi_label"] + colnames
+            rows = []
+
+            for roi_label in roi_labels:
+                roi_mask = np.isclose(roi_data, roi_label)
+                row = [roi_label]
+
+                for data in scalar_data:
+                    if data is None:
+                        row.append(float("nan"))
+                    else:
+                        row.append(self._extract_value(data, roi_mask, ignore_background, statistic))
+
+                rows.append(row)
 
         out_dir = os.path.dirname(out_csv)
         if out_dir:
             os.makedirs(out_dir, exist_ok=True)
 
-        values = []
-        for f in data_files:
-            if not self._safe_exists(f):
-                values.append(float("nan"))
-                continue
-
-            # extract_roi_means returns (labels, means) in the revised version
-            labels, means = extract_roi_means(
-                input_image=f,
-                roi_image=mask_file,
-                ignore_background=True,
-                roi_label=[roi_label],
-                output_csv=None,
-            )
-            # means should be length 1
-            if means is None or len(means) == 0:
-                values.append(float("nan"))
-            else:
-                values.append(float(means[0]))
-
-        # write a single-row CSV: header + one row
         with open(out_csv, "w", newline="") as fp:
-            w = csv.writer(fp)
-            w.writerow(colnames)
-            w.writerow(values)
+            writer = csv.writer(fp)
+            writer.writerow(header)
+            writer.writerows(rows)
 
         return runtime
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs["output_csv"] = str(self.inputs.output_csv)
+        outputs["output_csv"] = os.path.abspath(str(self.inputs.output_csv))
         return outputs
 
 def tdi_weighted_mean_with_background_value(scalar_nii, weight_nii, background_value=-1):

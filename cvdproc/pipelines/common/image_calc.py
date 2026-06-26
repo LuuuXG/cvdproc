@@ -200,16 +200,6 @@ class TDWeightedMean(BaseInterface):
         )
         return outputs
 
-if __name__ == "__main__":
-    from nipype import Node
-    node = Node(CalcMeanInROIMask(), name="calc_mean_in_roi_mask")
-    node.inputs.image_file = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/sub-XUBAOGEN_baseline_space-MNI152NLin6ASym_cbf.nii.gz"
-    node.inputs.roi_mask_file = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/AAL_v4_on_MNI152NLin6ASym_cbfgrid.nii.gz"
-    node.inputs.output_csv = "/mnt/f/BIDS/SVD_demo/derivatives/asl_pipeline/sub-XUBAOGEN/ses-baseline/sub-XUBAOGEN_baseline_space-MNI152NLin6ASym_cbf_mean.csv"
-    node.inputs.ignore_background = True
-
-    res = node.run()
-
 # ------------------------
 # Combine Two Binary Masks
 # ------------------------
@@ -242,4 +232,57 @@ class CombineMasks(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["output_mask"] = os.path.abspath(self.inputs.output_mask)
+        return outputs
+
+# -----------------------------
+# Remove mask region from NIfTI
+# -----------------------------
+class RemoveMaskRegionInputSpec(BaseInterfaceInputSpec):
+    input_image = File(exists=True, mandatory=True, desc="Input NIfTI image")
+    mask_image = File(exists=True, mandatory=True, desc="Mask NIfTI image")
+    output_image = File(mandatory=True, desc="Output NIfTI image")
+    mask_threshold = Float(0.5, usedefault=True, desc="Mask threshold")
+
+
+class RemoveMaskRegionOutputSpec(TraitedSpec):
+    output_image = File(exists=True, desc="Output NIfTI image")
+
+
+class RemoveMaskRegion(BaseInterface):
+    input_spec = RemoveMaskRegionInputSpec
+    output_spec = RemoveMaskRegionOutputSpec
+
+    def _run_interface(self, runtime):
+        input_img = nib.load(self.inputs.input_image)
+        mask_img = nib.load(self.inputs.mask_image)
+
+        input_data = input_img.get_fdata(dtype=np.float64)
+        mask_data = mask_img.get_fdata(dtype=np.float64)
+
+        if input_data.shape != mask_data.shape:
+            raise RuntimeError(
+                f"Shape mismatch: input image {input_data.shape} vs mask image {mask_data.shape}"
+            )
+
+        # if not np.allclose(input_img.affine, mask_img.affine, atol=1e-4):
+        #     raise RuntimeError("Affine mismatch between input image and mask image.")
+
+        output_data = input_data.copy()
+        output_data[mask_data > self.inputs.mask_threshold] = 0
+
+        output_image = os.path.abspath(self.inputs.output_image)
+        os.makedirs(os.path.dirname(output_image), exist_ok=True)
+
+        output_img = nib.Nifti1Image(output_data, input_img.affine, input_img.header)
+        output_img.set_data_dtype(input_img.get_data_dtype())
+        nib.save(output_img, output_image)
+
+        self._output_image = output_image
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs["output_image"] = getattr(
+            self, "_output_image", os.path.abspath(self.inputs.output_image)
+        )
         return outputs

@@ -380,15 +380,20 @@ class PrepareTrueNetData2(CommandLine):
         
         return outputs
 
+import os
+import shutil
+import nibabel as nib
+from nibabel.processing import resample_to_output, resample_from_to
+
 class TrueNetEvaluateInputSpec(CommandLineInputSpec):
     inp_dir = Directory(exists=True, desc="Input directory containing test images", mandatory=True, argstr='-i %s')
     model_name = Str(desc="Pre-trained model name or model path", mandatory=True, argstr='-m %s')
     output_dir = Str(desc="Output directory for saving predictions", mandatory=True, argstr='-o %s')
-    use_cpu = Bool(desc="Force the model to evaluate the model on CPU", default=False, argstr='-cpu')
-    num_classes = Int(desc="Number of classes in the labels used for training the model", default=2, argstr='-nclass %d')
+    use_cpu = Bool(desc="Force evaluation on CPU", default=False, argstr='-cpu')
+    num_classes = Int(desc="Number of classes", default=2, argstr='-nclass %d')
     intermediate = Bool(desc="Save intermediate predictions", default=False, argstr='-int')
     cp_type = Str(desc="Checkpoint load type", default='last', argstr='-cp_type %s')
-    cp_n = Int(desc="If -cp_type=specific, the N value", default=10, argstr='-cp_n %d')
+    cp_n = Int(desc="Checkpoint number if cp_type is specific", default=10, argstr='-cp_n %d')
     verbose = Bool(desc="Display debug messages", default=False, argstr='-v')
 
 class TrueNetEvaluateOutputSpec(TraitedSpec):
@@ -400,27 +405,87 @@ class TrueNetEvaluate(CommandLine):
     output_spec = TrueNetEvaluateOutputSpec
     _cmd = "truenet evaluate"
 
+    def _find_input_files(self, input_dir):
+        files = {}
+        for fname in os.listdir(input_dir):
+            fpath = os.path.join(input_dir, fname)
+            if fname.endswith("_T1.nii.gz"):
+                files["T1"] = fpath
+            elif fname.endswith("_FLAIR.nii.gz"):
+                files["FLAIR"] = fpath
+        if not files:
+            raise FileNotFoundError(f"No TrueNet input files found in {input_dir}")
+        return files
+
+    def _get_prefix(self, input_dir):
+        files = self._find_input_files(input_dir)
+        if "T1" in files:
+            return os.path.basename(files["T1"]).rsplit("_T1.nii.gz", 1)[0]
+        return os.path.basename(files["FLAIR"]).rsplit("_FLAIR.nii.gz", 1)[0]
+
+    def _is_1mm(self, image_file, tol=1e-3):
+        zooms = nib.load(image_file).header.get_zooms()[:3]
+        return all(abs(z - 1.0) <= tol for z in zooms)
+
+    def _copy_or_resample_to_1mm(self, input_files, temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
+        prepared_files = {}
+        needs_resampling = any(not self._is_1mm(fpath) for fpath in input_files.values())
+
+        for modality, fpath in input_files.items():
+            out_path = os.path.join(temp_dir, os.path.basename(fpath))
+            if needs_resampling:
+                if self._is_1mm(fpath):
+                    shutil.copyfile(fpath, out_path)
+                else:
+                    img = nib.load(fpath)
+                    resampled = resample_to_output(img, voxel_sizes=(1.0, 1.0, 1.0), order=1)
+                    nib.save(resampled, out_path)
+            prepared_files[modality] = out_path
+
+        return prepared_files, needs_resampling
+
+    def _resample_prediction_to_original(self, pred_file, ref_file, out_file):
+        pred_img = nib.load(pred_file)
+        ref_img = nib.load(ref_file)
+        resampled = resample_from_to(pred_img, ref_img, order=1)
+        nib.save(resampled, out_file)
+        return out_file
+
+    def _run_interface(self, runtime):
+        input_dir = os.path.abspath(self.inputs.inp_dir)
+        output_dir = os.path.abspath(self.inputs.output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        input_files = self._find_input_files(input_dir)
+        reference_file = input_files.get("FLAIR", input_files.get("T1"))
+        prefix = self._get_prefix(input_dir)
+        pred_name = f"Predicted_probmap_truenet_{prefix}.nii.gz"
+        final_pred_file = os.path.join(output_dir, pred_name)
+
+        temp_dir = os.path.join(output_dir, "truenet_1mm_input")
+        prepared_files, needs_resampling = self._copy_or_resample_to_1mm(input_files, temp_dir)
+
+        original_inp_dir = self.inputs.inp_dir
+        if needs_resampling:
+            self.inputs.inp_dir = temp_dir
+
+        runtime = super()._run_interface(runtime)
+
+        if needs_resampling:
+            self.inputs.inp_dir = original_inp_dir
+            pred_1mm_file = os.path.join(output_dir, pred_name)
+            if not os.path.exists(pred_1mm_file):
+                raise FileNotFoundError(f"TrueNet prediction not found: {pred_1mm_file}")
+            self._resample_prediction_to_original(pred_1mm_file, reference_file, final_pred_file)
+
+        return runtime
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs["output_dir"] = os.path.abspath(self.inputs.output_dir)
-
-        input_dir = self.inputs.inp_dir
-        prefix = None
-
-        t1_files = [f for f in os.listdir(input_dir) if f.endswith("_T1.nii.gz")]
-        flair_files = [f for f in os.listdir(input_dir) if f.endswith("_FLAIR.nii.gz")]
-
-        if t1_files:
-            prefix = t1_files[0].rsplit("_T1.nii.gz", 1)[0]
-        elif flair_files:
-            prefix = flair_files[0].rsplit("_FLAIR.nii.gz", 1)[0]
-
-        if prefix is not None:
-            outputs["pred_file"] = os.path.join(
-                outputs["output_dir"],
-                f"Predicted_probmap_truenet_{prefix}.nii.gz"
-            )
-
+        prefix = self._get_prefix(self.inputs.inp_dir)
+        outputs["pred_file"] = os.path.join(outputs["output_dir"], f"Predicted_probmap_truenet_{prefix}.nii.gz")
         return outputs
     
     

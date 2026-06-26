@@ -28,8 +28,8 @@ if (!dir.exists(cfg$out_path)) {
 }
 
 # Get parcel damage for patients
-get_parcel_damage(cfg, cores=4)
+get_parcel_damage(cfg, cores=8)
 # Get tract SDC for patients
-get_tract_discon(cfg, cores=4)
+#get_tract_discon(cfg, cores=8)
 # Get parcel SDC and SSPL measures for patients
-get_parcel_cons(cfg, cores=4)
+get_parcel_cons(cfg, cores=8)

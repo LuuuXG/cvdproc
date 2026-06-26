@@ -58,12 +58,16 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ $HAS_FLAIR -eq 1 ]]; then
-  fslreorient2std "$FLAIR_IMG" "${TMPVISDIR}/FLAIR.nii.gz"
+  #fslreorient2std "$FLAIR_IMG" "${TMPVISDIR}/FLAIR.nii.gz"
+  imcp "$FLAIR_IMG" "${TMPVISDIR}/FLAIR.nii.gz"
 fi
 
-fslreorient2std "$T1w_IMG"      "${TMPVISDIR}/T1.nii.gz"
-fslreorient2std "$BRAIN_MASK"   "${TMPVISDIR}/brainmask.nii.gz"
-fslreorient2std "$SynthSeg_IMG" "${TMPVISDIR}/SynthSeg.nii.gz"
+# fslreorient2std "$T1w_IMG"      "${TMPVISDIR}/T1.nii.gz"
+# fslreorient2std "$BRAIN_MASK"   "${TMPVISDIR}/brainmask.nii.gz"
+# fslreorient2std "$SynthSeg_IMG" "${TMPVISDIR}/SynthSeg.nii.gz"
+imcp "$BRAIN_MASK" "${TMPVISDIR}/brainmask.nii.gz"
+imcp "$SynthSeg_IMG" "${TMPVISDIR}/SynthSeg.nii.gz"
+imcp "$T1w_IMG"      "${TMPVISDIR}/T1.nii.gz"
 
 if [[ $HAS_FLAIR -eq 1 ]]; then
   imcp "${TMPVISDIR}/FLAIR.nii.gz" "${OUTPUT_DIR}/${PREFIX}_FLAIR.nii.gz"

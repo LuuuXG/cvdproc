@@ -45,7 +45,6 @@ class FreesurferPipeline(FreesurferStatsExtractorMixin):
         output_path: str,
         use_which_t1w: str = "",
         recon_all: bool = True,
-        longitudinal: bool = False,
         subregion_ha: bool = False,
         subregion_thalamus: bool = False,
         subregion_brainstem: bool = False,

@@ -383,6 +383,95 @@ fi
 # Histogram analysis
 redirect_cmd fslmaths stats/all_MD_skeletonised.nii.gz -mas "${finalmask}" -mul 1000000 MD_skeletonized_masked.nii.gz
 
+# Save QC files
+if [ -n "${outdir:-}" ]; then
+  mkdir -p "${outdir}/qc"
+
+  cp MD_skeletonized_masked.nii.gz "${outdir}/qc/MD_skeletonized_masked.nii.gz"
+  cp stats/all_MD_skeletonised.nii.gz "${outdir}/qc/all_MD_skeletonised.nii.gz"
+  cp stats/mean_FA_skeleton.nii.gz "${outdir}/qc/mean_FA_skeleton.nii.gz"
+  cp stats/all_FA_skeletonised.nii.gz "${outdir}/qc/all_FA_skeletonised.nii.gz"
+  cp "${finalmask}" "${outdir}/qc/final_skeleton_mask.nii.gz"
+
+  fslstats MD_skeletonized_masked.nii.gz -V > "${outdir}/qc/MD_skeletonized_masked_voxel_count.txt"
+  fslstats MD_skeletonized_masked.nii.gz -M -S -P 5 -P 50 -P 95 > "${outdir}/qc/MD_skeletonized_masked_summary.txt"
+
+  python3 - <<PY
+import numpy as np
+from pathlib import Path
+import nibabel as nib
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+qcdir = Path("${outdir}") / "qc"
+
+img = nib.load("MD_skeletonized_masked.nii.gz")
+data = img.get_fdata()
+
+values = data[np.isfinite(data)]
+values = values[values > 0]
+
+p5 = np.percentile(values, 5)
+p50 = np.percentile(values, 50)
+p95 = np.percentile(values, 95)
+
+psmd_micro = p95 - p5
+psmd_mm2_s = psmd_micro / 1000000.0
+
+summary = {
+    "n_voxels": values.size,
+    "mean_micro": np.mean(values),
+    "sd_micro": np.std(values),
+    "p5_micro": p5,
+    "p50_micro": p50,
+    "p95_micro": p95,
+    "psmd_micro": psmd_micro,
+    "psmd_mm2_per_s": psmd_mm2_s,
+}
+
+with open(qcdir / "MD_histogram_summary.tsv", "w") as f:
+    f.write("metric\tvalue\n")
+    for k, v in summary.items():
+        f.write(f"{k}\t{v:.8f}\n")
+
+hist, edges = np.histogram(values, bins=100)
+hist_table = np.column_stack([edges[:-1], edges[1:], hist])
+
+np.savetxt(
+    qcdir / "MD_histogram_100bins.tsv",
+    hist_table,
+    fmt=["%.6f", "%.6f", "%d"],
+    delimiter="\t",
+    header="bin_left_micro\tbin_right_micro\tcount",
+    comments=""
+)
+
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.hist(values, bins=100)
+ax.axvline(p5, linestyle="--", linewidth=1)
+ax.axvline(p95, linestyle="--", linewidth=1)
+
+ax.set_xlabel("Skeletonized MD, x10^-6 mm^2/s")
+ax.set_ylabel("Voxel count")
+ax.set_title(f"MD histogram: PSMD = {psmd_mm2_s:.6f} mm^2/s")
+
+ax.text(
+    0.98,
+    0.95,
+    f"P5 = {p5:.2f}\\nP95 = {p95:.2f}\\nPSMD = {psmd_micro:.2f} x10^-6 mm^2/s\\nPSMD = {psmd_mm2_s:.6f} mm^2/s",
+    transform=ax.transAxes,
+    ha="right",
+    va="top",
+)
+
+fig.tight_layout()
+fig.savefig(qcdir / "MD_histogram_100bins.png", dpi=300)
+fig.savefig(qcdir / "MD_histogram_100bins.pdf")
+plt.close(fig)
+PY
+fi
 
 # Whole brain metrics
 if [ ${hemispheres} == false ] && [ ${metric} == PSMD ];then

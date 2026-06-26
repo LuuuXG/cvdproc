@@ -49,7 +49,6 @@ class T1RegisterPipeline:
 
         # Create the workflow
         t1_register_wf = Workflow(name='t1_register_workflow')
-        t1_register_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
         inputnode = Node(IdentityInterface(fields=['t1', 'mni_template', 't1_mni_out', 't1_2_mni_warp', 'mni_2_t1_warp']),
                          name='inputnode')

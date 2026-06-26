@@ -27,7 +27,6 @@ class PipelineManager:
         elif pipeline_name.lower() == "cmb_quantification":
             from ..pipelines.smri.csvd_quantification.cmb_pipeline import CMBSegmentationPipeline
             return CMBSegmentationPipeline(subject, session, output_path=output_path, **kwargs)
-        #####################
 
         #### Structural MRI ####
         elif pipeline_name.lower() == "t1_register":
@@ -68,7 +67,6 @@ class PipelineManager:
         elif pipeline_name.lower() == "hipsta":
             from ..pipelines.smri.hipsta_pipeline import HipstaPipeline
             return HipstaPipeline(subject, session, output_path=output_path, **kwargs)
-        ########################
 
         #### Diffusion MRI ####
         elif pipeline_name.lower() == "dwi_pipeline":
@@ -85,7 +83,11 @@ class PipelineManager:
         elif pipeline_name.lower() == "asl_pipeline":
             from ..pipelines.perfusion.asl_pipeline import ASLPipeline
             return ASLPipeline(subject, session, output_path=output_path, **kwargs)
-        #######################
+
+        #### Multi-Modality MRI ####
+        elif pipeline_name.lower() == "arts_pipeline":
+            from ..pipelines.multi.arts_pipeline import ARTSPipeline
+            return ARTSPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Quantiative MRI ####
         elif pipeline_name.lower() == "sepia_qsm":
@@ -107,7 +109,6 @@ class PipelineManager:
         elif pipeline_name.lower() == "test_matlab":
             from ..pipelines.nipype_test.test_matlab import TestMatlabPipeline
             return TestMatlabPipeline(subject, session, output_path=output_path, matlab_path=matlab_path, **kwargs)
-        #####################
 
         raise ValueError(f"Unknown pipeline: {pipeline_name}")
 

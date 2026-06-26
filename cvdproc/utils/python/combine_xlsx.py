@@ -155,13 +155,11 @@ def merge_and_save_excel(
 
 if __name__ == "__main__":
     merge_and_save_excel(
-        base_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\raw\rawdata_20260414.xlsx",
-        additional_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\source\20260408补充\认知功能随访.xlsx",
+        base_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\raw\rawdata_20260603.xlsx",
+        additional_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\source\TI\TI_synthseg.xlsx",
         match_column_base=["Subject", "Session"],
         match_column_additional=["Subject", "Session"],
-        selected_columns=["吸烟", "饮酒", "高血压病史", "糖尿病病史", "高脂血症病史", "CDT", 
-                          "视空间与执行功能（5）", "命名（3）", "注意（6）", "语言（3）", "抽象（2）", "延迟回忆（5）", "定向（6）",
-                          "STT-A总耗时数(秒)", "STT-B总耗时数(秒)", "Stroop-A总耗时数(秒)", "Stroop-B总耗时数(秒)", "Stroop-C总耗时数(秒)"],
+        selected_columns=['total intracranial'],
         #selected_columns="ALL_EXCEPT_MATCH",
         prefix="",
         zfill_columns={},

@@ -1,69 +1,80 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
-bids_dir=$1
-subject_id=$2
-session_id=$3
-
-# Search for already processed fmriprep output
-qsiprep_dir=$bids_dir/derivatives/fmriprep/sub-${subject_id}/ses-${session_id}/func
-# Find whether have a *space-ACPC_desc-preproc_dwi.nii.gz file
-preproc_bold_in_t1w_file=$(find $qsiprep_dir -type f -name "*space-T1w_desc-preproc_bold.nii.gz" | head -n 1)
-if [ -z "$preproc_bold_in_t1w_file" ]; then
-  echo "No preprocessed BOLD in T1w file found for subject ${subject_id}, session ${session_id} in fmriprep output."
-
-  # so we need to run fmriprep
-  docker run -ti --rm \
-            --gpus all \
-            -v $bids_dir:/data/input \
-            -v $bids_dir/derivatives/qsiprep:/data/output \
-            -v $bids_dir/derivatives/workflows/sub-${subject_id}/ses-${session_id}:/work \
-            -v $bids_dir/derivatives/freesurfer/sub-${subject_id}/ses-${session_id}:/precomputed_freesurfer/sub-${subject_id}_ses-${session_id} \
-            -v $bids_dir/code/license.txt:/opt/freesurfer/license.txt \
-            -v $bids_dir/code/fmriprep_filter.json:/opt/fmriprep_filter.json \
-            fmriprep:25.2.5 \
-            /data/input /data/output participant \
-            --skip-bids-validation \
-            --participant-label $subject_id \
-            --session-label $session_id \
-            --nprocs 12 \
-            --subject-anatomical-reference sessionwise \
-            --skip-anat-based-spatial-normalization \
-            --fs-license-file /opt/freesurfer/license.txt \
-            --work-dir /work \
-            --bids-filter-file /opt/fmriprep_filter.json \
-            --fs-subjects-dir /precomputed_freesurfer \
-            --force syn-sdc \
-            --bold2anat-init t1w \
-            --output-spaces T1w
-else
-  echo "Preprocessed BOLD in T1w file already exists for subject ${subject_id}, session ${session_id} in fmriprep output. Skipping fmriprep."
-fi
-
-# Post-process
-fmriprep_anat_dir=$bids_dir/derivatives/fmriprep/sub-${subject_id}/ses-${session_id}/anat
-# Search for preproc T1w (*space-ACPC_desc-preproc_T1w.nii.gz)
-preproc_t1w_file=$(find $fmriprep_anat_dir -type f -name "*desc-preproc_T1w.nii.gz" | head -n 1)
-if [ -z "$preproc_t1w_file" ]; then
-  echo "No preprocessed T1w file found for subject ${subject_id}, session ${session_id} in fmriprep output. Exiting."
+if [ "$#" -lt 3 ]; then
+  echo "Usage: bash fmriprep_single.sh <bids_dir> <subject_id> <session_id> [license_file] [filter_file]"
   exit 1
 fi
 
-# check if warp file already exists
-if [ -f "$fmriprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5" ] && [ -f "$fmriprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5" ]; then
-  echo "Warp files already exist for subject ${subject_id}, session ${session_id}. Skipping warp generation."
+bids_dir="$1"
+subject_id="$2"
+session_id="$3"
+license_file="${4:-/home/lxg/license.txt}"
+filter_file="${5:-${bids_dir}/code/fmriprep_filter.json}"
+
+fmriprep_dir="${bids_dir}/derivatives/fmriprep"
+work_dir="${bids_dir}/derivatives/workflows/sub-${subject_id}/ses-${session_id}"
+freesurfer_dir="${bids_dir}/derivatives/freesurfer/sub-${subject_id}/ses-${session_id}"
+fmriprep_func_dir="${fmriprep_dir}/sub-${subject_id}/ses-${session_id}/func"
+
+template_space="MNI152NLin2009cAsym"
+template_res="res-2"
+template_spec="${template_space}:res-2"
+
+mkdir -p "$fmriprep_dir" "$work_dir"
+
+if [ ! -d "$freesurfer_dir" ]; then
+  echo "FreeSurfer directory not found: $freesurfer_dir"
+  exit 1
+fi
+
+if [ ! -f "$license_file" ]; then
+  echo "FreeSurfer license file not found: $license_file"
+  exit 1
+fi
+
+if [ ! -f "$filter_file" ]; then
+  echo "BIDS filter file not found: $filter_file"
+  exit 1
+fi
+
+mni_bold_file=$(find "$fmriprep_func_dir" -maxdepth 1 -type f -name "*_task-rest*_space-${template_space}_${template_res}_desc-preproc_bold.nii.gz" 2>/dev/null | sort | head -n 1 || true)
+
+if [ -n "$mni_bold_file" ]; then
+  echo "MNI preprocessed BOLD already exists: $mni_bold_file"
+  echo "Skipping fMRIPrep."
   exit 0
 fi
 
-mri_synthmorph -t $fmriprep_anat_dir/T1w_to_MNI.nii.gz -T $fmriprep_anat_dir/MNI_to_T1w.nii.gz $preproc_t1w_file /mnt/e/Codes/cvdproc/cvdproc/data/standard/MNI152/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz -g
-python3 /mnt/e/Codes/cvdproc/cvdproc/utils/python/nifti_warp_to_h5.py \
-    --input "$fmriprep_anat_dir/MNI_to_T1w.nii.gz" \
-    --output "$fmriprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-MNI152NLin2009cAsym_to-ACPC_mode-image_xfm.h5"
+docker run -ti --rm \
+  -v "${bids_dir}:/data" \
+  -v "${fmriprep_dir}:/out" \
+  -v "${work_dir}:/work" \
+  -v "${freesurfer_dir}:/precomputed_freesurfer/sub-${subject_id}_ses-${session_id}" \
+  -v "${license_file}:/opt/freesurfer/license.txt" \
+  -v "${filter_file}:/opt/fmri_filter.json" \
+  nipreps/fmriprep:25.2.5 \
+  /data /out \
+  participant \
+  --participant-label "$subject_id" \
+  --session-label "$session_id" \
+  -w /work \
+  --nprocs 18 \
+  --subject-anatomical-reference sessionwise \
+  --use-syn-sdc \
+  --fs-subjects-dir /precomputed_freesurfer \
+  --fs-license-file /opt/freesurfer/license.txt \
+  --bids-filter-file /opt/fmri_filter.json \
+  --output-spaces func "$template_spec" \
+  --skip-bids-validation \
+  --ignore t2w flair
 
-python3 /mnt/e/Codes/cvdproc/cvdproc/utils/python/nifti_warp_to_h5.py \
-    --input "$fmriprep_anat_dir/T1w_to_MNI.nii.gz" \
-    --output "$fmriprep_anat_dir/sub-${subject_id}_ses-${session_id}_from-ACPC_to-MNI152NLin2009cAsym_mode-image_xfm.h5"
+mni_bold_file=$(find "$fmriprep_func_dir" -maxdepth 1 -type f -name "*_task-rest*_space-${template_space}_${template_res}_desc-preproc_bold.nii.gz" 2>/dev/null | sort | head -n 1 || true)
 
-# delete the intermediate files (nifti warps)
-rm "$fmriprep_anat_dir/T1w_to_MNI.nii.gz" "$fmriprep_anat_dir/MNI_to_T1w.nii.gz"
+if [ -n "$mni_bold_file" ]; then
+  echo "fMRIPrep completed. MNI BOLD output: $mni_bold_file"
+else
+  echo "fMRIPrep finished, but no MNI152NLin2009cAsym res-2 preprocessed BOLD file was found."
+  exit 1
+fi

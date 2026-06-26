@@ -12,32 +12,30 @@ Usage: run_lit_containerized_custom.sh \
   [--output_image <output_image>] \
   [OPTIONS]
 
-This script runs LIT (Lesion Inpainting Tool) inside Docker and creates:
-  (i)  an inpainted T1w image using a lesion mask
-  (ii) (optional) whole brain segmentation and cortical surface reconstruction using FastSurferVINN
+This script runs LIT inside Docker and creates:
+  (i) an inpainted T1w image using a lesion mask
 
 REQUIRED:
   -i, --input_image <input_image>
       Path to the input T1w volume
-  -m, --mask_image <mask_image>
+  -m, --mask_image, --lesion_mask <mask_image>
       Path to the lesion mask volume
   -o, --output_directory <output_directory>
       Path to the output directory
   --lit_data_dir <lit_data_dir>
-      Directory containing LIT data (must include weights/)
+      Directory containing LIT data. It must include weights/
 
 OPTIONAL:
   --output_image <output_image>
-      Final output image path. If set, the inpainted image
-      (inpainting_volumes/inpainting_result.nii.gz) will be copied to this path.
-      After copying, inpainting_images/ and inpainting_volumes/ under output_directory
-      will be removed.
+      Final output image path. If set, the inpainted image will be copied to this path.
   --gpus <gpus>
       GPUs to use. Default: all
-  --fastsurfer
-      Run FastSurferVINN (requires FreeSurfer license)
-  --fs_license <fs_license>
-      Path to FreeSurfer license file (license.txt)
+  --device <auto|cpu|cuda>
+      Inference device inside the container. Default: auto
+  --cpu
+      Shorthand for --device cpu
+  --tag <tag>
+      Docker tag to use. Default: 0.6.0
   -h, --help
       Print this message and exit
   --version
@@ -48,23 +46,12 @@ Examples:
     -i t1w.nii.gz \
     -m lesion.nii.gz \
     -o ./output \
-    --lit_data_dir /mnt/e/codes/cvdproc/cvdproc/data/lit \
-    --dilate 2
-
-  ./run_lit_containerized_custom.sh \
-    -i t1w.nii.gz \
-    -m lesion.nii.gz \
-    -o ./output \
-    --lit_data_dir /mnt/e/codes/cvdproc/cvdproc/data/lit \
-    --output_image /path/to/final_inpainted.nii.gz \
+    --lit_data_dir /mnt/e/Codes/cvdproc/cvdproc/data/models/lit \
     --dilate 2
 
 EOF
 }
 
-# --------------------------------------------------
-# Basic check
-# --------------------------------------------------
 if [[ $# -eq 0 ]]; then
   usage
   exit 1
@@ -72,59 +59,93 @@ fi
 
 POSITIONAL_ARGS=()
 
-# Hard-coded Docker image
-DOCKER_IMAGE="deepmi/lit:0.5.0"
-
-# Init
-RUN_FASTSURFER=false
+DOCKER_REPO="deepmi/lit"
+VERSION="0.6.0"
+DEVICE="auto"
 GPUS="all"
-fs_license=""
 LIT_DATA_DIR=""
 OUTPUT_IMAGE=""
 
-# --------------------------------------------------
-# Parse arguments
-# --------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --gpus)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --gpus requires a value"
+        exit 1
+      fi
       GPUS="$2"
       shift 2
       ;;
+    --device)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --device requires a value"
+        exit 1
+      fi
+      if [[ "$2" != "auto" && "$2" != "cpu" && "$2" != "cuda" ]]; then
+        echo "Error: --device must be one of: auto, cpu, cuda"
+        exit 1
+      fi
+      DEVICE="$2"
+      shift 2
+      ;;
+    --cpu)
+      DEVICE="cpu"
+      shift
+      ;;
     -i|--input_image)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --input_image requires a value"
+        exit 1
+      fi
       INPUT_IMAGE="$2"
       shift 2
       ;;
-    -m|--mask_image)
+    -m|--mask_image|--lesion_mask)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --mask_image/--lesion_mask requires a value"
+        exit 1
+      fi
       MASK_IMAGE="$2"
       shift 2
       ;;
     -o|--output_directory)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --output_directory requires a value"
+        exit 1
+      fi
       OUT_DIR="$2"
       shift 2
       ;;
     --lit_data_dir)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --lit_data_dir requires a value"
+        exit 1
+      fi
       LIT_DATA_DIR="$2"
       shift 2
       ;;
     --output_image)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --output_image requires a value"
+        exit 1
+      fi
       OUTPUT_IMAGE="$2"
       shift 2
       ;;
-    --fastsurfer)
-      RUN_FASTSURFER=true
-      shift
-      ;;
-    --fs_license)
-      fs_license="$2"
+    --tag)
+      if [[ -z "${2:-}" || "$2" == -* ]]; then
+        echo "Error: --tag requires a value"
+        exit 1
+      fi
+      VERSION="$2"
       shift 2
+      ;;
+    --version)
+      echo "$VERSION"
+      exit 0
       ;;
     -h|--help)
       usage
-      exit 0
-      ;;
-    --version)
-      echo "0.5.0"
       exit 0
       ;;
     *)
@@ -134,11 +155,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-set -- "${POSITIONAL_ARGS[@]}"
-
-# --------------------------------------------------
-# Validate required inputs
-# --------------------------------------------------
 if [[ -z "${INPUT_IMAGE:-}" || -z "${MASK_IMAGE:-}" || -z "${OUT_DIR:-}" || -z "${LIT_DATA_DIR:-}" ]]; then
   echo "Error: --input_image, --mask_image, --output_directory, and --lit_data_dir are required."
   usage
@@ -161,21 +177,21 @@ if [[ ! -d "$LIT_DATA_DIR" ]]; then
 fi
 
 WEIGHTS_DIR="${LIT_DATA_DIR}/weights"
+
 if [[ ! -d "$WEIGHTS_DIR" ]]; then
   echo "Error: weights directory not found: $WEIGHTS_DIR"
   exit 1
 fi
 
-for w in model_coronal.pt model_axial.pt model_sagittal.pt; do
-  if [[ ! -f "${WEIGHTS_DIR}/${w}" ]]; then
-    echo "Error: Missing model weight: ${WEIGHTS_DIR}/${w}"
+for weight_file in model_coronal.pt model_axial.pt model_sagittal.pt; do
+  if [[ ! -f "${WEIGHTS_DIR}/${weight_file}" ]]; then
+    echo "Error: Missing model weight: ${WEIGHTS_DIR}/${weight_file}"
     exit 1
   fi
 done
 
 mkdir -p "$OUT_DIR"
 
-# Absolutize paths
 INPUT_IMAGE="$(realpath "$INPUT_IMAGE")"
 MASK_IMAGE="$(realpath "$MASK_IMAGE")"
 OUT_DIR="$(realpath "$OUT_DIR")"
@@ -186,55 +202,58 @@ if [[ -n "${OUTPUT_IMAGE:-}" ]]; then
   OUTPUT_IMAGE="$(realpath -m "$OUTPUT_IMAGE")"
 fi
 
-# Script directory (contains run_lit.sh)
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-
-if [[ ! -f "${SCRIPT_DIR}/run_lit.sh" ]]; then
-  echo "Error: ${SCRIPT_DIR}/run_lit.sh not found"
-  exit 1
-fi
-
-# --------------------------------------------------
-# FreeSurfer license handling
-# --------------------------------------------------
-if [[ "$RUN_FASTSURFER" = true ]]; then
-  if [[ -z "${fs_license:-}" || ! -f "$fs_license" ]]; then
-    echo "Error: --fastsurfer requires a valid --fs_license"
-    exit 1
+if [[ "$DEVICE" == "auto" ]]; then
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
+    RESOLVED_DEVICE="cuda"
+  else
+    RESOLVED_DEVICE="cpu"
   fi
-  POSITIONAL_ARGS+=("--fastsurfer")
 else
-  fs_license="/dev/null"
+  RESOLVED_DEVICE="$DEVICE"
 fi
 
-# --------------------------------------------------
-# Docker run
-# --------------------------------------------------
-docker run --gpus "device=${GPUS}" -it --ipc=host \
-  --ulimit memlock=-1 --ulimit stack=67108864 --rm \
-  -v "${INPUT_IMAGE}:${INPUT_IMAGE}:ro" \
-  -v "${MASK_IMAGE}:${MASK_IMAGE}:ro" \
-  -v "${OUT_DIR}:${OUT_DIR}" \
-  -v "${SCRIPT_DIR}:/inpainting:ro" \
-  -v "${WEIGHTS_DIR}:/weights:ro" \
-  -v "${fs_license}:/fs_license/license.txt:ro" \
-  -u "$(id -u):$(id -g)" \
-  "${DOCKER_IMAGE}" \
-  /inpainting/run_lit.sh \
-    -i "${INPUT_IMAGE}" \
-    -m "${MASK_IMAGE}" \
-    -o "${OUT_DIR}" \
-    --weights_dir /weights \
-    "${POSITIONAL_ARGS[@]}"
+if [[ "$VERSION" == *"/"* || "$VERSION" == *":"* ]]; then
+  IMAGE="$VERSION"
+else
+  IMAGE="${DOCKER_REPO}:${VERSION}"
+fi
 
-# --------------------------------------------------
-# Optional: copy final output image and cleanup
-# --------------------------------------------------
+DOCKER_ARGS=(run --ipc=host
+  --ulimit memlock=-1 --ulimit stack=67108864 --rm
+  -v "${INPUT_IMAGE}:${INPUT_IMAGE}:ro"
+  -v "${MASK_IMAGE}:${MASK_IMAGE}:ro"
+  -v "${OUT_DIR}:${OUT_DIR}"
+  -v "${WEIGHTS_DIR}:/weights:ro"
+  -u "$(id -u):$(id -g)")
+
+if [[ "$RESOLVED_DEVICE" == "cuda" ]]; then
+  DOCKER_ARGS+=(--gpus "device=${GPUS}")
+fi
+
+echo "Running LIT with Docker image: ${IMAGE}"
+echo "Input image: ${INPUT_IMAGE}"
+echo "Mask image: ${MASK_IMAGE}"
+echo "Output directory: ${OUT_DIR}"
+echo "Weights directory: ${WEIGHTS_DIR}"
+echo "Device: ${RESOLVED_DEVICE}"
+
+docker "${DOCKER_ARGS[@]}" \
+  "${IMAGE}" \
+  -i "${INPUT_IMAGE}" \
+  -m "${MASK_IMAGE}" \
+  -o "${OUT_DIR}" \
+  --device "${RESOLVED_DEVICE}" \
+  -c_coronal /weights/model_coronal.pt \
+  -c_axial /weights/model_axial.pt \
+  -c_sagittal /weights/model_sagittal.pt \
+  "${POSITIONAL_ARGS[@]}"
+
 if [[ -n "${OUTPUT_IMAGE:-}" ]]; then
   SRC_IMAGE="${OUT_DIR}/inpainting_volumes/inpainting_result.nii.gz"
 
   if [[ ! -f "$SRC_IMAGE" ]]; then
     echo "Error: Inpainting result not found: $SRC_IMAGE"
+    echo "Please check the files generated under: $OUT_DIR"
     exit 1
   fi
 
@@ -243,14 +262,10 @@ if [[ -n "${OUTPUT_IMAGE:-}" ]]; then
 
   rm -rf "${OUT_DIR}/inpainting_images" "${OUT_DIR}/inpainting_volumes"
 
-  # if now OUT_DIR is empty, remove it
-  if [[ -z "$(ls -A "$OUT_DIR")" ]]; then
+  if [[ -d "$OUT_DIR" && -z "$(ls -A "$OUT_DIR")" ]]; then
     rmdir "$OUT_DIR"
   fi
 
   echo "Final output image copied to:"
   echo "  ${OUTPUT_IMAGE}"
-  echo "Cleaned up:"
-  echo "  ${OUT_DIR}/inpainting_images"
-  echo "  ${OUT_DIR}/inpainting_volumes"
 fi
