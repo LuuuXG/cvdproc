@@ -2207,6 +2207,8 @@ class DWIPipeline:
         mean_dwimap_WMH_df = pd.DataFrame()
         mean_dwimap_NAWM_df = pd.DataFrame()
         median_dwimap_wmparc_df = pd.DataFrame()
+        mean_dwimap_aparcaseg_df = pd.DataFrame()
+        mean_dwimap_chpseg_df = pd.DataFrame()
 
         # Surface parameters
         surface_parameters_df = pd.DataFrame()
@@ -2224,77 +2226,21 @@ class DWIPipeline:
         tdiweighted_R_OR_df = pd.DataFrame()
         tdiweighted_R_OT_df = pd.DataFrame()
 
-        wmparc_dict = {
-            3001: "wm_lh_bankssts",
-            3002: "wm_lh_caudalanteriorcingulate",
-            3003: "wm_lh_caudalmiddlefrontal",
-            3005: "wm_lh_cuneus",
-            3006: "wm_lh_entorhinal",
-            3007: "wm_lh_fusiform",
-            3008: "wm_lh_inferiorparietal",
-            3009: "wm_lh_inferiortemporal",
-            3010: "wm_lh_isthmuscingulate",
-            3011: "wm_lh_lateraloccipital",
-            3012: "wm_lh_lateralorbitofrontal",
-            3013: "wm_lh_lingual",
-            3014: "wm_lh_medialorbitofrontal",
-            3015: "wm_lh_middletemporal",
-            3016: "wm_lh_parahippocampal",
-            3017: "wm_lh_paracentral",
-            3018: "wm_lh_parsopercularis",
-            3019: "wm_lh_parsorbitalis",
-            3020: "wm_lh_parstriangularis",
-            3021: "wm_lh_pericalcarine",
-            3022: "wm_lh_postcentral",
-            3023: "wm_lh_posteriorcingulate",
-            3024: "wm_lh_precentral",
-            3025: "wm_lh_precuneus",
-            3026: "wm_lh_rostralanteriorcingulate",
-            3027: "wm_lh_rostralmiddlefrontal",
-            3028: "wm_lh_superiorfrontal",
-            3029: "wm_lh_superiorparietal",
-            3030: "wm_lh_superiortemporal",
-            3031: "wm_lh_supramarginal",
-            3032: "wm_lh_frontalpole",
-            3033: "wm_lh_temporalpole",
-            3034: "wm_lh_transversetemporal",
-            3035: "wm_lh_insula",
+        # Parse FreeSurferColorLUT.txt for label lookups
+        import re
+        fs_lut = {}
+        lut_path = get_package_path('data', 'labelconvert_in', 'FreeSurferColorLUT.txt')
+        with open(lut_path, 'r') as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                m = re.match(r'^(\d+)\s+(.+?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$', line)
+                if m:
+                    fs_lut[int(m.group(1))] = m.group(2).strip()
 
-            4001: "wm_rh_bankssts",
-            4002: "wm_rh_caudalanteriorcingulate",
-            4003: "wm_rh_caudalmiddlefrontal",
-            4005: "wm_rh_cuneus",
-            4006: "wm_rh_entorhinal",
-            4007: "wm_rh_fusiform",
-            4008: "wm_rh_inferiorparietal",
-            4009: "wm_rh_inferiortemporal",
-            4010: "wm_rh_isthmuscingulate",
-            4011: "wm_rh_lateraloccipital",
-            4012: "wm_rh_lateralorbitofrontal",
-            4013: "wm_rh_lingual",
-            4014: "wm_rh_medialorbitofrontal",
-            4015: "wm_rh_middletemporal",
-            4016: "wm_rh_parahippocampal",
-            4017: "wm_rh_paracentral",
-            4018: "wm_rh_parsopercularis",
-            4019: "wm_rh_parsorbitalis",
-            4020: "wm_rh_parstriangularis",
-            4021: "wm_rh_pericalcarine",
-            4022: "wm_rh_postcentral",
-            4023: "wm_rh_posteriorcingulate",
-            4024: "wm_rh_precentral",
-            4025: "wm_rh_precuneus",
-            4026: "wm_rh_rostralanteriorcingulate",
-            4027: "wm_rh_rostralmiddlefrontal",
-            4028: "wm_rh_superiorfrontal",
-            4029: "wm_rh_superiorparietal",
-            4030: "wm_rh_superiortemporal",
-            4031: "wm_rh_supramarginal",
-            4032: "wm_rh_frontalpole",
-            4033: "wm_rh_temporalpole",
-            4034: "wm_rh_transversetemporal",
-            4035: "wm_rh_insula",
-        }
+        # Build wmparc dict from FS LUT (WM labels in 3000-4999 range)
+        wmparc_dict = {k: v for k, v in fs_lut.items() if 3000 <= k <= 4999}
 
         print(f"Reading results from {dwi_output_path}...")
 
@@ -2344,6 +2290,14 @@ class DWIPipeline:
                 wmparc_median_csv = os.path.join(
                     dwi_metrics_stats_dir,
                     f"sub-{subject_id}_ses-{session_id}_label-wmparc_desc-median_dwimap.csv"
+                )
+                aparcaseg_mean_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_label-aparcaseg_desc-mean_dwimap.csv"
+                )
+                chpseg_mean_csv = os.path.join(
+                    dwi_metrics_stats_dir,
+                    f"sub-{subject_id}_ses-{session_id}_label-chpseg_desc-mean_dwimap.csv"
                 )
 
                 surface_csv = os.path.join(session_path, "surface_parameters.csv")
@@ -2477,6 +2431,21 @@ class DWIPipeline:
                         [median_dwimap_wmparc_df, pd.DataFrame([row])],
                         ignore_index=True,
                     )
+
+                # aparc+aseg metrics
+                aparcaseg_metric_dict = _read_wmparc_metrics_wide(aparcaseg_mean_csv, fs_lut)
+                if aparcaseg_metric_dict:
+                    row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
+                    row.update(aparcaseg_metric_dict)
+                    mean_dwimap_aparcaseg_df = pd.concat([mean_dwimap_aparcaseg_df, pd.DataFrame([row])], ignore_index=True)
+
+                # chpseg metrics (1=left, 2=right)
+                chpseg_dict = {1: "chp_L", 2: "chp_R"}
+                chpseg_metric_dict = _read_wmparc_metrics_wide(chpseg_mean_csv, chpseg_dict)
+                if chpseg_metric_dict:
+                    row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
+                    row.update(chpseg_metric_dict)
+                    mean_dwimap_chpseg_df = pd.concat([mean_dwimap_chpseg_df, pd.DataFrame([row])], ignore_index=True)
 
                 updated_mean_dfs = {}
 
@@ -2647,6 +2616,18 @@ class DWIPipeline:
             print(f"Median dwimap wmparc results saved to {median_dwimap_wmparc_output_xlsx}")
         else:
             print("No median dwimap wmparc results found.")
+
+        if not mean_dwimap_aparcaseg_df.empty:
+            mean_dwimap_aparcaseg_df.to_excel(os.path.join(self.output_path, "dwi_aparcaseg_summary.xlsx"), index=False)
+            print(f"Mean dwimap aparcaseg results saved to {os.path.join(self.output_path, 'dwi_aparcaseg_summary.xlsx')}")
+        else:
+            print("No mean dwimap aparcaseg results found.")
+
+        if not mean_dwimap_chpseg_df.empty:
+            mean_dwimap_chpseg_df.to_excel(os.path.join(self.output_path, "dwi_chpseg_summary.xlsx"), index=False)
+            print(f"Mean dwimap chpseg results saved to {os.path.join(self.output_path, 'dwi_chpseg_summary.xlsx')}")
+        else:
+            print("No mean dwimap chpseg results found.")
 
         if "session" in surface_parameters_df.columns:
             surface_parameters_df.drop(columns=["session"], inplace=True)
