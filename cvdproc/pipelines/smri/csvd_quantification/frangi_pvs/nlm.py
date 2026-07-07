@@ -17,13 +17,7 @@ data = img.get_fdata().astype(np.float32)
 sigma = np.mean(estimate_sigma(data, N=1))
 
 # ==== NLM 滤波 (QIT 默认 patch=1, search=2) ====
-denoised = nlmeans(
-    data,
-    sigma=sigma,
-    patch_radius=1,
-    block_radius=2,
-    rician=True
-)
+denoised = nlmeans(data, sigma=sigma, patch_radius=1, block_radius=2, rician=True)
 
 # ==== 保存结果 ====
 den_img = nib.Nifti1Image(denoised, img.affine, img.header)

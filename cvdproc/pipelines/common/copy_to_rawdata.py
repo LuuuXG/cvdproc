@@ -55,10 +55,7 @@ if __name__ == '__main__':
     copy_to_rawdata_node.inputs.in_file = '/mnt/f/BIDS/demo_BIDS/derivatives/sepia_qsm/sub-YCHC0003/ses-01/Sepia_clearswi.nii.gz'
     copy_to_rawdata_node.inputs.reference_file = ''
     copy_to_rawdata_node.inputs.output_dir = '/mnt/f/BIDS/demo_BIDS/sub-YCHC0003/ses-01/swi'
-    copy_to_rawdata_node.inputs.entities = {
-        'sub': 'YCHC0003',
-        'ses': '01',
-    }
+    copy_to_rawdata_node.inputs.entities = {'sub': 'YCHC0003', 'ses': '01'}
     copy_to_rawdata_node.inputs.suffix = 'SWI'
     copy_to_rawdata_node.inputs.extension = '.nii.gz'
     copy_to_rawdata_node.run()

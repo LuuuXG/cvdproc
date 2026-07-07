@@ -9,18 +9,8 @@ from traits.api import Str, Int, Bool
 
 
 class SynthSRInputSpec(CommandLineInputSpec):
-    input = Str(
-        mandatory=True,
-        argstr="--i %s",
-        position=0,
-        desc="Image(s) to super-resolve."
-    )
-    output = Str(
-        mandatory=True,
-        argstr="--o %s",
-        position=1,
-        desc="Output synthetic image."
-    )
+    input = Str(mandatory=True, argstr="--i %s", position=0, desc="Image(s) to super-resolve.")
+    output = Str(mandatory=True, argstr="--o %s", position=1, desc="Output synthetic image.")
     ct = Bool(False, usedefault=True, argstr="--ct")
     disable_sharpening = Bool(False, usedefault=True, argstr="--disable_sharpening")
     disable_flipping = Bool(False, usedefault=True, argstr="--disable_flipping")

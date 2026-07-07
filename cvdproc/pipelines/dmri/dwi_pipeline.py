@@ -432,6 +432,18 @@ class DWIPipeline:
                     raise FileNotFoundError("[DWI Pipeline] WMH probmap in T1w space not found or multiple files found. Cannot exclude WMH probmap.")
             else:
                 raise FileNotFoundError("[DWI Pipeline] WMH mask in T1w space not found. Cannot exclude WMH mask.")
+        
+        # Check chpseg segmentation output
+        if self.session.anat_seg_dir is not None:
+            # ./chpseg/T1w_chp_mask.nii.gz
+            chpseg_mask_file = os.path.join(self.session.anat_seg_dir, 'chpseg', 'T1w', 'T1w_chp_mask.nii.gz')
+            if os.path.exists(chpseg_mask_file) and self.dwi_t1w_register:
+                print(f"[DWI Pipeline] CHP segmentation mask found: {chpseg_mask_file}. Will do related processing.")
+                chpseg_process = True
+            else:
+                chpseg_process = False
+        else:
+            chpseg_process = False
 
         # Space entity ('preprocdwi' for our custom pipeline, 'ACPC' for QSIPrep)
         if self.preprocess_method == 'post_qsiprep':
@@ -1056,6 +1068,15 @@ class DWIPipeline:
                 else:
                     dwi_workflow.connect(fs_wmparc_to_dwi_node, 'out_file', final_wmparc_node, 'final_wmparc')
                 
+                if chpseg_process:
+                    chpseg_mask_to_dwi_node = Node(FLIRT(), name='chpseg_mask_to_dwi')
+                    chpseg_mask_to_dwi_node.inputs.in_file = chpseg_mask_file
+                    dwi_workflow.connect(invert_dwi_to_t1w_reg_node, 'out_file', chpseg_mask_to_dwi_node, 'in_matrix_file')
+                    dwi_workflow.connect(preproc_dwi_node, 'b0', chpseg_mask_to_dwi_node, 'reference')
+                    chpseg_mask_to_dwi_node.inputs.interp = 'nearestneighbour'
+                    chpseg_mask_to_dwi_node.inputs.apply_xfm = True
+                    chpseg_mask_to_dwi_node.inputs.out_file = os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_desc-chpseg_dseg.nii.gz")
+
                 if self.visual_pathway_analysis:
                     # check QSM output
                     chidia_in_t1w_file = os.path.join(
@@ -2016,15 +2037,34 @@ class DWIPipeline:
                 dwi_workflow.connect(dwi_metrics_node, 'out', scalar_maps_for_nawm_without_tract_node, 'data_files')
                 scalar_maps_for_nawm_without_tract_node.inputs.ignore_background = False
 
-            # 5. wmparc from fs
             if self.dwi_t1w_register and fs_output_process:
+                # 5. wmparc from fs
                 scalar_maps_for_wmparc_node = Node(CalculateScalarMaps(), name='scalar_maps_for_wmparc')
                 scalar_maps_for_wmparc_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
                 scalar_maps_for_wmparc_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-wmparc_desc-median_dwimap.csv")
-                scalar_maps_for_wmparc_node.inputs.statistic = "median"
+                scalar_maps_for_wmparc_node.inputs.statistic = "median" # From Dr.Maria's code
                 dwi_workflow.connect(final_wmparc_node, 'final_wmparc', scalar_maps_for_wmparc_node, 'mask_file')
                 dwi_workflow.connect(dwi_metrics_node, 'out', scalar_maps_for_wmparc_node, 'data_files')
                 scalar_maps_for_wmparc_node.inputs.ignore_background = False
+
+                # 6. aparc+aseg from fs
+                scalar_maps_for_aparc_aseg_node = Node(CalculateScalarMaps(), name='scalar_maps_for_aparc_aseg')
+                scalar_maps_for_aparc_aseg_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                scalar_maps_for_aparc_aseg_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-aparcaseg_desc-mean_dwimap.csv")
+                scalar_maps_for_aparc_aseg_node.inputs.statistic = "mean"
+                dwi_workflow.connect(fs_aparcaseg_to_dwi_node, 'out_file', scalar_maps_for_aparc_aseg_node, 'mask_file')
+                dwi_workflow.connect(dwi_metrics_node, 'out', scalar_maps_for_aparc_aseg_node, 'data_files')
+                scalar_maps_for_aparc_aseg_node.inputs.ignore_background = False
+            
+            # 7. chpseg
+            if chpseg_process:
+                scalar_maps_for_chpseg_node = Node(CalculateScalarMaps(), name='scalar_maps_for_chpseg')
+                scalar_maps_for_chpseg_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA"]
+                scalar_maps_for_chpseg_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-chpseg_desc-mean_dwimap.csv")
+                scalar_maps_for_chpseg_node.inputs.statistic = "mean"
+                dwi_workflow.connect(chpseg_mask_to_dwi_node, 'out_file', scalar_maps_for_chpseg_node, 'mask_file')
+                dwi_workflow.connect(dwi_metrics_node, 'out', scalar_maps_for_chpseg_node, 'data_files')
+                scalar_maps_for_chpseg_node.inputs.ignore_background = False
 
             # visual pathway analysis: TDI image
             if self.visual_pathway_analysis:
@@ -2537,28 +2577,28 @@ class DWIPipeline:
                 tdiweighted_R_OT_df = updated_tdiweighted_dfs[("R", "OT")]
 
         # Save results
-        alps_output_excel = os.path.join(self.output_path, "alps_results.xlsx")
-        psmd_output_excel = os.path.join(self.output_path, "psmd_results.xlsx")
-        pved_output_excel = os.path.join(self.output_path, "pved_results.xlsx")
-        track_dwi_metrics_output_excel = os.path.join(self.output_path, "track_dwi_metrics_results.xlsx")
+        alps_output_excel = os.path.join(self.output_path, "dwi_alps_summary.xlsx")
+        psmd_output_excel = os.path.join(self.output_path, "dwi_psmd_summary.xlsx")
+        pved_output_excel = os.path.join(self.output_path, "dwi_pved_summary.xlsx")
+        track_dwi_metrics_output_excel = os.path.join(self.output_path, "dwi_track_metrics_summary.xlsx")
 
-        mean_dwimap_seedmask_output_csv = os.path.join(self.output_path, "mean_dwimap_seedmask_results.csv")
-        mean_dwimap_WMH_output_csv = os.path.join(self.output_path, "mean_dwimap_WMH_results.csv")
-        mean_dwimap_NAWM_output_csv = os.path.join(self.output_path, "mean_dwimap_NAWM_results.csv")
-        median_dwimap_wmparc_output_csv = os.path.join(self.output_path, "median_dwimap_wmparc_results.csv")
+        mean_dwimap_seedmask_output_xlsx = os.path.join(self.output_path, "dwi_seedmask_summary.xlsx")
+        mean_dwimap_WMH_output_xlsx = os.path.join(self.output_path, "dwi_WMH_summary.xlsx")
+        mean_dwimap_NAWM_output_xlsx = os.path.join(self.output_path, "dwi_NAWM_summary.xlsx")
+        median_dwimap_wmparc_output_xlsx = os.path.join(self.output_path, "dwi_wmparc_summary.xlsx")
 
-        surface_output_excel = os.path.join(self.output_path, "surface_parameters_results.xlsx")
-        mirror_output_excel = os.path.join(self.output_path, "mirror_surface_parameters_results.xlsx")
+        surface_output_excel = os.path.join(self.output_path, "dwi_surface_parameters_summary.xlsx")
+        mirror_output_excel = os.path.join(self.output_path, "dwi_mirror_surface_parameters_summary.xlsx")
 
-        alongtract_L_OR_output_csv = os.path.join(self.output_path, "alongtract_hemi-L_label-OR_results.csv")
-        alongtract_L_OT_output_csv = os.path.join(self.output_path, "alongtract_hemi-L_label-OT_results.csv")
-        alongtract_R_OR_output_csv = os.path.join(self.output_path, "alongtract_hemi-R_label-OR_results.csv")
-        alongtract_R_OT_output_csv = os.path.join(self.output_path, "alongtract_hemi-R_label-OT_results.csv")
+        alongtract_L_OR_output_xlsx = os.path.join(self.output_path, "dwi_alongtract_hemi-L_label-OR_summary.xlsx")
+        alongtract_L_OT_output_xlsx = os.path.join(self.output_path, "dwi_alongtract_hemi-L_label-OT_summary.xlsx")
+        alongtract_R_OR_output_xlsx = os.path.join(self.output_path, "dwi_alongtract_hemi-R_label-OR_summary.xlsx")
+        alongtract_R_OT_output_xlsx = os.path.join(self.output_path, "dwi_alongtract_hemi-R_label-OT_summary.xlsx")
 
-        tdiweighted_L_OR_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-L_label-OR_results.csv")
-        tdiweighted_L_OT_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-L_label-OT_results.csv")
-        tdiweighted_R_OR_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-R_label-OR_results.csv")
-        tdiweighted_R_OT_output_csv = os.path.join(self.output_path, "TDIweighted_hemi-R_label-OT_results.csv")
+        tdiweighted_L_OR_output_xlsx = os.path.join(self.output_path, "dwi_TDIweighted_hemi-L_label-OR_summary.xlsx")
+        tdiweighted_L_OT_output_xlsx = os.path.join(self.output_path, "dwi_TDIweighted_hemi-L_label-OT_summary.xlsx")
+        tdiweighted_R_OR_output_xlsx = os.path.join(self.output_path, "dwi_TDIweighted_hemi-R_label-OR_summary.xlsx")
+        tdiweighted_R_OT_output_xlsx = os.path.join(self.output_path, "dwi_TDIweighted_hemi-R_label-OT_summary.xlsx")
 
         if not alps_results_df.empty:
             alps_results_df.to_excel(alps_output_excel, header=True, index=False)
@@ -2585,26 +2625,26 @@ class DWIPipeline:
             print("No track-based DWI metrics results found.")
 
         if not mean_dwimap_seedmask_df.empty:
-            mean_dwimap_seedmask_df.to_csv(mean_dwimap_seedmask_output_csv, index=False)
-            print(f"Mean dwimap seedmask results saved to {mean_dwimap_seedmask_output_csv}")
+            mean_dwimap_seedmask_df.to_excel(mean_dwimap_seedmask_output_xlsx, index=False)
+            print(f"Mean dwimap seedmask results saved to {mean_dwimap_seedmask_output_xlsx}")
         else:
             print("No mean dwimap seedmask results found.")
 
         if not mean_dwimap_WMH_df.empty:
-            mean_dwimap_WMH_df.to_csv(mean_dwimap_WMH_output_csv, index=False)
-            print(f"Mean dwimap WMH results saved to {mean_dwimap_WMH_output_csv}")
+            mean_dwimap_WMH_df.to_excel(mean_dwimap_WMH_output_xlsx, index=False)
+            print(f"Mean dwimap WMH results saved to {mean_dwimap_WMH_output_xlsx}")
         else:
             print("No mean dwimap WMH results found.")
 
         if not mean_dwimap_NAWM_df.empty:
-            mean_dwimap_NAWM_df.to_csv(mean_dwimap_NAWM_output_csv, index=False)
-            print(f"Mean dwimap NAWM results saved to {mean_dwimap_NAWM_output_csv}")
+            mean_dwimap_NAWM_df.to_excel(mean_dwimap_NAWM_output_xlsx, index=False)
+            print(f"Mean dwimap NAWM results saved to {mean_dwimap_NAWM_output_xlsx}")
         else:
             print("No mean dwimap NAWM results found.")
         
         if not median_dwimap_wmparc_df.empty:
-            median_dwimap_wmparc_df.to_csv(median_dwimap_wmparc_output_csv, index=False)
-            print(f"Median dwimap wmparc results saved to {median_dwimap_wmparc_output_csv}")
+            median_dwimap_wmparc_df.to_excel(median_dwimap_wmparc_output_xlsx, index=False)
+            print(f"Median dwimap wmparc results saved to {median_dwimap_wmparc_output_xlsx}")
         else:
             print("No median dwimap wmparc results found.")
 
@@ -2626,49 +2666,49 @@ class DWIPipeline:
             print("No mirror surface parameters found.")
 
         if not alongtract_L_OR_df.empty:
-            alongtract_L_OR_df.to_csv(alongtract_L_OR_output_csv, index=False)
-            print(f"Along-tract L OR metrics saved to {alongtract_L_OR_output_csv}")
+            alongtract_L_OR_df.to_excel(alongtract_L_OR_output_xlsx, index=False)
+            print(f"Along-tract L OR metrics saved to {alongtract_L_OR_output_xlsx}")
         else:
             print("No along-tract L OR metrics found.")
 
         if not alongtract_L_OT_df.empty:
-            alongtract_L_OT_df.to_csv(alongtract_L_OT_output_csv, index=False)
-            print(f"Along-tract L OT metrics saved to {alongtract_L_OT_output_csv}")
+            alongtract_L_OT_df.to_excel(alongtract_L_OT_output_xlsx, index=False)
+            print(f"Along-tract L OT metrics saved to {alongtract_L_OT_output_xlsx}")
         else:
             print("No along-tract L OT metrics found.")
 
         if not alongtract_R_OR_df.empty:
-            alongtract_R_OR_df.to_csv(alongtract_R_OR_output_csv, index=False)
-            print(f"Along-tract R OR metrics saved to {alongtract_R_OR_output_csv}")
+            alongtract_R_OR_df.to_excel(alongtract_R_OR_output_xlsx, index=False)
+            print(f"Along-tract R OR metrics saved to {alongtract_R_OR_output_xlsx}")
         else:
             print("No along-tract R OR metrics found.")
 
         if not alongtract_R_OT_df.empty:
-            alongtract_R_OT_df.to_csv(alongtract_R_OT_output_csv, index=False)
-            print(f"Along-tract R OT metrics saved to {alongtract_R_OT_output_csv}")
+            alongtract_R_OT_df.to_excel(alongtract_R_OT_output_xlsx, index=False)
+            print(f"Along-tract R OT metrics saved to {alongtract_R_OT_output_xlsx}")
         else:
             print("No along-tract R OT metrics found.")
 
         if not tdiweighted_L_OR_df.empty:
-            tdiweighted_L_OR_df.to_csv(tdiweighted_L_OR_output_csv, index=False)
-            print(f"TDIweighted L OR results saved to {tdiweighted_L_OR_output_csv}")
+            tdiweighted_L_OR_df.to_excel(tdiweighted_L_OR_output_xlsx, index=False)
+            print(f"TDIweighted L OR results saved to {tdiweighted_L_OR_output_xlsx}")
         else:
             print("No TDIweighted L OR results found.")
 
         if not tdiweighted_L_OT_df.empty:
-            tdiweighted_L_OT_df.to_csv(tdiweighted_L_OT_output_csv, index=False)
-            print(f"TDIweighted L OT results saved to {tdiweighted_L_OT_output_csv}")
+            tdiweighted_L_OT_df.to_excel(tdiweighted_L_OT_output_xlsx, index=False)
+            print(f"TDIweighted L OT results saved to {tdiweighted_L_OT_output_xlsx}")
         else:
             print("No TDIweighted L OT results found.")
 
         if not tdiweighted_R_OR_df.empty:
-            tdiweighted_R_OR_df.to_csv(tdiweighted_R_OR_output_csv, index=False)
-            print(f"TDIweighted R OR results saved to {tdiweighted_R_OR_output_csv}")
+            tdiweighted_R_OR_df.to_excel(tdiweighted_R_OR_output_xlsx, index=False)
+            print(f"TDIweighted R OR results saved to {tdiweighted_R_OR_output_xlsx}")
         else:
             print("No TDIweighted R OR results found.")
 
         if not tdiweighted_R_OT_df.empty:
-            tdiweighted_R_OT_df.to_csv(tdiweighted_R_OT_output_csv, index=False)
-            print(f"TDIweighted R OT results saved to {tdiweighted_R_OT_output_csv}")
+            tdiweighted_R_OT_df.to_excel(tdiweighted_R_OT_output_xlsx, index=False)
+            print(f"TDIweighted R OT results saved to {tdiweighted_R_OT_output_xlsx}")
         else:
             print("No TDIweighted R OT results found.")

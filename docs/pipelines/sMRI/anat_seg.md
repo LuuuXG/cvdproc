@@ -8,5 +8,9 @@
 
 In this pipeline, we collect several anatomical segmentation methods for structural MRI (sMRI).
 
-- [SynthSeg](https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg): `--keepgeom` is set to preserve the original voxel dimension of the input images.
+- [SynthSeg](https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg) [@billot2023synthseg]: `--keepgeom` is set to preserve the original voxel dimension of the input images.
 - [chpseg](https://github.com/Center-of-Imaging-Biomarker-Development/chp_seg): Using T1w image to segment the choroid plexus (CP) in lateral ventricles.
+
+### References
+
+\bibliography

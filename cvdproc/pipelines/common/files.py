@@ -2,18 +2,11 @@ import os
 from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, traits, TraitedSpec, CommandLineInputSpec, CommandLine
 
 class FilterExistingInputSpec(BaseInterfaceInputSpec):
-    input_file_list = traits.List(
-        desc="List of input files to filter",
-        mandatory=True,
-    )
+    input_file_list = traits.List(desc="List of input files to filter", mandatory=True)
 
 class FilterExistingOutputSpec(TraitedSpec):
-    filtered_file_list = traits.List(        
-        desc="List of filtered files",
-    )
-    filtered_filename_list = traits.List(
-        desc="List of filtered file basenames",
-    )
+    filtered_file_list = traits.List(desc="List of filtered files")
+    filtered_filename_list = traits.List(desc="List of filtered file basenames")
 
 class FilterExisting(BaseInterface):
     input_spec = FilterExistingInputSpec
@@ -52,31 +45,14 @@ class FilterExisting(BaseInterface):
     
 
 class MergeFilenameInputSpec(BaseInterfaceInputSpec):
-    filename_list = traits.List(
-        desc="List of filenames to merge",
-        mandatory=True
-    )
-    dirname = traits.Str(
-        desc="Directory name to save the merged file",
-        mandatory=True
-    )
-    prefix = traits.Str(
-        desc="Prefix to add to the merged filename",
-        mandatory=True
-    )
-    suffix = traits.Str(
-        desc="Suffix to add to the merged filename",
-        mandatory=True
-    )
-    extension = traits.Str(
-        desc="Extension to add to the merged filename (e.g., .nii.gz)",
-        mandatory=True
-    )
+    filename_list = traits.List(desc="List of filenames to merge", mandatory=True)
+    dirname = traits.Str(desc="Directory name to save the merged file", mandatory=True)
+    prefix = traits.Str(desc="Prefix to add to the merged filename", mandatory=True)
+    suffix = traits.Str(desc="Suffix to add to the merged filename", mandatory=True)
+    extension = traits.Str(desc="Extension to add to the merged filename (e.g., .nii.gz)", mandatory=True)
 
 class MergeFilenameOutputSpec(TraitedSpec):
-    merge_file_list = traits.List(
-        desc="List of merged filenames",
-    )
+    merge_file_list = traits.List(desc="List of merged filenames")
 
 class MergeFilename(BaseInterface):
     input_spec = MergeFilenameInputSpec
@@ -103,23 +79,11 @@ class MergeFilename(BaseInterface):
         return outputs
 
 class CopyFileCommandLineInputSpec(CommandLineInputSpec):
-    input_file = traits.Str(
-        desc="Path to the input file to copy",
-        mandatory=True,
-        argstr="%s",
-        position=0
-    )
-    output_file = traits.Str(
-        desc="Path to the output file",
-        mandatory=True,
-        argstr="%s",
-        position=1
-    )
+    input_file = traits.Str(desc="Path to the input file to copy", mandatory=True, argstr="%s", position=0)
+    output_file = traits.Str(desc="Path to the output file", mandatory=True, argstr="%s", position=1)
 
 class CopyFileCommandLineOutputSpec(TraitedSpec):
-    output_file = traits.Str(
-        desc="Path to the copied file",
-    )
+    output_file = traits.Str(desc="Path to the copied file")
 
 class CopyFileCommandLine(CommandLine):
     input_spec = CopyFileCommandLineInputSpec

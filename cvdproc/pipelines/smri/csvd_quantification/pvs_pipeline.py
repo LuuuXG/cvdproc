@@ -42,16 +42,24 @@ class PVSSegmentationPipeline:
         """
         PVS Segmentation Pipeline
 
+        Supports two methods for perivascular space (PVS) segmentation:
+
+        * ``method='SHIVA'``: Uses the SHiVAi toolbox for PVS detection from T1w or T1w+FLAIR images.
+        * ``method='segcsvd'`` (default): Uses SegCSVD for PVS segmentation from T1w images, following
+          the approach described in the segcsvd toolbox. This method applies SynthSeg anatomical
+          segmentation, SHiVA-based PVS parcellation, skull-stripping, N4 bias correction, and
+          segcsvd-based PVS detection with optional WMH masking.
+
         Args:
             subject: BIDSSubject object
             session: BIDSSession object
             output_path: output directory for the pipeline
             use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, use the first T1w image found.
-            use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, use the first FLAIR image found.
-            method: 'SHIVA' or 'segcsvd'
+            use_which_flair: specific string to select FLAIR image, e.g. 'acq-highres'. If None, use the first FLAIR image found. Only used when method='SHIVA' and modality='T1w+FLAIR'.
+            method: 'SHIVA' or 'segcsvd' (default: 'segcsvd')
             modality: 'T1w' or 'T1w+FLAIR'. Applicable when method is 'SHIVA'.
             shiva_config: path to SHIVA configuration file. Applicable when method is 'SHIVA'.
-            use_wmh: whether to use existing WMH segmentation for PVS segmentation. Applicable when method is 'segcsvd'.
+            use_wmh: whether to use existing WMH segmentation to mask out WMH regions during PVS segmentation. Applicable when method is 'segcsvd'.
             extract_from: path to the output directory from which to extract results. (Currently only for 'segcsvd' outputs)
         """
         
@@ -313,8 +321,8 @@ class PVSSegmentationPipeline:
         # =============================
         # Save final CSV
         # =============================
-        output_csv = os.path.join(self.output_path, "segcsvd_shivaparc_volume_summary.csv")
-        segcsvd_df.to_csv(output_csv, index=False)
+        output_csv = os.path.join(self.output_path, "pvs_segcsvd_shivaparc_summary.xlsx")
+        segcsvd_df.to_excel(output_csv, index=False)
 
         print(f"Saved PVS quantification results to: {output_csv}")
 

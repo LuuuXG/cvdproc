@@ -66,22 +66,12 @@ class CalculateMeanTckSample(BaseInterface):
         return outputs
 
 class CalculatePointsMeanTckSampleInputSpec(BaseInterfaceInputSpec):
-    csv_file = File(
-        desc="Input CSV or whitespace-delimited file: rows=streamlines, columns=points",
-        mandatory=True,
-        exists=True,
-    )
-    output_file = File(
-        desc="Output CSV file (single row: point-wise mean values)",
-        mandatory=True,
-    )
+    csv_file = File(desc="Input CSV or whitespace-delimited file: rows=streamlines, columns=points", mandatory=True, exists=True)
+    output_file = File(desc="Output CSV file (single row: point-wise mean values)", mandatory=True)
 
 
 class CalculatePointsMeanTckSampleOutputSpec(TraitedSpec):
-    output_file = File(
-        desc="Output CSV file with one row of point-wise means",
-        exists=True,
-    )
+    output_file = File(desc="Output CSV file with one row of point-wise means", exists=True)
 
 
 class CalculatePointsMeanTckSample(BaseInterface):

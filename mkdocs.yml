@@ -9,23 +9,36 @@ nav:
       - dcm2bids: dcm2bids/dcm2bids.md
   - Pipelines: 
       - Overview: pipelines/index.md
-      - Structural MRI (sMRI) Pipelines: 
-          - Lesion Analysis: pipelines/sMRI/lesion_analysis.md
-          - T1w Registration to MNI space: pipelines/sMRI/t1_register.md
-          - Freesurfer Pipeline: pipelines/sMRI/freesurfer.md
+      - Structural MRI (sMRI) Pipelines:
           - Anatomical Segmentation: pipelines/sMRI/anat_seg.md
-          - WMH Quantification: pipelines/sMRI/wmh_quantification.md
-          - PVS Quantification: pipelines/sMRI/pvs_quantification.md
           - Brain Age Estimation: pipelines/sMRI/brainage.md
+          - CAT12 VBM Segmentation: pipelines/sMRI/cat12.md
+          - CMB Quantification: pipelines/sMRI/cmb_quantification.md
+          - Freesurfer Pipeline: pipelines/sMRI/freesurfer.md
+          - FSL Anat: pipelines/sMRI/fsl_anat.md
           - HIPSTA: pipelines/sMRI/hipsta.md
+          - Lesion Analysis: pipelines/sMRI/lesion_analysis.md
+          - PVS Quantification: pipelines/sMRI/pvs_quantification.md
+          - Structural Covariance Network: pipelines/sMRI/scn.md
+          - SynthSR: pipelines/sMRI/synthsr.md
+          - T1w Registration to MNI Space: pipelines/sMRI/t1_register.md
+          - WMH Quantification: pipelines/sMRI/wmh_quantification.md
       - Diffusion MRI (dMRI) Pipelines:
           - DWI Preprocessing and Analysis: pipelines/dMRI/dwi_pipeline.md
           - Lesion Quantification Toolkit (LQT): pipelines/dMRI/lqt_pipeline.md
-      - Quantification MRI (qMRI) Pipelines:
+          - NeMo Postprocessing: pipelines/dMRI/nemo_postprocess.md
+      - Perfusion (ASL) Pipelines:
+          - ASL Pipeline: pipelines/perfusion/asl_pipeline.md
+      - Multi-Modality Pipelines:
+          - ARTS Pipeline: pipelines/multi/arts_pipeline.md
+      - Quantitative MRI (qMRI) Pipelines:
           - QSM Pipeline: pipelines/qMRI/qsm_pipeline.md
-          - Sepia QSM: pipelines/qMRI/sepia_qsm.md
-      - Perfusion MRI (PWI) Pipelines:
+          - SEPIA QSM (Deprecated): pipelines/qMRI/sepia_qsm.md
+      - DSC-MRI (PWI) Pipelines:
           - PWI Pipeline: pipelines/pwi/pwi_pipeline.md
+      - Test Pipelines:
+          - Base Test: pipelines/test/test.md
+          - MATLAB Test: pipelines/test/test_matlab.md
   - Containers Used and Docker Notes: containers.md
   - Publications: publications.md
 

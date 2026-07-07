@@ -30,9 +30,7 @@ bval_sel[bvals == 2000] = 1
 data = data[..., bval_sel == 1]
 gtab = gradient_table(bvals[bval_sel == 1], bvecs=bvecs[bval_sel == 1])
 
-datamask, mask = median_otsu(
-    data, vol_idx=[0, 1], median_radius=4, numpass=2, autocrop=False, dilate=1
-)
+datamask, mask = median_otsu(data, vol_idx=[0, 1], median_radius=4, numpass=2, autocrop=False, dilate=1)
 
 data = mppca(data, patch_radius=[3, 3, 3])
 

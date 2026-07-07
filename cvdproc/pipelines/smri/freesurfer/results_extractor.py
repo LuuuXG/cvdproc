@@ -1,6 +1,5 @@
 import os
 import re
-import csv
 from pathlib import Path
 from typing import Dict, List, Optional
 import pandas as pd
@@ -221,62 +220,11 @@ class FreesurferStatsExtractorMixin:
 
         brainvol_file = "brainvol.csv"
 
-        writers: Dict[str, Dict[str, object]] = {}
+        # Accumulate rows per file key instead of streaming CSV writes
+        file_rows: Dict[str, List[Dict[str, object]]] = {}
         seen: Dict[str, set] = {}
 
-        def _open_writer(filekey: str, out_path: Path, fieldnames: List[str], is_cortical: bool) -> csv.DictWriter:
-            out_fh = open(out_path, "w", newline="", encoding="utf-8")
-            w = csv.DictWriter(out_fh, fieldnames=fieldnames, extrasaction="ignore")
-            w.writeheader()
-            writers[filekey] = {
-                "fh": out_fh,
-                "writer": w,
-                "fieldnames": fieldnames,
-                "is_cortical": is_cortical,
-                "path": out_path,
-            }
-            seen[filekey] = set()
-            return w
-
-        def _close_all():
-            for v in writers.values():
-                try:
-                    v["fh"].close()
-                except Exception:
-                    pass
-
-        def _rewrite_with_expanded_header(filekey: str, new_fieldnames: List[str]):
-            info = writers[filekey]
-            out_path: Path = info["path"]
-
-            old_rows: List[Dict[str, object]] = []
-            try:
-                if out_path.exists():
-                    old_df = pd.read_csv(out_path)
-                    old_rows = old_df.to_dict(orient="records")
-            except Exception:
-                old_rows = []
-
-            try:
-                info["fh"].close()
-            except Exception:
-                pass
-
-            out_fh = open(out_path, "w", newline="", encoding="utf-8")
-            w = csv.DictWriter(out_fh, fieldnames=new_fieldnames, extrasaction="ignore")
-            w.writeheader()
-            for r in old_rows:
-                w.writerow(r)
-
-            writers[filekey] = {
-                "fh": out_fh,
-                "writer": w,
-                "fieldnames": new_fieldnames,
-                "is_cortical": info["is_cortical"],
-                "path": out_path,
-            }
-
-        def _ensure_writer_and_write_row(filekey: str, out_path: Path, row: Dict[str, object], is_cortical: bool):
+        def _append_row(filekey: str, row: Dict[str, object]):
             key_pair = (row.get("subject"), row.get("session"))
             if key_pair[0] is None or key_pair[1] is None:
                 return
@@ -284,86 +232,73 @@ class FreesurferStatsExtractorMixin:
             if filekey in seen and key_pair in seen[filekey]:
                 return
 
-            # IMPORTANT: do not sort feature keys
-            # Keep insertion order from `row` (which is built from df row/col order)
-            feat_keys = [k for k in row.keys() if k not in ("subject", "session")]
-            fieldnames = ["subject", "session"] + feat_keys
+            file_rows.setdefault(filekey, []).append(row)
+            seen.setdefault(filekey, set()).add(key_pair)
 
-            if filekey not in writers:
-                _open_writer(filekey, out_path, fieldnames, is_cortical)
-            else:
-                existing = writers[filekey]["fieldnames"]
-                existing_feats = existing[2:]
+        for item in stats_dir_items:
+            subject = item["subject"]
+            session = item["session"]
+            stats_dir = item["stats_dir"]
 
-                # Stable expansion: keep existing order, append new keys at the end
-                new_feats = self._stable_union(existing_feats, feat_keys)
-                new_fieldnames = ["subject", "session"] + new_feats
+            if not os.path.isdir(stats_dir):
+                continue
 
-                if new_fieldnames != existing:
-                    _rewrite_with_expanded_header(filekey, new_fieldnames)
-
-            writers[filekey]["writer"].writerow(row)
-            seen[filekey].add(key_pair)
-
-        try:
-            for item in stats_dir_items:
-                subject = item["subject"]
-                session = item["session"]
-                stats_dir = item["stats_dir"]
-
-                if not os.path.isdir(stats_dir):
+            # cortical
+            for fname in cortical_files:
+                fpath = os.path.join(stats_dir, fname)
+                df = self._read_csv_if_exists(fpath)
+                if df is None:
                     continue
 
-                # cortical
-                for fname in cortical_files:
-                    fpath = os.path.join(stats_dir, fname)
-                    df = self._read_csv_if_exists(fpath)
-                    if df is None:
-                        continue
-
-                    prefix = self._safe_name(Path(fname).stem)
-                    row: Dict[str, object] = {"subject": subject, "session": session}
-                    row.update(
-                        self._wide_from_roi_table(
-                            df=df,
-                            prefix=prefix,
-                            struct_col=self._infer_struct_col(df),
-                            drop_cols=["Index", "SegId"],
-                        )
+                prefix = self._safe_name(Path(fname).stem)
+                row: Dict[str, object] = {"subject": subject, "session": session}
+                row.update(
+                    self._wide_from_roi_table(
+                        df=df,
+                        prefix=prefix,
+                        struct_col=self._infer_struct_col(df),
+                        drop_cols=["Index", "SegId"],
                     )
-                    if len(row) <= 2:
-                        continue
+                )
+                if len(row) <= 2:
+                    continue
 
-                    out_path = out_dir / f"{Path(fname).stem}_summary.csv"
-                    _ensure_writer_and_write_row(fname, out_path, row, True)
+                _append_row(fname, row)
 
-                # volume only
-                for fname in volume_only_files:
-                    fpath = os.path.join(stats_dir, fname)
-                    df = self._read_csv_if_exists(fpath)
-                    if df is None:
-                        continue
-
-                    prefix = self._safe_name(Path(fname).stem)
-                    row = {"subject": subject, "session": session}
-                    row.update(self._wide_volume_only(df=df, prefix=prefix, fname=fname))
-                    if len(row) <= 2:
-                        continue
-
-                    out_path = out_dir / f"{Path(fname).stem}_summary.csv"
-                    _ensure_writer_and_write_row(fname, out_path, row, False)
-
-                # brainvol
-                fpath = os.path.join(stats_dir, brainvol_file)
+            # volume only
+            for fname in volume_only_files:
+                fpath = os.path.join(stats_dir, fname)
                 df = self._read_csv_if_exists(fpath)
-                if df is not None:
-                    row = {"subject": subject, "session": session}
-                    row.update(self._wide_brainvol(df=df, prefix="brainvol"))
-                    if len(row) <= 2:
-                        continue
+                if df is None:
+                    continue
 
-                    out_path = out_dir / "brainvol_summary.csv"
-                    _ensure_writer_and_write_row("brainvol", out_path, row, False)
+                prefix = self._safe_name(Path(fname).stem)
+                row = {"subject": subject, "session": session}
+                row.update(self._wide_volume_only(df=df, prefix=prefix, fname=fname))
+                if len(row) <= 2:
+                    continue
 
-        finally:
-            _close_all()
+                _append_row(fname, row)
+
+            # brainvol
+            fpath = os.path.join(stats_dir, brainvol_file)
+            df = self._read_csv_if_exists(fpath)
+            if df is not None:
+                row = {"subject": subject, "session": session}
+                row.update(self._wide_brainvol(df=df, prefix="brainvol"))
+                if len(row) <= 2:
+                    continue
+
+                _append_row("brainvol", row)
+
+        # Write accumulated rows to XLSX
+        for filekey, rows in file_rows.items():
+            if not rows:
+                continue
+            out_df = pd.DataFrame(rows)
+            # Keep subject/session as the first two columns
+            front_cols = ["subject", "session"]
+            other_cols = [c for c in out_df.columns if c not in ("subject", "session")]
+            out_df = out_df[front_cols + other_cols]
+            out_path = out_dir / f"{Path(filekey).stem}_summary.xlsx"
+            out_df.to_excel(out_path, index=False)

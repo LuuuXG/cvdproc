@@ -6,7 +6,23 @@ import xml.etree.ElementTree as ET
 class CAT12Pipeline:
     def __init__(self, subject, session, output_path, matlab_path=None, **kwargs):
         """
-        CAT12 pipeline
+        CAT12 Segmentation Pipeline
+
+        Runs CAT12 (Computational Anatomy Toolbox 12) for SPM-based structural MRI
+        segmentation. Uses the standalone mode with MATLAB Runtime (v93). Extracts
+        TIV, CSF, GM, and WM volumes from the segmentation report. Includes
+        Schaefer 2018 atlas ROIs at 100, 200, 400, and 600 parcellation resolutions.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            matlab_path: path to MATLAB executable (default: 'matlab')
+            use_which_t1w: specific string to select T1w image. If None, use the first T1w image found.
+            job: processing job type (default: 'segmentation')
+            cat12_path: path to CAT12 installation directory
+            cat12_standalone_path: path to CAT12 standalone package (required for standalone mode)
+            extract_from: path to extract results from for population-level TIV summary
         """
         self.subject = subject
         self.session = session
@@ -167,8 +183,8 @@ class CAT12Pipeline:
 
         # Return the extracted results
         return pd.DataFrame([{
-            'Subject': subject_id,
-            'Session': session_id,
+            'Subject': f'sub-{subject_id}',
+            'Session': f'ses-{session_id}',
             'TIV': tiv,
             'CSF': csf,
             'GM': gm,
@@ -202,6 +218,6 @@ class CAT12Pipeline:
                     results_df = pd.concat([results_df, new_data], ignore_index=True)
 
         # Save results to an Excel file
-        output_excel_path = os.path.join(self.output_path, 'cat12_tiv_results.xlsx')
+        output_excel_path = os.path.join(self.output_path, 'cat12_summary.xlsx')
         results_df.to_excel(output_excel_path, header=True, index=False)
         print(f"Quantification results saved to {output_excel_path}")

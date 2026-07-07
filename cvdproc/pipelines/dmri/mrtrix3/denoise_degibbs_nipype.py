@@ -26,20 +26,8 @@ class DenoiseDegibbs(CommandLine):
 
 # Separate to Denoise and Degibbs
 class MrtrixDenoiseInputSpec(CommandLineInputSpec):
-    dwi_img = File(
-        desc="Path to the DWI image",
-        mandatory=True,
-        exists=True,
-        argstr="%s",
-        position=0,
-    )
-
-    output_dwi = File(
-        desc="Path to the denoised DWI image",
-        mandatory=True,
-        argstr="%s",
-        position=1,
-    )
+    dwi_img = File(desc="Path to the DWI image", mandatory=True, exists=True, argstr="%s", position=0)
+    output_dwi = File(desc="Path to the denoised DWI image", mandatory=True, argstr="%s", position=1)
 
 
 class MrtrixDenoiseOutputSpec(TraitedSpec):

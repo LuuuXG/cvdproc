@@ -52,90 +52,24 @@ def _derive_mask_path_from_output(output_path: str) -> str:
     if out_abs.endswith(".nii"):
         return out_abs[:-4] + "_mask.nii"
 
-    raise ValueError(
-        f"Output must end with .nii or .nii.gz for single-file I/O, got: {output_path}"
-    )
+    raise ValueError(f"Output must end with .nii or .nii.gz for single-file I/O, got: {output_path}")
 
 
 class HDBetInputSpec(CommandLineInputSpec):
-    input = File(
-        exists=True,
-        desc="Input NIfTI file (3D, .nii.gz/.nii).",
-        argstr="-i %s",
-        mandatory=True,
-    )
-
-    output = File(
-        desc="Output skull-stripped brain image path (NIfTI .nii/.nii.gz).",
-        argstr="-o %s",
-        mandatory=True,
-    )
-
-    mode = Enum(
-        "accurate",
-        "fast",
-        usedefault=True,
-        default_value="accurate",
-        desc="Mode: accurate|fast.",
-        argstr="-mode %s",
-    )
-
-    device = Either(
-        Int(),
-        Str(),
-        usedefault=True,
-        default_value=0,
-        desc="Device: GPU id (int) or 'cpu'.",
-        argstr="-device %s",
-    )
-
-    tta = Int(
-        usedefault=True,
-        default_value=1,
-        desc="Test-time augmentation: 1=True, 0=False.",
-        argstr="-tta %d",
-    )
-
-    pp = Int(
-        usedefault=True,
-        default_value=1,
-        desc="Postprocessing: 1=True, 0=False.",
-        argstr="-pp %d",
-    )
-
-    save_mask = Int(
-        usedefault=True,
-        default_value=1,
-        desc="Save mask: 1=True, 0=False.",
-        argstr="-s %d",
-    )
-
-    overwrite_existing = Int(
-        usedefault=True,
-        default_value=1,
-        desc="Overwrite existing outputs: 1=True, 0=False.",
-        argstr="--overwrite_existing %d",
-    )
-
-    bet = Int(
-        usedefault=True,
-        default_value=1,
-        desc="Save skull-stripped brain: 1=True, 0=False.",
-        argstr="-b %d",
-    )
+    input = File(exists=True, desc="Input NIfTI file (3D, .nii.gz/.nii).", argstr="-i %s", mandatory=True)
+    output = File(desc="Output skull-stripped brain image path (NIfTI .nii/.nii.gz).", argstr="-o %s", mandatory=True)
+    mode = Enum("accurate", "fast", usedefault=True, default_value="accurate", desc="Mode: accurate|fast.", argstr="-mode %s")
+    device = Either(Int(), Str(), usedefault=True, default_value=0, desc="Device: GPU id (int) or 'cpu'.", argstr="-device %s")
+    tta = Int(usedefault=True, default_value=1, desc="Test-time augmentation: 1=True, 0=False.", argstr="-tta %d")
+    pp = Int(usedefault=True, default_value=1, desc="Postprocessing: 1=True, 0=False.", argstr="-pp %d")
+    save_mask = Int(usedefault=True, default_value=1, desc="Save mask: 1=True, 0=False.", argstr="-s %d")
+    overwrite_existing = Int(usedefault=True, default_value=1, desc="Overwrite existing outputs: 1=True, 0=False.", argstr="--overwrite_existing %d")
+    bet = Int(usedefault=True, default_value=1, desc="Save skull-stripped brain: 1=True, 0=False.", argstr="-b %d")
 
 
 class HDBetOutputSpec(TraitedSpec):
-    output_brain = traits.Either(
-        File(),
-        None,
-        desc="Output skull-stripped brain image (if bet==1).",
-    )
-    output_mask = traits.Either(
-        File(),
-        None,
-        desc="Output brain mask (if save_mask==1).",
-    )
+    output_brain = traits.Either(File(), None, desc="Output skull-stripped brain image (if bet==1).")
+    output_mask = traits.Either(File(), None, desc="Output brain mask (if save_mask==1).")
 
 
 class HDBet(CommandLine):

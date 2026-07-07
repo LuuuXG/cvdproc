@@ -25,7 +25,6 @@ class WMHShapeInputSpec(BaseInterfaceInputSpec):
     #vent_mask = File(exists=True, desc="A ventricle mask file (in standard MNI space)", mandatory=True) # Needed for plots
     threshold = Int(desc="The threshold for the voxels to be considered", default_value=5)
     save_plots = Bool(desc="Whether to generate plots", default_value=False)
-
     output_dir = Directory(desc="The output directory to save the shape features", mandatory=True)
     wmh_labeled_filename = Str(desc="The name of the WMH labeled file", mandatory=True)
     shape_csv_filename = Str(desc="The name of the CSV file to save the shape features", mandatory=True, default_value='wmh_shape_features.csv')

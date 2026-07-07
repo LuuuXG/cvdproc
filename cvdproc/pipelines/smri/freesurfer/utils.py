@@ -54,44 +54,16 @@ class MergeRibbon(CommandLine):
     
 # mri_binarize
 class MRIBinarizeInputSpec(CommandLineInputSpec):
-    input_volume = File(
-        exists=True,
-        argstr="--i %s",
-        desc="Input volume file",
-        mandatory=True,
-    )
-
-    output_volume = File(
-        argstr="--o %s",
-        desc="Output volume file",
-        mandatory=True,
-    )
-
-    match = List( Int(), argstr="--match %s...", desc=( "Match values for binarization (multiple allowed). " "Cannot be used with min/max." ), xor=["min", "max"], )
-
-    min = Float(
-        argstr="--min %f",
-        desc="Minimum threshold (exclusive with match)",
-        xor=["match"],
-    )
-
-    max = Float(
-        argstr="--max %f",
-        desc="Maximum threshold (exclusive with match)",
-        xor=["match"],
-    )
-
-    args = Str(
-        argstr="%s",
-        desc="Additional arguments to pass to mri_binarize",
-    )
+    input_volume = File(exists=True, argstr="--i %s", desc="Input volume file", mandatory=True)
+    output_volume = File(argstr="--o %s", desc="Output volume file", mandatory=True)
+    match = List(Int(), argstr="--match %s...", desc="Match values for binarization (multiple allowed). Cannot be used with min/max.", xor=["min", "max"])
+    min = Float(argstr="--min %f", desc="Minimum threshold (exclusive with match)", xor=["match"])
+    max = Float(argstr="--max %f", desc="Maximum threshold (exclusive with match)", xor=["match"])
+    args = Str(argstr="%s", desc="Additional arguments to pass to mri_binarize")
 
 
 class MRIBinarizeOutputSpec(TraitedSpec):
-    output_volume = File(
-        exists=True,
-        desc="Binarized output volume",
-    )
+    output_volume = File(exists=True, desc="Binarized output volume")
 
 
 class MRIBinarize(CommandLine):

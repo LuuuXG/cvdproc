@@ -29,7 +29,6 @@ class FazekasClassificationInputSpec(BaseInterfaceInputSpec):
     vent_mask = File(mandatory=True, desc="Path to the ventricle mask")
     perivent_mask_3mm = File(mandatory=True, desc="Path to the periventricular mask file (3mm)")
     perivent_mask_10mm = File(mandatory=True, desc="Path to the periventricular mask file (10mm)")
-
     output_dir = Directory(mandatory=True, desc="Path to the output directory")
     pwmh_mask_filename = Str(desc="Path to the periventricular or confluent WMH mask file")
     dwmh_mask_filename = Str(desc="Path to the deep WMH mask file")
@@ -155,7 +154,6 @@ class Bullseye2OutputSpec(TraitedSpec):
     bullseye_wmparc_bis = Str(desc="Path to the Bullseye WMParc bis file")
     lobar_wmparc = Str(desc="Path to the Lobar WMParc file")
     lobar_wmparc_bis = Str(desc="Path to the Lobar WMParc bis file")
-
     file_list = List(Str, desc="List of output files")
 
 class Bullseye2(CommandLine):

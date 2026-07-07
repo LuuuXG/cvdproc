@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.vscode
 
 # Ignore egg and build folders
 *.egg-info/
@@ -26,3 +27,8 @@ Thumbs.db
 
 # Slides
 slides/
+
+# Agent
+*.codex
+*.claude
+CLAUDE.md

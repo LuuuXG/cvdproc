@@ -16,7 +16,6 @@ class ExploreASLCustomInputSpec(BaseInterfaceInputSpec):
     output_dir = Str(mandatory=True, desc="Output directory for the raw data")
     t1w_filter_filename = Str(mandatory=True, desc="Only copy anat files containing this string in filename")
     asl_filter_filename = Str(mandatory=True, desc="Only copy perf files containing this string in filename")
-
     script_path = Str(desc='Path to the MATLAB script for ExploreASL', mandatory=True)
     exploreasl_dir = Str(desc='Path to the ExploreASL directory', mandatory=True)
 

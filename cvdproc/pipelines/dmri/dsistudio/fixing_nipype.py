@@ -91,11 +91,7 @@ class FixDSIStudioDWIAndBvec(SimpleInterface):
         header.set_data_shape(fixed_data.shape)
         header.set_data_dtype(dtype)
 
-        fixed_img = nib.Nifti1Image(
-            fixed_data,
-            affine=ref_grid_img.affine,
-            header=header,
-        )
+        fixed_img = nib.Nifti1Image(fixed_data, affine=ref_grid_img.affine, header=header)
 
         fixed_img.set_qform(ref_grid_img.affine, code=1)
         fixed_img.set_sform(ref_grid_img.affine, code=1)

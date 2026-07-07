@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../../">
+        <link rel="prev" href="../../pwi/pwi_pipeline/">
       
       
-        <link rel="next" href="../t1_register/">
+        <link rel="next" href="../test_matlab/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Lesion Analysis - cvdproc</title>
+        <title>Base Test - cvdproc</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lesion-analysis" class="md-skip">
+        <a href="#test-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Lesion Analysis
+              Base Test
             
           </span>
         </div>
@@ -390,20 +390,18 @@
                 
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
         
           
           <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
@@ -419,7 +417,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             Structural MRI (sMRI) Pipelines
@@ -430,187 +428,10 @@
                 
   
   
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Lesion Analysis
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    Lesion Analysis
-    
-  </span>
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      LesionAnalysisPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="LesionAnalysisPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
-    <span class="md-ellipsis">
-      A more detailed description:
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="A more detailed description:">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#lesion-mask" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lesion Mask
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lesion-filling" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lesion Filling
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lesion-size" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lesion Size
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
-      <a href="../t1_register/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    T1w Registration to MNI space
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../freesurfer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Freesurfer Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../anat_seg/" class="md-nav__link">
+      <a href="../../sMRI/anat_seg/" class="md-nav__link">
         
   
   
@@ -633,12 +454,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../wmh_quantification/" class="md-nav__link">
+      <a href="../../sMRI/brainage/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    WMH Quantification
+    Brain Age Estimation
     
   </span>
   
@@ -656,12 +477,242 @@
   
   
     <li class="md-nav__item">
-      <a href="../pvs_quantification/" class="md-nav__link">
+      <a href="../../sMRI/cat12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAT12 VBM Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/cmb_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CMB Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/freesurfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Freesurfer Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/fsl_anat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FSL Anat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/lesion_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lesion Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/pvs_quantification/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     PVS Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/scn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Structural Covariance Network
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/synthsr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SynthSR
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/t1_register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    T1w Registration to MNI Space
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/wmh_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    WMH Quantification
     
   </span>
   
@@ -764,6 +815,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dMRI/nemo_postprocess/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    NeMo Postprocessing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -795,7 +869,7 @@
   
   
   <span class="md-ellipsis">
-    Quantification MRI (qMRI) Pipelines
+    Perfusion (ASL) Pipelines
     
   </span>
   
@@ -806,7 +880,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_4">
             <span class="md-nav__icon md-icon"></span>
-            Quantification MRI (qMRI) Pipelines
+            Perfusion (ASL) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -817,35 +891,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+      <a href="../../perfusion/asl_pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Sepia QSM
+    ASL Pipeline
     
   </span>
   
@@ -887,7 +938,7 @@
   
   
   <span class="md-ellipsis">
-    Perfusion MRI (PWI) Pipelines
+    Multi-Modality Pipelines
     
   </span>
   
@@ -898,7 +949,168 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
-            Perfusion MRI (PWI) Pipelines
+            Multi-Modality Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/arts_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Quantitative MRI (qMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            Quantitative MRI (qMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SEPIA QSM (Deprecated)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    DSC-MRI (PWI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            DSC-MRI (PWI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -915,6 +1127,175 @@
   
   <span class="md-ellipsis">
     PWI Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Test Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            Test Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.nipype_test.test.TestPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-more-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      A more detailed description:
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modalities" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modalities
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test_matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MATLAB Test
     
   </span>
   
@@ -952,7 +1333,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -1011,26 +1392,11 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      LesionAnalysisPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="LesionAnalysisPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline.__init__" class="md-nav__link">
+  <a href="#cvdproc.pipelines.nipype_test.test.TestPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1045,27 +1411,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#lesion-mask" class="md-nav__link">
+  <a href="#modalities" class="md-nav__link">
     <span class="md-ellipsis">
-      Lesion Mask
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lesion-filling" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lesion Filling
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#lesion-size" class="md-nav__link">
-    <span class="md-ellipsis">
-      Lesion Size
+      Modalities
     </span>
   </a>
   
@@ -1092,45 +1440,15 @@
 
 
 
-<h1 id="lesion-analysis">Lesion Analysis</h1>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-
-    <div class="doc doc-contents first">
-
-
-
-
-
-
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
+<h1 id="test-pipeline">Test Pipeline</h1>
 
 
 <div class="doc doc-object doc-class">
 
 
 
-<h2 id="cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline" class="doc doc-heading">
-            <code>LesionAnalysisPipeline</code>
 
-
-</h2>
-
-
-    <div class="doc doc-contents ">
+    <div class="doc doc-contents first">
 
 
 
@@ -1155,15 +1473,17 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="cvdproc.pipelines.smri.lesion_analysis_pipeline.LesionAnalysisPipeline.__init__" class="doc doc-heading">
+<h2 id="cvdproc.pipelines.nipype_test.test.TestPipeline.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span></code>
 
-</h3>
+</h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Lesion filling pipeline.</p>
+        <p>A minimal Nipype test pipeline.</p>
+<p>Creates a simple workflow that writes subject and session IDs to a text file.
+Useful for verifying the Nipype environment and BIDS data ingestion.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1182,11 +1502,10 @@
                 <code>subject</code>
             </td>
             <td>
-                  <code><span title="object">object</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Subject object</p>
+                <p>BIDSSubject object</p>
               </div>
             </td>
             <td>
@@ -1198,11 +1517,10 @@
                 <code>session</code>
             </td>
             <td>
-                  <code><span title="object">object</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Session object</p>
+                <p>BIDSSession object</p>
               </div>
             </td>
             <td>
@@ -1214,143 +1532,14 @@
                 <code>output_path</code>
             </td>
             <td>
-                  <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Output path</p>
+                <p>output directory for the pipeline</p>
               </div>
             </td>
             <td>
                 <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>use_which_t1w</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Which T1w file to use. Defaults to None.</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>use_which_lesion_mask</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Which lesion mask (T1w space) to use. Defaults to None. Seeks for files in <code>&lt;bids_dir&gt;/derivatives/lesion_mask/sub-&lt;subject_id&gt;/ses-&lt;session_id&gt;</code></p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>lesion_fill</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Whether to perform lesion filling. Defaults to False. Need to be True if <code>out_contra_mask</code> is True.</p>
-              </div>
-            </td>
-            <td>
-                  <code>False</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>lesion_fill_method</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Lesion filling method. Defaults to 'LIT'. can be 'left-right', 'sym_MNI', or 'LIT'.</p>
-              </div>
-            </td>
-            <td>
-                  <code>&#39;LIT&#39;</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>out_contra_mask</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Whether to save contralateral lesion mask when using 'sym_MNI' method. Defaults to False.</p>
-              </div>
-            </td>
-            <td>
-                  <code>False</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>lesion_size_analysis</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Whether to perform lesion size analysis (MUST be one cluster). Defaults to True.</p>
-              </div>
-            </td>
-            <td>
-                  <code>True</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>normalize</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Whether to normalize lesion mask to MNI space. Defaults to False.</p>
-              </div>
-            </td>
-            <td>
-                  <code>False</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>extract_from</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Folder name to extract results from. Defaults to None.</p>
-              </div>
-            </td>
-            <td>
-                  <code>None</code>
             </td>
           </tr>
       </tbody>
@@ -1367,47 +1556,18 @@
 
     </div>
 
-</div>
-
-
-
-
-  </div>
-
-    </div>
-
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<h3 id="lesion-mask">Lesion Mask</h3>
-<p>A basic consideration is to use T1w structural MRI for the basic processing of lesions. In previous studies, we have tried using DWI for lesion delineation (as acute ischemic stroke lesions are more apparent on DWI), but subsequent neuroimaging analysis often involves image registration, and using low-resolution (and distorted) DWI for registration can introduce significant inaccuracies. Therefore, we currently prefer to manually delineate lesions in T1w space for subsequent analysis.</p>
+<p>A minimal Nipype pipeline for testing purposes. This pipeline creates a simple workflow that outputs a text file containing the subject and session IDs. It is useful for:</p>
 <ul>
-<li>
-<p>if output contralateral lesions is desired (<code>out_contra_mask: true</code>): left-right flipped in 'MNI152NLin2009aSym' space and transformed to native space.</p>
-</li>
-<li>
-<p>if normalization is desired (<code>normalize: true</code>): the lesion mask is normalized to the standard 'MNI152NLin6ASym' space.</p>
-</li>
+<li>Verifying that the Nipype environment is correctly configured</li>
+<li>Testing new BIDS data ingestion</li>
+<li>Debugging workflow connection issues</li>
 </ul>
-<h3 id="lesion-filling">Lesion Filling</h3>
-<p>We currently use the <a href="https://github.com/Deep-MI/LIT">Lesion Inpainting Tool (LIT)</a> developed by the Deep-MI team for lesion filling. This functionality can be enabled by setting <code>lesion_fill: true</code> and <code>lesion_fill_method: 'LIT'</code> (requires downloading the docker image: deepmi/lit:0.5.0).</p>
-<p>Considerations for other lesion filling methods:</p>
+<h3 id="modalities">Modalities</h3>
 <ul>
-<li><a href="https://github.com/KUL-Radneuron/KUL_VBG">KUL_VBG</a>: This method involves ANTs-based registration. It requires a longer time for processing compared to LIT.</li>
-<li><a href="https://fsl.fmrib.ox.ac.uk/fsl/docs/structural/lesion_filling.html">FSL Lesion Filling</a>: Taking this as a representative example, we found that many other lesion filling methods are based on WMH lesions in MS patients and are not suitable for the brain infarction lesions studied in our research.</li>
+<li>None required (always passes <code>check_data_requirements</code>)</li>
 </ul>
-<h3 id="lesion-size">Lesion Size</h3>
-<p>Three metrics are commonly used to quantify lesion size (only applicable for single-cluster lesion):</p>
-<ol>
-<li>
-<p><strong>Lesion Volume</strong>: The total volume of the lesion in cubic millimeters (mm³).</p>
-</li>
-<li>
-<p><strong>Max Diameter (Axial)</strong>: The maximum diameter of the lesion in the axial plane, measured in millimeters (mm).</p>
-</li>
-<li>
-<p><strong>Max Diameter (3D)</strong>: The maximum diameter of the lesion in three-dimensional space, measured in millimeters (mm).</p>
-</li>
-</ol>
 
 
 

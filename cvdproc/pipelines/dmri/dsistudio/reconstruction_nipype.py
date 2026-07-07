@@ -121,11 +121,9 @@ class DSIstudioReconstruction2InputSpec(CommandLineInputSpec):
     thread_count = Int(desc="Number of Threads", argstr="--thread_count=%d", mandatory=False)
     qsdr_reso = Float(desc="QSDR Resolution", argstr="--qsdr_reso=%f", mandatory=False, default_value=2.0)
     other_output = Str(desc="Other Output File", argstr="--other_output=%s", mandatory=False)
-
     check_btable = Int(desc="Check b-table consistency", argstr="--check_btable=%d", mandatory=False, default_value=0)
     motion_correction = Int(desc="Apply motion correction", argstr="--motion_correction=%d", mandatory=False, default_value=0)
     make_isotropic = Float(desc="Make isotropic voxel size (mm)", argstr="--make_isotropic=%f", mandatory=False)
-
     output = Str(desc="Output Fib File Name or Directory", argstr="--output=%s", mandatory=False)
     save_nii = Str(desc="Save intermediate NIfTI files", argstr="--save_nii=%s", mandatory=False)
 
@@ -167,42 +165,16 @@ class DSIstudioReconstruction2(CommandLine):
 
 # change bvec
 class DSIStudioBvecToFSLInputSpec(BaseInterfaceInputSpec):
-    in_bvec = File(
-        exists=True,
-        mandatory=True,
-        desc="Input DSI Studio bvec file in N x 3 format",
-    )
-    out_bvec = File(
-        mandatory=False,
-        desc="Output FSL bvec file in 3 x N format",
-    )
-    flip_x = Bool(
-        True,
-        usedefault=True,
-        desc="Flip the x component. This is usually required for DSI Studio to FSL conversion.",
-    )
-    flip_y = Bool(
-        False,
-        usedefault=True,
-        desc="Flip the y component.",
-    )
-    flip_z = Bool(
-        False,
-        usedefault=True,
-        desc="Flip the z component.",
-    )
-    precision = traits.Int(
-        10,
-        usedefault=True,
-        desc="Number of decimal places in the output bvec file.",
-    )
+    in_bvec = File(exists=True, mandatory=True, desc="Input DSI Studio bvec file in N x 3 format")
+    out_bvec = File(mandatory=False, desc="Output FSL bvec file in 3 x N format")
+    flip_x = Bool(True, usedefault=True, desc="Flip the x component. This is usually required for DSI Studio to FSL conversion.")
+    flip_y = Bool(False, usedefault=True, desc="Flip the y component.")
+    flip_z = Bool(False, usedefault=True, desc="Flip the z component.")
+    precision = traits.Int(10, usedefault=True, desc="Number of decimal places in the output bvec file.")
 
 
 class DSIStudioBvecToFSLOutputSpec(TraitedSpec):
-    out_bvec = File(
-        exists=True,
-        desc="Converted FSL bvec file in 3 x N format",
-    )
+    out_bvec = File(exists=True, desc="Converted FSL bvec file in 3 x N format")
 
 
 class DSIStudioBvecToFSL(BaseInterface):

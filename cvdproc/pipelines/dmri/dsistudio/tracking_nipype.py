@@ -45,8 +45,8 @@ class DSIstudioTrackingInputSpec(CommandLineInputSpec):
     lim = Str(desc='Limiting region file (e.g., --lim=lim.nii.gz)', argstr='--lim=%s')
     # additional args
     args = Str(desc='Additional command-line arguments', argstr='%s')
-
     overwrite = Bool(True, usedefault=True, desc="Overwrite output if it already exists")
+
 class DSIstudioTrackingOutputSpec(TraitedSpec):
     output = Str(desc='Output tractography file.')
 

@@ -13,7 +13,6 @@ class PSMDInputSpec(CommandLineInputSpec):
     bval_file = File(exists=True, desc="B-value file", argstr="-b %s")
     bvec_file = File(exists=True, desc="B-vector file", argstr="-r %s")
     mask_file = File(exists=True, desc="Skeleton mask file", argstr="-s %s")
-
     enhanced_masking = traits.Int(desc="Use enhanced masking (provide b value)", argstr="-e %d")
     lesion_mask = File(exists=True, desc="Lesion mask file to exclude", argstr="-l %s")
     output_msmd = traits.Bool(desc="Output MSMD instead of PSMD", argstr="-o")
@@ -22,7 +21,6 @@ class PSMDInputSpec(CommandLineInputSpec):
     quiet = traits.Bool(desc="Quiet mode", argstr="-q")
     verbose = traits.Bool(desc="Verbose mode", argstr="-v")
     troubleshooting = traits.Bool(desc="Keep temp files for troubleshooting", argstr="-t")
-
     output_dir = File(desc="Directory to write psmd_out.txt", mandatory=True, argstr="-w %s")
 
 class PSMDOutputSpec(TraitedSpec):

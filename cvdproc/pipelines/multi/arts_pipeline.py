@@ -236,6 +236,6 @@ class ARTSPipeline:
                 temp_df = pd.DataFrame([{"Subject": subject_folder, "Session": session_folder, "ARTS_score": arts_score}])
                 results_df = pd.concat([results_df, temp_df], ignore_index=True)
 
-        combined_xlsx = os.path.join(self.output_path, "arts_score_summary.xlsx")
+        combined_xlsx = os.path.join(self.output_path, "arts_summary.xlsx")
         results_df.to_excel(combined_xlsx, index=False)
         print(f"[INFO] ARTS score summary saved to: {combined_xlsx}")

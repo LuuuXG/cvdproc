@@ -1186,26 +1186,26 @@ class WMHSegmentationPipeline:
             shiva_csv = _find_first_csv(base_path, include_keywords=["desc-shivaParcWMH"])
 
             twmh_rows.append({
-                "Subject": subject_id,
-                "Session": session_id,
+                "Subject": f"sub-{subject_id}",
+                "Session": f"ses-{session_id}",
                 "Total_WMH_Volume": _extract_single_binary_volume(total_csv),
                 "PWMH_Volume": _extract_single_binary_volume(pwmh_csv),
                 "DWMH_Volume": _extract_single_binary_volume(dwmh_csv),
             })
 
-            jhu_row = {"Subject": subject_id, "Session": session_id}
+            jhu_row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
             jhu_row.update(_extract_mapped_volumes(jhu_csv, jhu_label_map))
             jhu_rows.append(jhu_row)
 
-            lobarseg_row = {"Subject": subject_id, "Session": session_id}
+            lobarseg_row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
             lobarseg_row.update(_extract_mapped_volumes(lobarseg_csv, lobarseg_label_map))
             lobarseg_rows.append(lobarseg_row)
 
-            bullseye_row = {"Subject": subject_id, "Session": session_id}
+            bullseye_row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
             bullseye_row.update(_extract_mapped_volumes(bullseye_csv, bullseye_label_map))
             bullseye_rows.append(bullseye_row)
 
-            shiva_row = {"Subject": subject_id, "Session": session_id}
+            shiva_row = {"Subject": f"sub-{subject_id}", "Session": f"ses-{session_id}"}
             shiva_row.update(_extract_mapped_volumes(shiva_csv, shiva_label_map))
             shiva_rows.append(shiva_row)
 
@@ -1234,11 +1234,11 @@ class WMHSegmentationPipeline:
         bullseye_df = pd.DataFrame(bullseye_rows, columns=bullseye_cols)
         shiva_df = pd.DataFrame(shiva_rows, columns=shiva_cols)
 
-        twmh_df.to_excel(os.path.join(self.output_path, "wmh_total_quantification_results.xlsx"), index=False)
-        jhu_df.to_excel(os.path.join(self.output_path, "wmh_jhu_quantification_results.xlsx"), index=False)
-        lobarseg_df.to_excel(os.path.join(self.output_path, "wmh_lobarseg_quantification_results.xlsx"), index=False)
-        bullseye_df.to_excel(os.path.join(self.output_path, "wmh_bullseye_quantification_results.xlsx"), index=False)
-        shiva_df.to_excel(os.path.join(self.output_path, "wmh_shiva_quantification_results.xlsx"), index=False)
+        twmh_df.to_excel(os.path.join(self.output_path, "wmh_total_summary.xlsx"), index=False)
+        jhu_df.to_excel(os.path.join(self.output_path, "wmh_jhu_summary.xlsx"), index=False)
+        lobarseg_df.to_excel(os.path.join(self.output_path, "wmh_lobarseg_summary.xlsx"), index=False)
+        bullseye_df.to_excel(os.path.join(self.output_path, "wmh_bullseye_summary.xlsx"), index=False)
+        shiva_df.to_excel(os.path.join(self.output_path, "wmh_shiva_summary.xlsx"), index=False)
 
         print(f"Results extracted successfully from: {wmh_output_path}")
         print(f"Saved results to: {self.output_path}")

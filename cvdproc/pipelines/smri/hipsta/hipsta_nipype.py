@@ -50,36 +50,10 @@ class Hipsta(BaseInterface):
         return outputs
 
 class HipstaDockerInputSpec(CommandLineInputSpec):
-    filename = File(
-        exists=True,
-        desc="Filename of a segmentation file.",
-        mandatory=True,
-        argstr="%s",
-        position=0,
-    )
-
-    hemi = Enum(
-        "lh",
-        "rh",
-        desc="Hemisphere (lh or rh).",
-        mandatory=True,
-        argstr="%s",
-        position=1,
-    )
-
-    lut = Str(
-        desc="Lookup table: freesurfer, ashs-penn_abc_3t_t2, ashs-umcutrecht_7t, or a custom LUT file.",
-        mandatory=True,
-        argstr="%s",
-        position=2,
-    )
-
-    outputdir = Directory(
-        desc="Output directory.",
-        mandatory=True,
-        argstr="%s",
-        position=3,
-    )
+    filename = File(exists=True, desc="Filename of a segmentation file.", mandatory=True, argstr="%s", position=0)
+    hemi = Enum("lh", "rh", desc="Hemisphere (lh or rh).", mandatory=True, argstr="%s", position=1)
+    lut = Str(desc="Lookup table: freesurfer, ashs-penn_abc_3t_t2, ashs-umcutrecht_7t, or a custom LUT file.", mandatory=True, argstr="%s", position=2)
+    outputdir = Directory(desc="Output directory.", mandatory=True, argstr="%s", position=3)
 
 
 class HipstaDockerOutputSpec(TraitedSpec):

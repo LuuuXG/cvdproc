@@ -42,7 +42,15 @@ class Test(BaseInterface):
 class TestPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
         """
-        Test pipeline
+        A minimal Nipype test pipeline.
+
+        Creates a simple workflow that writes subject and session IDs to a text file.
+        Useful for verifying the Nipype environment and BIDS data ingestion.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
         """
         self.subject = subject
         self.session = session

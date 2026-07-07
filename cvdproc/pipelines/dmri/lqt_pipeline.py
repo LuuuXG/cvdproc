@@ -227,13 +227,10 @@ class LQTPipeline:
                     ignore_index=True,
                 )
 
-        output_csv = os.path.join(self.output_path, "alps_roi_disconnection_results.csv")
-        output_excel = os.path.join(self.output_path, "alps_roi_disconnection_results.xlsx")
+        output_excel = os.path.join(self.output_path, "lqt_summary.xlsx")
 
         if not alps_disconnection_results_df.empty:
-            alps_disconnection_results_df.to_csv(output_csv, index=False)
             alps_disconnection_results_df.to_excel(output_excel, header=True, index=False)
-            print(f"ALPS ROI disconnection results saved to {output_csv}")
             print(f"ALPS ROI disconnection results saved to {output_excel}")
         else:
             print("No ALPS ROI disconnection results found.")

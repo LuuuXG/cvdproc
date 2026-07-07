@@ -15,35 +15,13 @@ class AmicoNoddiInputSpec(BaseInterfaceInputSpec):
     bvec = File(exists=True, desc="Path to the input b-vectors file", mandatory=True)
     mask = File(exists=True, desc="Path to the brain mask NIfTI file", mandatory=True)
     output_dir = Directory(desc="Directory to save AMICO NODDI results", mandatory=True)
-
-    direction_filename = traits.Str(
-    default_value="fit_dir.nii.gz", usedefault=True,
-    desc="Filename for the direction map"
-    )
-    icvf_filename = traits.Str(
-        default_value="fit_NDI.nii.gz", usedefault=True,
-        desc="Filename for the ICVF map"
-    )
-    isovf_filename = traits.Str(
-        default_value="fit_FWF.nii.gz", usedefault=True,
-        desc="Filename for the ISOVF map"
-    )
-    od_filename = traits.Str(
-        default_value="fit_ODI.nii.gz", usedefault=True,
-        desc="Filename for the ODI map"
-    )
-    modulated_icvf_filename = traits.Str(
-        default_value="fit_NDI_modulated.nii.gz", usedefault=True,
-        desc="Filename for the modulated ICVF map"
-    )
-    modulated_od_filename = traits.Str(
-        default_value="fit_ODI_modulated.nii.gz", usedefault=True,
-        desc="Filename for the modulated ODI map"
-    )
-    config_filename = traits.Str(
-        default_value="config.pickle", usedefault=True,
-        desc="Filename for the AMICO config file"
-    )
+    direction_filename = traits.Str(default_value="fit_dir.nii.gz", usedefault=True, desc="Filename for the direction map")
+    icvf_filename = traits.Str("fit_NDI.nii.gz", usedefault=True, desc="Filename for the ICVF map")
+    isovf_filename = traits.Str("fit_FWF.nii.gz", usedefault=True, desc="Filename for the ISOVF map")
+    od_filename = traits.Str("fit_ODI.nii.gz", usedefault=True, desc="Filename for the ODI map")
+    modulated_icvf_filename = traits.Str(default_value="fit_NDI_modulated.nii.gz", usedefault=True, desc="Filename for the modulated ICVF map")
+    modulated_od_filename = traits.Str(default_value="fit_ODI_modulated.nii.gz", usedefault=True, desc="Filename for the modulated ODI map")
+    config_filename = traits.Str("config.pickle", usedefault=True, desc="Filename for the AMICO config file")
 
 
 class AmicoNoddiOutputSpec(TraitedSpec):

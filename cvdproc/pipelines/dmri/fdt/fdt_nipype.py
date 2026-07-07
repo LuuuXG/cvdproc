@@ -18,12 +18,10 @@ class B0AllAndAcqparamInputSpec(BaseInterfaceInputSpec):
     dwi_bval = File(desc="Path to the bval file")
     phase_encoding_number = traits.Str(desc="Phase encoding number")
     total_readout_time = traits.Str(desc="Total readout time")
-
     reverse_dwi_img = File(desc="Path to reverse phase-encoded DWI image")
     reverse_dwi_bval = File(desc="Path to bval file for reverse DWI (optional)")
     reverse_phase_encoding_number = traits.Str(desc="Phase encoding number for reverse DWI")
     reverse_total_readout_time = traits.Str(desc="Total readout time for reverse DWI")
-
     output_path = Directory(desc="Output directory")
 
 class B0AllAndAcqparamOutputSpec(TraitedSpec):
@@ -225,17 +223,11 @@ class EddyCuda(CommandLine):
     def _list_outputs(self):
         outputs = self.output_spec().get()
 
-        outputs["eddy_output_dir"] = os.path.abspath(
-            os.path.dirname(self.inputs.output_basename)
-        )
+        outputs["eddy_output_dir"] = os.path.abspath(os.path.dirname(self.inputs.output_basename))
         outputs["output_basename"] = self.inputs.output_basename
         outputs["output_filename"] = os.path.basename(self.inputs.output_basename)
-        outputs["eddy_corrected_data"] = os.path.abspath(
-            self.inputs.output_basename + ".nii.gz"
-        )
-        outputs["eddy_corrected_bvecs"] = os.path.abspath(
-            self.inputs.output_basename + ".eddy_rotated_bvecs"
-        )
+        outputs["eddy_corrected_data"] = os.path.abspath(self.inputs.output_basename + ".nii.gz")
+        outputs["eddy_corrected_bvecs"] = os.path.abspath(self.inputs.output_basename + ".eddy_rotated_bvecs")
         outputs["bvals"] = os.path.abspath(self.inputs.bval_file)
 
         return outputs
@@ -300,9 +292,7 @@ class DTIFitBIDSInputSpec(CommandLineInputSpec):
     bval_file = File(exists=True, mandatory=True, desc="Path to the .bval file", argstr="-b %s")
     bvec_file = File(exists=True, mandatory=True, desc="Path to the .bvec file", argstr="-r %s")
     mask_file = File(exists=True, mandatory=True, desc="Path to the brain mask", argstr="-m %s")
-
     output_basename = Str(mandatory=True, desc="Path to the output basename", argstr="-o %s")
-
     bids_rename = traits.Bool(True, usedefault=True, desc="Rename outputs to BIDS style after dtifit")
     overwrite = traits.Bool(False, usedefault=True, desc="Overwrite destination files if they already exist")
 
@@ -310,7 +300,6 @@ class DTIFitBIDSInputSpec(CommandLineInputSpec):
 class DTIFitBIDSOutputSpec(TraitedSpec):
     output_dir = Directory(desc="Path to the output directory")
     output_basename = Str(desc="Path to the output basename")
-
     dti_fa = File(desc="Path to the FA image")
     dti_md = File(desc="Path to the MD image")
     dti_mo = File(desc="Path to the MO image")
@@ -564,96 +553,26 @@ class Bedpostx(CommandLine):
 
 class BedpostxGPUCustomInputSpec(CommandLineInputSpec):
     # Required inputs
-    dwi_img = File(
-        exists=True,
-        mandatory=True,
-        desc="Path to DWI image (4D)",
-        argstr="--dwi %s",
-    )
-    bvec = File(
-        exists=True,
-        mandatory=True,
-        desc="Path to bvecs",
-        argstr="--bvec %s",
-    )
-    bval = File(
-        exists=True,
-        mandatory=True,
-        desc="Path to bvals",
-        argstr="--bval %s",
-    )
-    mask = File(
-        exists=True,
-        mandatory=True,
-        desc="Path to nodif_brain_mask image",
-        argstr="--mask %s",
-    )
-    out_dir = Directory(
-        mandatory=True,
-        desc="Output directory (final results; no .bedpostX suffix)",
-        argstr="--out-dir %s",
-    )
+    dwi_img = File(exists=True, mandatory=True, desc="Path to DWI image (4D)", argstr="--dwi %s")
+    bvec = File(exists=True, mandatory=True, desc="Path to bvecs", argstr="--bvec %s")
+    bval = File(exists=True, mandatory=True, desc="Path to bvals", argstr="--bval %s")
+    mask = File(exists=True, mandatory=True, desc="Path to nodif_brain_mask image", argstr="--mask %s")
+    out_dir = Directory(mandatory=True, desc="Output directory (final results; no .bedpostX suffix)", argstr="--out-dir %s")
 
     # Optional bedpostx-like options supported by your script
-    njobs = Int(
-        4,
-        usedefault=True,
-        desc="Number of jobs/parts",
-        argstr="-NJOBS %d",
-    )
-    nfibres = Int(
-        3,
-        usedefault=True,
-        desc="Number of fibres per voxel",
-        argstr="-n %d",
-    )
-    fudge = Float(
-        1.0,
-        usedefault=True,
-        desc="ARD weight/fudge",
-        argstr="-w %f",
-    )
-    burnin = Int(
-        1000,
-        usedefault=True,
-        desc="Burnin",
-        argstr="-b %d",
-    )
-    njumps = Int(
-        1250,
-        usedefault=True,
-        desc="Number of jumps",
-        argstr="-j %d",
-    )
-    sampleevery = Int(
-        25,
-        usedefault=True,
-        desc="Sample every",
-        argstr="-s %d",
-    )
-    model = Int(
-        2,
-        usedefault=True,
-        desc="Model: 1 sticks, 2 sticks+range, 3 zeppelins",
-        argstr="-model %d",
-    )
+    njobs = Int(4, usedefault=True, desc="Number of jobs/parts", argstr="-NJOBS %d")
+    nfibres = Int(3, usedefault=True, desc="Number of fibres per voxel", argstr="-n %d")
+    fudge = Float(1.0, usedefault=True, desc="ARD weight/fudge", argstr="-w %f")
+    burnin = Int(1000, usedefault=True, desc="Burnin", argstr="-b %d")
+    njumps = Int(1250, usedefault=True, desc="Number of jumps", argstr="-j %d")
+    sampleevery = Int(25, usedefault=True, desc="Sample every", argstr="-s %d")
+    model = Int(2, usedefault=True, desc="Model: 1 sticks, 2 sticks+range, 3 zeppelins", argstr="-model %d")
 
     # Gradient nonlinearity support (only if you implemented --grad-dev in the script)
-    grad_dev = File(
-        exists=True,
-        mandatory=False,
-        desc="Path to grad_dev image (optional)",
-        argstr="--grad-dev %s",
-    )
-
+    grad_dev = File(exists=True, mandatory=False, desc="Path to grad_dev image (optional)", argstr="--grad-dev %s")
     # Additional xfibres options to pass through, e.g. ["--noard", "--cnonlinear"]
     # Nipype's CommandLine supports "args" as a raw string, so we provide an explicit field.
-    extra_args = Str(
-        "",
-        usedefault=True,
-        desc="Extra arguments passed to xfibres_gpu/bedpostx (raw string)",
-        argstr="%s",
-    )
+    extra_args = Str("", usedefault=True, desc="Extra arguments passed to xfibres_gpu/bedpostx (raw string)", argstr="%s")
 
 
 class BedpostxGPUCustomOutputSpec(TraitedSpec):
@@ -732,17 +651,11 @@ class Probtrackx(CommandLine):
 # Read waytotal #
 #################
 class ReadSingleValueInputSpec(BaseInterfaceInputSpec):
-    input_file = File(
-        exists=True,
-        mandatory=True,
-        desc="Input text file containing a single numeric value"
-    )
+    input_file = File(exists=True, mandatory=True, desc="Input text file containing a single numeric value")
 
 
 class ReadSingleValueOutputSpec(TraitedSpec):
-    value = traits.Float(
-        desc="Extracted numeric value from file"
-    )
+    value = traits.Float(desc="Extracted numeric value from file")
 
 
 class ReadSingleValue(BaseInterface):

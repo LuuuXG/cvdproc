@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../freesurfer/">
+        <link rel="prev" href="../lqt_pipeline/">
       
       
-        <link rel="next" href="../wmh_quantification/">
+        <link rel="next" href="../../perfusion/asl_pipeline/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Anatomical Segmentation - cvdproc</title>
+        <title>NeMo Postprocessing - cvdproc</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#anatomical-segmentation" class="md-skip">
+        <a href="#nemo-postprocessing-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Anatomical Segmentation
+              NeMo Postprocessing
             
           </span>
         </div>
@@ -390,20 +390,18 @@
                 
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
         
           
           <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
@@ -419,7 +417,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_2">
             <span class="md-nav__icon md-icon"></span>
             Structural MRI (sMRI) Pipelines
@@ -433,7 +431,168 @@
   
   
     <li class="md-nav__item">
-      <a href="../lesion_analysis/" class="md-nav__link">
+      <a href="../../sMRI/anat_seg/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anatomical Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/brainage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/cat12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAT12 VBM Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/cmb_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CMB Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/freesurfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Freesurfer Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/fsl_anat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FSL Anat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/lesion_analysis/" class="md-nav__link">
         
   
   
@@ -456,12 +615,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../t1_register/" class="md-nav__link">
+      <a href="../../sMRI/pvs_quantification/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    T1w Registration to MNI space
+    PVS Quantification
     
   </span>
   
@@ -479,12 +638,175 @@
   
   
     <li class="md-nav__item">
-      <a href="../freesurfer/" class="md-nav__link">
+      <a href="../../sMRI/scn/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Freesurfer Pipeline
+    Structural Covariance Network
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/synthsr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SynthSR
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/t1_register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    T1w Registration to MNI Space
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/wmh_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    WMH Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Diffusion MRI (dMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Diffusion MRI (dMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dwi_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DWI Preprocessing and Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lqt_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lesion Quantification Toolkit (LQT)
     
   </span>
   
@@ -516,7 +838,7 @@
   
   
   <span class="md-ellipsis">
-    Anatomical Segmentation
+    NeMo Postprocessing
     
   </span>
   
@@ -529,7 +851,7 @@
   
   
   <span class="md-ellipsis">
-    Anatomical Segmentation
+    NeMo Postprocessing
     
   </span>
   
@@ -552,26 +874,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      AnatSegPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="AnatSegPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="md-nav__link">
+  <a href="#cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
   
 </li>
       
@@ -582,150 +898,69 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Processing Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Processing Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cortical-metrics-cortical_metricstrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cortical Metrics (cortical_metrics=True)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chacovol-chacoconn-results_to_csvtrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      ChacoVol / ChacoConn (results_to_csv=True)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../wmh_quantification/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    WMH Quantification
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pvs_quantification/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    PVS Quantification
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    Diffusion MRI (dMRI) Pipelines
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_3">
-            <span class="md-nav__icon md-icon"></span>
-            Diffusion MRI (dMRI) Pipelines
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../dMRI/dwi_pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    DWI Preprocessing and Analysis
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../dMRI/lqt_pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Lesion Quantification Toolkit (LQT)
-    
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -762,7 +997,7 @@
   
   
   <span class="md-ellipsis">
-    Quantification MRI (qMRI) Pipelines
+    Perfusion (ASL) Pipelines
     
   </span>
   
@@ -773,7 +1008,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_4">
             <span class="md-nav__icon md-icon"></span>
-            Quantification MRI (qMRI) Pipelines
+            Perfusion (ASL) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -784,35 +1019,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+      <a href="../../perfusion/asl_pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Sepia QSM
+    ASL Pipeline
     
   </span>
   
@@ -854,7 +1066,7 @@
   
   
   <span class="md-ellipsis">
-    Perfusion MRI (PWI) Pipelines
+    Multi-Modality Pipelines
     
   </span>
   
@@ -865,7 +1077,168 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
-            Perfusion MRI (PWI) Pipelines
+            Multi-Modality Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/arts_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Quantitative MRI (qMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            Quantitative MRI (qMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SEPIA QSM (Deprecated)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    DSC-MRI (PWI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            DSC-MRI (PWI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -882,6 +1255,98 @@
   
   <span class="md-ellipsis">
     PWI Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Test Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            Test Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test_matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MATLAB Test
     
   </span>
   
@@ -919,7 +1384,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -978,26 +1443,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      AnatSegPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="AnatSegPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="md-nav__link">
+  <a href="#cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.check_data_requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      check_data_requirements
+    </span>
+  </a>
   
 </li>
       
@@ -1007,6 +1466,63 @@
       A more detailed description:
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Processing Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Processing Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cortical-metrics-cortical_metricstrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cortical Metrics (cortical_metrics=True)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chacovol-chacoconn-results_to_csvtrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      ChacoVol / ChacoConn (results_to_csv=True)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1026,48 +1542,16 @@
 
 
 
-<h1 id="anatomical-segmentation">Anatomical Segmentation</h1>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-
-    <div class="doc doc-contents first">
-
-
-
-
-
-
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
+<h1 id="nemo-postprocessing-pipeline">NeMo Postprocessing Pipeline</h1>
 
 
 <div class="doc doc-object doc-class">
 
 
 
-<h2 id="cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline" class="doc doc-heading">
-            <code>AnatSegPipeline</code>
 
+    <div class="doc doc-contents first">
 
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-
-        <p>Generating anatomical segmentation atlas from sMRI</p>
 
 
 
@@ -1091,15 +1575,18 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="cvdproc.pipelines.smri.anat_seg_pipeline.AnatSegPipeline.__init__" class="doc doc-heading">
+<h2 id="cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span></code>
 
-</h3>
+</h2>
 
 
     <div class="doc doc-contents ">
 
-        <p>Generating anatomical segmentation atlas from sMRI</p>
+        <p>NeMo Postprocessing Pipeline</p>
+<p>Postprocesses outputs from the NeMo (Network Measures) toolbox, extracting
+cortical metrics, subcortical volumes (ChacoVol), and structural connectivity
+matrices (ChacoConn) for population-level analysis.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1122,7 +1609,7 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Subject object</p>
+                <p>BIDSSubject object</p>
               </div>
             </td>
             <td>
@@ -1138,7 +1625,7 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Session object</p>
+                <p>BIDSSession object</p>
               </div>
             </td>
             <td>
@@ -1154,7 +1641,7 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Output directory</p>
+                <p>output directory for the pipeline</p>
               </div>
             </td>
             <td>
@@ -1163,46 +1650,62 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>use_which_t1w</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used</p>
-              </div>
-            </td>
-            <td>
-                  <code>&#39;T1w&#39;</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>methods</code>
-            </td>
-            <td>
-                  <code><span title="list">list</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>List of methods to use. Options include 'synthseg' and 'chpseg'.</p>
-              </div>
-            </td>
-            <td>
-                  <code>[&#39;synthseg&#39;, &#39;chpseg&#39;]</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>cpu_first</code>
+                <code>use_freesurfer_clinical</code>
             </td>
             <td>
                   <code><span title="bool">bool</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether to use CPU first for SynthSeg (if available).</p>
+                <p>whether to use recon-all-clinical.sh outputs instead of standard recon-all. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>use_freesurfer_longitudinal</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to use longitudinal FreeSurfer outputs. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cortical_metrics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to extract weighted cortical metrics from NeMo outputs. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>results_to_csv</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>whether to convert ChacoVol/ChacoConn results to CSV format. Defaults to False.</p>
               </div>
             </td>
             <td>
@@ -1218,26 +1721,11 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Path to extract results from</p>
+                <p>path to extract results from for population-level summary.</p>
               </div>
             </td>
             <td>
-                  <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>**kwargs</code>
-            </td>
-            <td>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Additional arguments</p>
-              </div>
-            </td>
-            <td>
-                  <code>{}</code>
+                  <code>&#39;&#39;</code>
             </td>
           </tr>
       </tbody>
@@ -1248,14 +1736,23 @@
 
 </div>
 
+<div class="doc doc-object doc-function">
 
 
-  </div>
+<h2 id="cvdproc.pipelines.dmri.nemo_postprocess_pipeline.NemoPostprocessPipeline.check_data_requirements" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">check_data_requirements</span></code>
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>:return: bool</p>
+
 
     </div>
 
 </div>
-
 
 
 
@@ -1265,10 +1762,24 @@
 
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<p>In this pipeline, we collect several anatomical segmentation methods for structural MRI (sMRI).</p>
+<p>This pipeline postprocesses outputs from the <a href="https://github.com/KUL-Radneuron/NeMo">NeMo</a> toolbox, which computes network-based measures from structural connectivity data. The pipeline extracts and aggregates cortical metrics, subcortical volumes, and structural connectivity matrices for population-level analysis.</p>
+<h3 id="dependencies">Dependencies</h3>
 <ul>
-<li><a href="https://surfer.nmr.mgh.harvard.edu/fswiki/SynthSeg">SynthSeg</a>: <code>--keepgeom</code> is set to preserve the original voxel dimension of the input images.</li>
-<li><a href="https://github.com/Center-of-Imaging-Biomarker-Development/chp_seg">chpseg</a>: Using T1w image to segment the choroid plexus (CP) in lateral ventricles.</li>
+<li>NeMo output directory (auto-discovered via BIDS derivatives)</li>
+<li>FreeSurfer <code>recon-all</code>, <code>recon-all-clinical.sh</code>, or longitudinal FreeSurfer results for cortical metrics extraction</li>
+</ul>
+<h3 id="processing-options">Processing Options</h3>
+<h4 id="cortical-metrics-cortical_metricstrue">Cortical Metrics (<code>cortical_metrics=True</code>)</h4>
+<p>Extracts weighted cortical metrics (weighted degree, betweenness centrality, clustering coefficient, etc.) from NeMo's output. Requires FreeSurfer results.</p>
+<h4 id="chacovol-chacoconn-results_to_csvtrue">ChacoVol / ChacoConn (<code>results_to_csv=True</code>)</h4>
+<p>Converts NeMo's ChacoVol (subcortical volumes per atlas) and ChacoConn (structural connectivity matrices) outputs to CSV format for group-level analysis.</p>
+<h3 id="parameters">Parameters</h3>
+<ul>
+<li><code>use_freesurfer_clinical</code>: Set to <code>True</code> if using <code>recon-all-clinical.sh</code> outputs instead of standard <code>recon-all</code>.</li>
+<li><code>use_freesurfer_longitudinal</code>: Set to <code>True</code> if using longitudinal FreeSurfer outputs.</li>
+<li><code>cortical_metrics</code>: Whether to extract cortical metrics from NeMo outputs (default: <code>False</code>).</li>
+<li><code>results_to_csv</code>: Whether to convert ChacoVol/ChacoConn results to CSV (default: <code>False</code>).</li>
+<li><code>extract_from</code>: Path to extract results from for population-level summary.</li>
 </ul>
 
 

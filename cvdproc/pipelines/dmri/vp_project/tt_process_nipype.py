@@ -170,11 +170,7 @@ class TTGZToTCKInputSpec(BaseInterfaceInputSpec):
     tt_gz_path = File(exists=True, mandatory=True, desc="Input DSI Studio TT.GZ file")
     ref_nii = File(exists=True, mandatory=True, desc="Reference NIfTI defining target affine")
     out_tck = File(mandatory=True, desc="Output TCK file path")
-    flip_y_axis = Bool(
-        False,
-        usedefault=True,
-        desc="Flip y axis from DSI Studio voxel convention to nibabel voxel convention before affine conversion",
-    )
+    flip_y_axis = Bool(False, usedefault=True, desc="Flip y axis from DSI Studio voxel convention to nibabel voxel convention before affine conversion")
 
 
 class TTGZToTCKOutputSpec(TraitedSpec):
@@ -198,11 +194,7 @@ class TTGZToTCK(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_tck"] = getattr(
-            self,
-            "_out_tck",
-            os.path.abspath(self.inputs.out_tck),
-        )
+        outputs["out_tck"] = getattr(self, "_out_tck", os.path.abspath(self.inputs.out_tck))
         return outputs
 
 
@@ -276,11 +268,7 @@ class TTGZToTDIInputSpec(BaseInterfaceInputSpec):
     tt_gz_path = File(exists=True, mandatory=True, desc="Input DSI Studio TT.GZ file")
     ref_nii = File(exists=True, mandatory=True, desc="Reference NIfTI defining target grid")
     out_tdi = File(mandatory=True, desc="Output probabilistic TDI NIfTI")
-    flip_y_axis = Bool(
-        False,
-        usedefault=True,
-        desc="Flip y axis from DSI Studio voxel convention to nibabel voxel convention before TDI rasterization",
-    )
+    flip_y_axis = Bool(False, usedefault=True, desc="Flip y axis from DSI Studio voxel convention to nibabel voxel convention before TDI rasterization")
 
 
 class TTGZToTDIOutputSpec(TraitedSpec):
@@ -304,11 +292,7 @@ class TTGZToTDI(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_tdi"] = getattr(
-            self,
-            "_out_tdi",
-            os.path.abspath(self.inputs.out_tdi),
-        )
+        outputs["out_tdi"] = getattr(self, "_out_tdi", os.path.abspath(self.inputs.out_tdi))
         return outputs
 
 import os
@@ -325,43 +309,15 @@ from cvdproc.pipelines.dmri.dsistudio.tt_utils import TinyTrackIO
 
 
 class FlipTTInputSpec(BaseInterfaceInputSpec):
-
-    in_tt = File(
-        exists=True,
-        mandatory=True,
-        desc="Input DSI Studio TinyTrack file",
-    )
-
-    out_tt = File(
-        mandatory=True,
-        desc="Output flipped TinyTrack file",
-    )
-
-    flip_x_axis = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Permanently flip streamline coordinates along x axis",
-    )
-
-    flip_y_axis = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Permanently flip streamline coordinates along y axis",
-    )
-
-    flip_z_axis = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Permanently flip streamline coordinates along z axis",
-    )
+    in_tt = File(exists=True, mandatory=True, desc="Input DSI Studio TinyTrack file")
+    out_tt = File(mandatory=True, desc="Output flipped TinyTrack file")
+    flip_x_axis = traits.Bool(False, usedefault=True, desc="Permanently flip streamline coordinates along x axis")
+    flip_y_axis = traits.Bool(False, usedefault=True, desc="Permanently flip streamline coordinates along y axis")
+    flip_z_axis = traits.Bool(False, usedefault=True, desc="Permanently flip streamline coordinates along z axis")
 
 
 class FlipTTOutputSpec(TraitedSpec):
-
-    out_tt = File(
-        exists=True,
-        desc="Output flipped TinyTrack file",
-    )
+    out_tt = File(exists=True, desc="Output flipped TinyTrack file")
 
 
 class FlipTT(BaseInterface):
@@ -374,30 +330,13 @@ class FlipTT(BaseInterface):
         out_tt = os.path.abspath(self.inputs.out_tt)
         os.makedirs(os.path.dirname(out_tt), exist_ok=True)
 
-        loader = TinyTrackIO(
-            flip_x_axis=bool(self.inputs.flip_x_axis),
-            flip_y_axis=bool(self.inputs.flip_y_axis),
-            flip_z_axis=bool(self.inputs.flip_z_axis),
-        )
+        loader = TinyTrackIO(flip_x_axis=bool(self.inputs.flip_x_axis), flip_y_axis=bool(self.inputs.flip_y_axis), flip_z_axis=bool(self.inputs.flip_z_axis))
 
-        data = loader.load(
-            self.inputs.in_tt,
-            preserve_metadata=True,
-        )
+        data = loader.load(self.inputs.in_tt, preserve_metadata=True)
 
-        saver = TinyTrackIO(
-            flip_x_axis=False,
-            flip_y_axis=False,
-            flip_z_axis=False,
-        )
+        saver = TinyTrackIO(flip_x_axis=False, flip_y_axis=False, flip_z_axis=False)
 
-        saver.save(
-            streamlines=data.streamlines,
-            output_file=out_tt,
-            dimension=data.dimension,
-            voxel_size=data.voxel_size,
-            metadata=data.metadata,
-        )
+        saver.save(streamlines=data.streamlines, output_file=out_tt, dimension=data.dimension, voxel_size=data.voxel_size, metadata=data.metadata)
 
         self._out_tt = out_tt
 
@@ -406,10 +345,6 @@ class FlipTT(BaseInterface):
     def _list_outputs(self):
 
         outputs = self.output_spec().get()
-        outputs["out_tt"] = getattr(
-            self,
-            "_out_tt",
-            os.path.abspath(self.inputs.out_tt),
-        )
+        outputs["out_tt"] = getattr(self, "_out_tt", os.path.abspath(self.inputs.out_tt))
 
         return outputs

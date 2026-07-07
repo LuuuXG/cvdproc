@@ -6,7 +6,7 @@
 
 ## A more detailed description:
 
-[Hipsta](https://deep-mi.org/hipsta/dev/index.html)
+[Hipsta](https://deep-mi.org/hipsta/dev/index.html) [@diers2023hipsta]
 
 ### Installation
 
@@ -29,3 +29,7 @@ source ~/.bashrc
 ```
 
 - Newer versions of scipy may cause issues: `ValueError: all the input arrays must have same number of dimensions, but the array at index 0 has 1 dimension(s) and the array at index 1 has 0 dimension(s)`. A python script to fix this issue is provided in `<cvdproc>/pipelines/smri/hipsta/patch_hipsta_mode.py`.
+
+### References
+
+\bibliography

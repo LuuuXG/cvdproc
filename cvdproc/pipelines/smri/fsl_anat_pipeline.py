@@ -9,7 +9,17 @@ from .fsl.fsl_anat_nipype import FSLANAT
 class FSLANATPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
         """
-        fsl_anat pipeline
+        FSL Anat Pipeline
+
+        Runs FSL's fsl_anat script for automated structural MRI preprocessing:
+        reorientation, cropping, bias correction, linear and non-linear
+        registration to MNI space, and tissue segmentation.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            use_which_t1w: specific string to select T1w image. If None, use the first T1w image found.
         """
         self.subject = subject
         self.session = session
@@ -51,8 +61,7 @@ class FSLANATPipeline:
         fsl_anat_wf = Workflow(name='fsl_anat_wf')
         fsl_anat_wf.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
-        inputnode = Node(IdentityInterface(fields=['input_image', 'output_directory']),
-                         name='inputnode')
+        inputnode = Node(IdentityInterface(fields=['input_image', 'output_directory']), name='inputnode')
         
         inputnode.inputs.input_image = t1w_file
         inputnode.inputs.output_directory = os.path.join(self.output_path, 'fsl')

@@ -237,7 +237,22 @@ class FreesurferLongitudinalPipeline(FreesurferStatsExtractorMixin):
         extract_from: str = "",
         **kwargs,
     ):
-        self.subject = subject
+        """
+        Freesurfer Longitudinal Pipeline
+
+        Runs FreeSurfer's longitudinal processing stream across multiple
+        sessions for a single subject.
+
+        Args:
+            subject: BIDSSubject object
+            output_path: output directory for the pipeline
+            subregion_ha: whether to segment hippocampus and amygdala subregions. Defaults to False.
+            subregion_thalamus: whether to segment thalamus subregions. Defaults to False.
+            subregion_brainstem: whether to segment brainstem subregions. Defaults to False.
+            subregion_hypothalamus: whether to segment hypothalamus subunits. Defaults to False.
+            stats2csv: whether to convert stats to CSV. Defaults to False.
+            extract_from: path to extract results from for population-level summary.
+        """
         self.output_path = os.path.abspath(output_path)
 
         self.subregion_ha = subregion_ha
@@ -515,10 +530,7 @@ class SynthSRPipeline:
 
         synthsr_workflow = Workflow(name="synthsr_workflow")
 
-        inputnode = Node(
-            IdentityInterface(fields=["input_file", "output_path"]),
-            name="inputnode"
-        )
+        inputnode = Node(IdentityInterface(fields=["input_file", "output_path"]), name="inputnode")
         inputnode.inputs.input_file = input_file
 
         synthsr_img_name = os.path.join(

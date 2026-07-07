@@ -27,6 +27,22 @@ class ASLPipeline:
         use_which_t1w: str = None,
         preprocess_method: str = "ExploreASL",
     ):
+        """
+        Arterial Spin Labeling (ASL) Pipeline
+
+        Processes ASL data using ExploreASL for CBF quantification. Supports
+        both single-PLD and multi-PLD data. If a T1w-to-MNI warp is not already
+        available, SynthMorph registration is performed. CBF maps are registered
+        to T1w and MNI space. ATT maps are generated for multi-PLD data.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            use_which_asl: specific string to select ASL image. If None, use the first ASL image found.
+            use_which_t1w: specific string to select T1w image. If None, use the first T1w image found.
+            preprocess_method: preprocessing method. Currently only 'ExploreASL' is supported (default).
+        """
         self.subject = subject
         self.session = session
         self.output_path = output_path
@@ -178,12 +194,7 @@ class ASLPipeline:
         # ===============================
         asl_wf = Workflow(name="asl_workflow")
 
-        inputnode = Node(
-            IdentityInterface(
-                fields=["asl_file", "t1w_file", "m0_file", "output_path"]
-            ),
-            name="inputnode",
-        )
+        inputnode = Node(IdentityInterface(fields=["asl_file", "t1w_file", "m0_file", "output_path"]), name="inputnode")
         inputnode.inputs.asl_file = asl_file if asl_file else None
         inputnode.inputs.t1w_file = t1w_file if t1w_file else None
         inputnode.inputs.m0_file = m0_file if m0_file else None
@@ -193,14 +204,8 @@ class ASLPipeline:
         # Check T1 <-> MNI non-linear warp
         # ===============================
         if t1w_file != "":
-            t1_to_mni_warp_node = Node(
-                IdentityInterface(fields=["warp_image"]),
-                name="t1_to_mni_warp_node",
-            )
-            mni_to_t1_warp_node = Node(
-                IdentityInterface(fields=["warp_image"]),
-                name="mni_to_t1_warp_node",
-            )
+            t1_to_mni_warp_node = Node(IdentityInterface(fields=["warp_image"]), name="t1_to_mni_warp_node")
+            mni_to_t1_warp_node = Node(IdentityInterface(fields=["warp_image"]), name="mni_to_t1_warp_node")
 
             target_warp = os.path.join(
                 self.subject.bids_dir,
@@ -219,9 +224,7 @@ class ASLPipeline:
                 f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz",
             )
 
-            if not os.path.exists(target_warp) or not os.path.exists(
-                target_inverse_warp
-            ):
+            if not os.path.exists(target_warp) or not os.path.exists(target_inverse_warp):
                 print(
                     f"[ASL Pipeline] No existing T1w to MNI warp file found: {target_warp}. "
                     "Will run Synthmorph registration to get the warp (1mm resolution)."
@@ -231,17 +234,9 @@ class ASLPipeline:
                     "please run a separate T1 registration pipeline first."
                 )
 
-                t1w_to_mni_registration = Node(
-                    SynthmorphNonlinear(),
-                    name="t1w_to_mni_registration",
-                )
+                t1w_to_mni_registration = Node(SynthmorphNonlinear(), name="t1w_to_mni_registration")
                 asl_wf.connect(inputnode, "t1w_file", t1w_to_mni_registration, "t1")
-                t1w_to_mni_registration.inputs.mni_template = get_package_path(
-                    "data",
-                    "standard",
-                    "MNI152",
-                    "MNI152_T1_1mm_brain.nii.gz",
-                )
+                t1w_to_mni_registration.inputs.mni_template = get_package_path("data", "standard", "MNI152", "MNI152_T1_1mm_brain.nii.gz")
                 t1w_to_mni_registration.inputs.t1_mni_out = os.path.join(
                     os.path.dirname(target_warp),
                     rename_bids_file(
@@ -255,18 +250,8 @@ class ASLPipeline:
                 t1w_to_mni_registration.inputs.mni_2_t1_warp = target_inverse_warp
                 t1w_to_mni_registration.inputs.register_between_stripped = True
 
-                asl_wf.connect(
-                    t1w_to_mni_registration,
-                    "t1_2_mni_warp",
-                    t1_to_mni_warp_node,
-                    "warp_image",
-                )
-                asl_wf.connect(
-                    t1w_to_mni_registration,
-                    "mni_2_t1_warp",
-                    mni_to_t1_warp_node,
-                    "warp_image",
-                )
+                asl_wf.connect(t1w_to_mni_registration, "t1_2_mni_warp", t1_to_mni_warp_node, "warp_image")
+                asl_wf.connect(t1w_to_mni_registration, "mni_2_t1_warp", mni_to_t1_warp_node, "warp_image")
             else:
                 print(
                     f"[ASL Pipeline] Found existing T1w to MNI warp file: {target_warp}. "
@@ -296,17 +281,8 @@ class ASLPipeline:
             exploreasl_node.inputs.session_id = self.session.session_id
             exploreasl_node.inputs.t1w_filter_filename = t1w_filename_without_ext
             exploreasl_node.inputs.asl_filter_filename = asl_filename_without_ext
-            exploreasl_node.inputs.script_path = get_package_path(
-                "pipelines",
-                "matlab",
-                "exploreasl",
-                "exploreasl_process.m",
-            )
-            exploreasl_node.inputs.exploreasl_dir = get_package_path(
-                "data",
-                "matlab_toolbox",
-                "ExploreASL-develop",
-            )
+            exploreasl_node.inputs.script_path = get_package_path("pipelines", "matlab", "exploreasl", "exploreasl_process.m")
+            exploreasl_node.inputs.exploreasl_dir = get_package_path("data", "matlab_toolbox", "ExploreASL-develop")
             asl_wf.connect(inputnode, "output_path", exploreasl_node, "output_dir")
 
             # --------------------------------
@@ -314,12 +290,7 @@ class ASLPipeline:
             # --------------------------------
             cbf_to_t1w_node = Node(ASLtoT1Register(), name="cbf_to_t1w")
             asl_wf.connect(exploreasl_node, "cbf", cbf_to_t1w_node, "asl_space_img")
-            asl_wf.connect(
-                exploreasl_node,
-                "rt1",
-                cbf_to_t1w_node,
-                "asl_space_t1w_img",
-            )
+            asl_wf.connect(exploreasl_node, "rt1", cbf_to_t1w_node, "asl_space_t1w_img")
             asl_wf.connect(inputnode, "t1w_file", cbf_to_t1w_node, "target_t1w_img")
             cbf_to_t1w_node.inputs.asl_in_t1w_img = os.path.join(
                 self.output_path,
@@ -328,12 +299,7 @@ class ASLPipeline:
 
             cbf_to_mni_node = Node(MRIConvertApplyWarp(), name="cbf_to_mni")
             asl_wf.connect(cbf_to_t1w_node, "out_file", cbf_to_mni_node, "input_image")
-            asl_wf.connect(
-                t1_to_mni_warp_node,
-                "warp_image",
-                cbf_to_mni_node,
-                "warp_image",
-            )
+            asl_wf.connect(t1_to_mni_warp_node, "warp_image", cbf_to_mni_node, "warp_image")
             cbf_to_mni_node.inputs.output_image = os.path.join(
                 self.output_path,
                 f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_cbf.nii.gz",
@@ -344,42 +310,17 @@ class ASLPipeline:
             # --------------------------------
             if has_att:
                 att_to_t1w_node = Node(ASLtoT1Register(), name="att_to_t1w")
-                asl_wf.connect(
-                    exploreasl_node,
-                    "att",
-                    att_to_t1w_node,
-                    "asl_space_img",
-                )
-                asl_wf.connect(
-                    exploreasl_node,
-                    "rt1",
-                    att_to_t1w_node,
-                    "asl_space_t1w_img",
-                )
-                asl_wf.connect(
-                    inputnode,
-                    "t1w_file",
-                    att_to_t1w_node,
-                    "target_t1w_img",
-                )
+                asl_wf.connect(exploreasl_node, "att", att_to_t1w_node, "asl_space_img")
+                asl_wf.connect(exploreasl_node, "rt1", att_to_t1w_node, "asl_space_t1w_img")
+                asl_wf.connect(inputnode, "t1w_file", att_to_t1w_node, "target_t1w_img")
                 att_to_t1w_node.inputs.asl_in_t1w_img = os.path.join(
                     self.output_path,
                     f"sub-{self.subject.subject_id}_{self.session.session_id}_space-T1w_att.nii.gz",
                 )
 
                 att_to_mni_node = Node(MRIConvertApplyWarp(), name="att_to_mni")
-                asl_wf.connect(
-                    att_to_t1w_node,
-                    "out_file",
-                    att_to_mni_node,
-                    "input_image",
-                )
-                asl_wf.connect(
-                    t1_to_mni_warp_node,
-                    "warp_image",
-                    att_to_mni_node,
-                    "warp_image",
-                )
+                asl_wf.connect(att_to_t1w_node, "out_file", att_to_mni_node, "input_image")
+                asl_wf.connect(t1_to_mni_warp_node, "warp_image", att_to_mni_node, "warp_image")
                 att_to_mni_node.inputs.output_image = os.path.join(
                     self.output_path,
                     f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_att.nii.gz",

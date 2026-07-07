@@ -13,28 +13,16 @@ from cvdproc.utils.python.basic_image_processor import extract_roi_means
 class CalcMeanInROIMaskInputSpec(BaseInterfaceInputSpec):
     image_file = File(exists=True, desc="Input image file", mandatory=True)
     roi_mask_file = File(exists=True, desc="ROI mask file with multiple regions", mandatory=True)
-
     ignore_background = Bool(True, usedefault=True)
-
     roi_label = List(Int, desc="ROI labels to compute (e.g. [1, 2])")
 
     # Optional CSV output
-    output_csv = Either(
-        File(),
-        Undefined,
-        desc="Optional output CSV file. If Undefined, CSV is not written.",
-        usedefault=True,
-    )
+    output_csv = Either(File(), Undefined, desc="Optional output CSV file. If Undefined, CSV is not written.", usedefault=True)
 
 class CalcMeanInROIMaskOutputSpec(TraitedSpec):
     roi_label = List(Int, desc="ROI labels actually used")
     roi_mean_value = List(Float, desc="Mean values corresponding to roi_label")
-
-    output_csv = Either(
-        File(exists=True),
-        Undefined,
-        desc="Output CSV file (only if written)",
-    )
+    output_csv = Either(File(exists=True), Undefined, desc="Output CSV file (only if written)")
 
 class CalcMeanInROIMask(BaseInterface):
     input_spec = CalcMeanInROIMaskInputSpec
@@ -118,15 +106,9 @@ def weighted_mean_from_nifti(
     weight = weight_img.get_fdata(dtype=np.float64)
 
     if scalar.shape[:3] != weight.shape[:3]:
-        raise RuntimeError(
-            f"Shape mismatch: scalar {scalar.shape} vs weight {weight.shape}"
-        )
+        raise RuntimeError(f"Shape mismatch: scalar {scalar.shape} vs weight {weight.shape}")
 
-    mask = (
-        (weight > 0) &
-        np.isfinite(weight) &
-        np.isfinite(scalar)
-    )
+    mask = (weight > 0) & np.isfinite(weight) & np.isfinite(scalar)
 
     if ignore_background:
         mask &= (scalar != 0)
@@ -153,25 +135,10 @@ def weighted_mean_from_nifti(
     return out_txt, weighted_mean, int(np.sum(mask)), w_sum
 
 class TDWeightedMeanInputSpec(BaseInterfaceInputSpec):
-    scalar_nii = File(
-        exists=True,
-        mandatory=True,
-        desc="Scalar NIfTI image (e.g., ICVF)",
-    )
-    weight_nii = File(
-        exists=True,
-        mandatory=True,
-        desc="Weight NIfTI image (e.g., TDI, values in [0,1])",
-    )
-    out_txt = File(
-        mandatory=True,
-        desc="Output text file containing weighted mean value",
-    )
-    ignore_background = Bool(
-        False,
-        usedefault=True,
-        desc="If True, ignore voxels where scalar value equals zero",
-    )
+    scalar_nii = File(exists=True, mandatory=True, desc="Scalar NIfTI image (e.g., ICVF)")
+    weight_nii = File(exists=True, mandatory=True, desc="Weight NIfTI image (e.g., TDI, values in [0,1])")
+    out_txt = File(mandatory=True, desc="Output text file containing weighted mean value")
+    ignore_background = Bool(False, usedefault=True, desc="If True, ignore voxels where scalar value equals zero")
 
 class TDWeightedMeanOutputSpec(TraitedSpec):
     out_txt = File(exists=True, desc="Output text file with weighted mean")
@@ -195,9 +162,7 @@ class TDWeightedMean(BaseInterface):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["out_txt"] = getattr(
-            self, "_out_txt", os.path.abspath(self.inputs.out_txt)
-        )
+        outputs["out_txt"] = getattr(self, "_out_txt", os.path.abspath(self.inputs.out_txt))
         return outputs
 
 # ------------------------
@@ -282,7 +247,5 @@ class RemoveMaskRegion(BaseInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs["output_image"] = getattr(
-            self, "_output_image", os.path.abspath(self.inputs.output_image)
-        )
+        outputs["output_image"] = getattr(self, "_output_image", os.path.abspath(self.inputs.output_image))
         return outputs

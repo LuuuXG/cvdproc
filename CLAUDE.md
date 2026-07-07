@@ -2,6 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Author's Requirements
+I am the author of this project. When Claude modifies code, documentation, configuration files, scripts, or any other project files, it must follow the requirements below:
+
+All content written into project files must be in English. No Chinese text is allowed in any file. If any Chinese text already exists in a file, Claude must translate it into English when editing that file.
+
+Follow my preferred compact coding style. For function calls, class constructors, trait definitions, dictionary assignments, and path construction, keep short or moderately long expressions on a single line whenever they remain readable.
+
+Do not format code like this:
+
+subject_id = Str(
+    mandatory=True,
+    argstr="%s",
+    position=0,
+    desc="Subject ID used in ARTS output, without the 'sub-' prefix if possible.",
+)
+
+Instead, write it like this:
+
+subject_id = Str(mandatory=True, argstr="%s", position=0, desc="Subject ID used in ARTS output, without the 'sub-' prefix if possible.")
+
+Do not format path joins like this:
+
+outputs["all_fa"] = os.path.join(
+    output_dir,
+    "FA_processing",
+    "tbss",
+    "stats",
+    "all_FA.nii.gz",
+)
+
+Instead, write them like this:
+
+outputs["all_fa"] = os.path.join(output_dir, "FA_processing", "tbss", "stats", "all_FA.nii.gz")
+Avoid Black-style aggressive multi-line formatting for short or moderately long argument lists. Only split a statement across multiple lines when the line would become genuinely too long or hard to read.
+Do not reformat unrelated existing code unless it is necessary for the requested change.
+Preserve the surrounding coding style of the file being edited.
+Use concise English comments only when they are useful. Do not add unnecessary comments.
+
 ## About
 
 CVDProc is a research neuroimaging processing package for cerebrovascular disease studies (stroke, CSVD, atrial fibrillation, community cohorts). It wraps external tools (FSL, FreeSurfer, ANTs, MATLAB, MRtrix3, Docker) into Nipype workflows, operating on BIDS-structured datasets.

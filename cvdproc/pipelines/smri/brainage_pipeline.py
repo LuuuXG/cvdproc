@@ -103,7 +103,7 @@ class BrainAgePipeline:
                         results_df = pd.concat([results_df, new_data], ignore_index=True)
         
         # save excel outputs
-        brain_age_results_path = os.path.join(self.output_path, "brainage_results.xlsx")
+        brain_age_results_path = os.path.join(self.output_path, "brainage_summary.xlsx")
         
         if not results_df.empty:
             results_df.to_excel(brain_age_results_path, index=False)

@@ -123,40 +123,17 @@ class RemoveWMH(BaseInterface):
 # ============================================
 
 class ConnectomePrepareInputSpec(CommandLineInputSpec):
-    preproc_dwi_mif = Str(
-        mandatory=True,
-        desc="Preprocessed DWI image in MRtrix .mif format (must contain gradient table)",
-        argstr="%s",
-        position=0,
-    )
-    dwi_mask_mif = Str(
-        mandatory=True,
-        desc="DWI brain mask in MRtrix .mif format",
-        argstr="%s",
-        position=1,
-    )
-    output_dir = Str(
-        mandatory=True,
-        desc="Output directory",
-        argstr="%s",
-        position=2,
-    )
-    aseg = Str(
-        mandatory=True,
-        desc="Asegmentation image in DWI space (NIfTI)",
-        argstr="%s",
-        position=3,
-    )
-
+    preproc_dwi_mif = Str(mandatory=True, desc="Preprocessed DWI image in MRtrix .mif format (must contain gradient table)", argstr="%s", position=0)
+    dwi_mask_mif = Str(mandatory=True, desc="DWI brain mask in MRtrix .mif format", argstr="%s", position=1)
+    output_dir = Str(mandatory=True, desc="Output directory", argstr="%s", position=2)
+    aseg = Str(mandatory=True, desc="Asegmentation image in DWI space (NIfTI)", argstr="%s", position=3)
     # Output filenames (relative names, will be joined with output_dir in bash)
     wm_response = Str(mandatory=True, desc="WM response function filename", argstr="%s", position=4)
     wm_fod = Str(mandatory=True, desc="WM FOD filename", argstr="%s", position=5)
     wm_fod_norm = Str(mandatory=True, desc="Normalized WM FOD filename", argstr="%s", position=6)
-
     gm_response = Str(mandatory=True, desc="GM response function filename", argstr="%s", position=7)
     gm_fod = Str(mandatory=True, desc="GM FOD filename", argstr="%s", position=8)
     gm_fod_norm = Str(mandatory=True, desc="Normalized GM FOD filename", argstr="%s", position=9)
-
     csf_response = Str(mandatory=True, desc="CSF response function filename", argstr="%s", position=10)
     csf_fod = Str(mandatory=True, desc="CSF FOD filename", argstr="%s", position=11)
     csf_fod_norm = Str(mandatory=True, desc="Normalized CSF FOD filename", argstr="%s", position=12)

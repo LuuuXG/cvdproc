@@ -18,110 +18,30 @@ iit_fa_path = get_package_path("data", "arts", "IITmean_FA.nii.gz")
 
 
 class ARTSFastInputSpec(CommandLineInputSpec):
-    subject_id = Str(
-        mandatory=True,
-        argstr="%s",
-        position=0,
-        desc="Subject ID used in ARTS output, without the 'sub-' prefix if possible.",
-    )
-
-    age = Int(
-        mandatory=True,
-        argstr="%d",
-        position=1,
-        desc="Age used by the ARTS classifier.",
-    )
-
-    sex = Str(
-        mandatory=True,
-        argstr="%s",
-        position=2,
-        desc="Sex coding used by the ARTS classifier. Keep consistent with the original ARTS convention.",
-    )
-
-    t1w_brain = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=3,
-        desc="Skull-stripped T1w image.",
-    )
-
-    flair_brain = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=4,
-        desc="Skull-stripped FLAIR image. It should be aligned with T1w if an identity T1-to-FLAIR matrix is used.",
-    )
-
-    fa = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=5,
-        desc="Native FA image.",
-    )
-
-    synthseg = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=6,
-        desc="SynthSeg segmentation in T1w space. Labels 2 and 41 are used to extract cerebral white matter.",
-    )
-
-    wmh_mask = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=7,
-        desc="Binary WMH mask in T1w space or in a space aligned with the T1w-derived SynthSeg mask.",
-    )
-
-    output_root = Directory(
-        mandatory=True,
-        argstr="%s",
-        position=8,
-        desc="Root output directory. The subject-level output will be saved under output_root/subject_id.",
-    )
-
-    arts_sif = File(
-        exists=True,
-        mandatory=False,
-        usedefault=True,
-        default=sif_path,
-        argstr="%s",
-        position=9,
-        desc="Path to ARTS.sif.",
-    )
-
-    iit_fa = File(
-        exists=True,
-        mandatory=False,
-        usedefault=True,
-        default=iit_fa_path,
-        argstr="%s",
-        position=10,
-        desc="Path to IITmean_FA.nii.gz used as the SynthMorph fixed image.",
-    )
+    subject_id = Str(mandatory=True, argstr="%s", position=0, desc="Subject ID used in ARTS output, without the 'sub-' prefix if possible.")
+    age = Int(mandatory=True, argstr="%d", position=1, desc="Age used by the ARTS classifier.")
+    sex = Str(mandatory=True, argstr="%s", position=2, desc="Sex coding used by the ARTS classifier. Keep consistent with the original ARTS convention.")
+    t1w_brain = File(exists=True, mandatory=True, argstr="%s", position=3, desc="Skull-stripped T1w image.")
+    flair_brain = File(exists=True, mandatory=True, argstr="%s", position=4, desc="Skull-stripped FLAIR image. It should be aligned with T1w if an identity T1-to-FLAIR matrix is used.")
+    fa = File(exists=True, mandatory=True, argstr="%s", position=5, desc="Native FA image.")
+    synthseg = File(exists=True, mandatory=True, argstr="%s", position=6, desc="SynthSeg segmentation in T1w space. Labels 2 and 41 are used to extract cerebral white matter.")
+    wmh_mask = File(exists=True, mandatory=True, argstr="%s", position=7, desc="Binary WMH mask in T1w space or in a space aligned with the T1w-derived SynthSeg mask.")
+    output_root = Directory(mandatory=True, argstr="%s", position=8, desc="Root output directory. The subject-level output will be saved under output_root/subject_id.")
+    arts_sif = File(exists=True, mandatory=False, usedefault=True, default=sif_path, argstr="%s", position=9, desc="Path to ARTS.sif.")
+    iit_fa = File(exists=True, mandatory=False, usedefault=True, default=iit_fa_path, argstr="%s", position=10, desc="Path to IITmean_FA.nii.gz used as the SynthMorph fixed image.")
 
 
 class ARTSFastOutputSpec(TraitedSpec):
     output_dir = Directory(desc="Subject-level ARTS fast output directory.")
     qc_dir = Directory(desc="QC directory.")
-
     score_csv = File(desc="Final ARTS score CSV.")
     score_batch_csv = File(desc="Copied batch-style score CSV.")
     classifier_input = File(desc="Classifier input text file.")
-
     wmh_features = File(desc="WMH feature file.")
     fa_features = File(desc="FA ROI feature file.")
-
     wm_mask = File(desc="Cerebral white matter mask extracted from SynthSeg labels 2 and 41.")
     wmh_mask_bin = File(desc="Binarized WMH mask copied into ARTS-style output.")
     wmh_no_cerebellum = File(desc="WMH mask after applying the cerebral white matter mask.")
-
     all_fa = File(desc="FA image registered to IITmean_FA space by SynthMorph.")
     all_fa_skeletonised = File(desc="TBSS-skeletonized FA image.")
     iit_fa_qc = File(desc="IITmean_FA copy for QC.")
@@ -156,10 +76,7 @@ class ARTSFast(CommandLine):
         outputs["qc_dir"] = qc_dir
 
         outputs["score_csv"] = os.path.join(output_dir, "analysis", "score.csv")
-        outputs["score_batch_csv"] = os.path.join(
-            output_root,
-            f"score_batch_{subject_id}_fast_synthmorph.csv",
-        )
+        outputs["score_batch_csv"] = os.path.join(output_root, f"score_batch_{subject_id}_fast_synthmorph.csv")
         outputs["classifier_input"] = os.path.join(output_dir, "analysis", "classifier_input.txt")
 
         outputs["wmh_features"] = os.path.join(output_dir, "WMH_processing", "features.txt")
@@ -167,26 +84,10 @@ class ARTSFast(CommandLine):
 
         outputs["wm_mask"] = os.path.join(output_dir, "GMWM", "WM_mask.nii.gz")
         outputs["wmh_mask_bin"] = os.path.join(output_dir, "WMH", "WMH_mask.nii.gz")
-        outputs["wmh_no_cerebellum"] = os.path.join(
-            output_dir,
-            "WMH_processing",
-            "WMH_no_cerebellum.nii.gz",
-        )
+        outputs["wmh_no_cerebellum"] = os.path.join(output_dir, "WMH_processing", "WMH_no_cerebellum.nii.gz")
 
-        outputs["all_fa"] = os.path.join(
-            output_dir,
-            "FA_processing",
-            "tbss",
-            "stats",
-            "all_FA.nii.gz",
-        )
-        outputs["all_fa_skeletonised"] = os.path.join(
-            output_dir,
-            "FA_processing",
-            "tbss",
-            "stats",
-            "all_FA_skeletonised.nii.gz",
-        )
+        outputs["all_fa"] = os.path.join(output_dir, "FA_processing", "tbss", "stats", "all_FA.nii.gz")
+        outputs["all_fa_skeletonised"] = os.path.join(output_dir, "FA_processing", "tbss", "stats", "all_FA_skeletonised.nii.gz")
 
         outputs["iit_fa_qc"] = os.path.join(qc_dir, "IITmean_FA.nii.gz")
         outputs["all_fa_qc"] = os.path.join(qc_dir, "all_FA_synthmorph_to_IIT.nii.gz")

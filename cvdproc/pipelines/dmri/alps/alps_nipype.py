@@ -182,84 +182,17 @@ class DTIALPSsimple(BaseInterface):
 # t1_img='' # Input T1w image (NIfTI format): -t1_img <path>
 # t1_to_mni_warp='' # Input T1 to MNI warp file (ANTs format): -t1_to_mni_warp <path>
 class ALPSInputSpec(CommandLineInputSpec):
-    fa_img = File(
-        exists=True,
-        argstr='-fa_img %s',
-        position=0,
-        desc='Input FA image in NIfTI format',
-        mandatory=True
-    )
-    output_dir = Directory(
-        argstr='-output_dir %s',
-        position=1,
-        desc='Output directory',
-        mandatory=True
-    )
-    alps_dir = Directory(
-        exists=True,
-        argstr='-alps_dir %s',
-        position=2,
-        desc='ALPS script directory',
-        mandatory=True
-    )
-    register_method = traits.Enum(
-        'flirt',
-        'synthmorph',
-        argstr='-register_method %s',
-        position=3,
-        usedefault=True,
-        desc='Registration method'
-    )
-
-    xx_img = File(
-        exists=True,
-        argstr='-xx_img %s',
-        position=4,
-        desc='Input XX tensor component image',
-        mandatory=False
-    )
-    yy_img = File(
-        exists=True,
-        argstr='-yy_img %s',
-        position=5,
-        desc='Input YY tensor component image',
-        mandatory=False
-    )
-    zz_img = File(
-        exists=True,
-        argstr='-zz_img %s',
-        position=6,
-        desc='Input ZZ tensor component image',
-        mandatory=False
-    )
-    tensor_img = File(
-        exists=True,
-        argstr='-tensor_img %s',
-        position=7,
-        desc='Input 4D tensor image',
-        mandatory=False
-    )
-    t1_img = File(
-        exists=True,
-        argstr='-t1_img %s',
-        position=8,
-        desc='Input T1w image',
-        mandatory=False
-    )
-    fa_to_t1w_affine = File(
-        exists=True,
-        argstr='-fa_to_t1w_affine %s',
-        position=9,
-        desc='Input FA-to-T1w affine matrix',
-        mandatory=False
-    )
-    t1_to_mni_warp = File(
-        exists=True,
-        argstr='-t1_to_mni_warp %s',
-        position=10,
-        desc='Input T1w-to-MNI warp file',
-        mandatory=False
-    )
+    fa_img = File(exists=True, argstr='-fa_img %s', position=0, desc='Input FA image in NIfTI format', mandatory=True)
+    output_dir = Directory(argstr='-output_dir %s', position=1, desc='Output directory', mandatory=True)
+    alps_dir = Directory(exists=True, argstr='-alps_dir %s', position=2, desc='ALPS script directory', mandatory=True)
+    register_method = traits.Enum('flirt', 'synthmorph', argstr='-register_method %s', position=3, usedefault=True, desc='Registration method')
+    xx_img = File(exists=True, argstr='-xx_img %s', position=4, desc='Input XX tensor component image', mandatory=False)
+    yy_img = File(exists=True, argstr='-yy_img %s', position=5, desc='Input YY tensor component image', mandatory=False)
+    zz_img = File(exists=True, argstr='-zz_img %s', position=6, desc='Input ZZ tensor component image', mandatory=False)
+    tensor_img = File(exists=True, argstr='-tensor_img %s', position=7, desc='Input 4D tensor image', mandatory=False)
+    t1_img = File(exists=True, argstr='-t1_img %s', position=8, desc='Input T1w image', mandatory=False)
+    fa_to_t1w_affine = File(exists=True, argstr='-fa_to_t1w_affine %s', position=9, desc='Input FA-to-T1w affine matrix', mandatory=False)
+    t1_to_mni_warp = File(exists=True, argstr='-t1_to_mni_warp %s', position=10, desc='Input T1w-to-MNI warp file', mandatory=False)
 
 
 class ALPSOutputSpec(TraitedSpec):

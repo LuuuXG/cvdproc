@@ -16,20 +16,12 @@ class ANTsResampleDWIInputSpec(CommandLineInputSpec):
     dimension = traits.Int(4, usedefault=True, position=0, argstr="%d")
     in_file = File(exists=True, mandatory=True, position=1, argstr="%s")
     out_file = File(mandatory=True, position=2, argstr="%s")
-
     target_spacing = traits.Str("AUTO", usedefault=True, position=3, argstr="%s")
-
     size_or_spacing = traits.Int(0, usedefault=True, position=4, argstr="%d")
     interpolation = traits.Int(4, usedefault=True, position=5, argstr="%d")
     bspline_order = traits.Int(3, usedefault=True, position=6, argstr="%d")
     pixeltype = traits.Int(6, usedefault=True, position=7, argstr="%d")
-
-    voxel_size = traits.Either(
-        traits.Float(),
-        traits.Tuple(traits.Float(), traits.Float(), traits.Float()),
-        mandatory=True,
-    )
-
+    voxel_size = traits.Either(traits.Float(), traits.Tuple(traits.Float(), traits.Float(), traits.Float()), mandatory=True)
     atol = traits.Float(1e-4, usedefault=True)
     force = traits.Bool(False, usedefault=True)
 
@@ -93,10 +85,7 @@ class ANTsResampleDWI(CommandLine):
         out_file = os.path.abspath(self.inputs.out_file)
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
 
-        if (
-            np.allclose(current_zooms, target_zooms, atol=self.inputs.atol)
-            and not self.inputs.force
-        ):
+        if np.allclose(current_zooms, target_zooms, atol=self.inputs.atol) and not self.inputs.force:
             if os.path.abspath(self.inputs.in_file) != out_file:
                 shutil.copyfile(self.inputs.in_file, out_file)
             return runtime

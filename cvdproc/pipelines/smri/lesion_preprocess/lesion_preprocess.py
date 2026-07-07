@@ -63,70 +63,16 @@ class LeftRightLesionFill(CommandLine):
         return outputs
 
 class SymmetricMniLesionFillInputSpec(CommandLineInputSpec):
-    t1w_file = File(
-        exists=True,
-        desc="Input T1-weighted image",
-        mandatory=True,
-        argstr="--t1 %s",
-    )
-    lesion_mask = File(
-        exists=True,
-        desc="Input lesion mask image in native T1 space",
-        mandatory=True,
-        argstr="--lesion-mask %s",
-    )
-    mni_template = File(
-        exists=True,
-        desc="Symmetric MNI T1 template",
-        mandatory=True,
-        argstr="--mni-template %s",
-    )
-
-    warp_fwd = File(
-        exists=False,
-        desc="Output forward warp (T1 -> MNI)",
-        mandatory=True,
-        argstr="--warp-fwd %s",
-    )
-    warp_inv = File(
-        exists=False,
-        desc="Output inverse warp (MNI -> T1)",
-        mandatory=True,
-        argstr="--warp-inv %s",
-    )
-
-    contra_mask = File(
-        exists=False,
-        desc="Output contralateral lesion mask in native T1 space",
-        mandatory=True,
-        argstr="--contra-mask %s",
-    )
-
-    contra_only = Bool(
-        False,
-        usedefault=True,
-        desc="Only generate contralateral mask and skip filled T1 and JSON",
-        argstr="--contra-only",
-    )
-
-    t1_mni = File(
-        exists=False,
-        desc="Output T1 registered to MNI",
-        mandatory=False,
-        argstr="--t1-mni %s",
-    )
-    filled_t1 = File(
-        exists=False,
-        desc="Output lesion-filled T1 in native space",
-        mandatory=False,
-        argstr="--filled-t1 %s",
-    )
-    bids_dir = Directory(
-        exists=True,
-        desc="BIDS dataset root directory (for JSON Sources)",
-        mandatory=False,
-        argstr="--bids-dir %s",
-    )
+    t1w_file = File(exists=True, desc="Input T1-weighted image", mandatory=True, argstr="--t1 %s")
+    lesion_mask = File(exists=True, desc="Input lesion mask image in native T1 space", mandatory=True, argstr="--lesion-mask %s")
+    mni_template = File(exists=True, desc="Symmetric MNI T1 template", mandatory=True, argstr="--mni-template %s")
+    warp_fwd = File(exists=False, desc="Output forward warp (T1 -> MNI)", mandatory=True, argstr="--warp-fwd %s")
+    warp_inv = File(exists=False, desc="Output inverse warp (MNI -> T1)", mandatory=True, argstr="--warp-inv %s")
+    contra_mask = File(exists=False, desc="Output contralateral lesion mask in native T1 space", mandatory=True, argstr="--contra-mask %s")
+    contra_only = Bool(False, usedefault=True, desc="Only generate contralateral mask and skip filled T1 and JSON", argstr="--contra-only")
+    t1_mni = File(exists=False, desc="Output T1 registered to MNI", mandatory=False, argstr="--t1-mni %s")
+    filled_t1 = File(exists=False, desc="Output lesion-filled T1 in native space", mandatory=False, argstr="--filled-t1 %s")
+    bids_dir = Directory(exists=True, desc="BIDS dataset root directory (for JSON Sources)", mandatory=False, argstr="--bids-dir %s")
 
 
 class SymmetricMniLesionFillOutputSpec(TraitedSpec):

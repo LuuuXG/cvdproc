@@ -404,23 +404,12 @@ class NemoChacoconnSC(BaseInterface):
         return outputs
 
 class NemoChacoconnInputSpec(BaseInterfaceInputSpec):
-    nemo_output_dir = Directory(
-        exists=True,
-        mandatory=True,
-        desc="Directory containing Nemo output files",
-    )
-    nemo_postprocessed_dir = Directory(
-        exists=True,
-        mandatory=True,
-        desc="Directory containing Nemo postprocessed files",
-    )
+    nemo_output_dir = Directory(exists=True, mandatory=True, desc="Directory containing Nemo output files")
+    nemo_postprocessed_dir = Directory(exists=True, mandatory=True, desc="Directory containing Nemo postprocessed files")
 
 
 class NemoChacoconnOutputSpec(TraitedSpec):
-    output_csvs = traits.List(
-        File(exists=True),
-        desc="List of output chacoconn CSV files",
-    )
+    output_csvs = traits.List(File(exists=True), desc="List of output chacoconn CSV files")
 
 
 class NemoChacoconn(BaseInterface):

@@ -12,7 +12,6 @@ class MirrorMaskInputSpec(BaseInterfaceInputSpec):
     fsl_anat_output_dir = Directory(desc='Output directory of fsl_anat')
     t1w_to_mni_xfm = File(desc='Transformation matrix from T1w to MNI space')
     mni_to_t1w_xfm = File(desc='Transformation matrix from MNI to T1w space')
-
     mask_in_mni_filename = Str(desc='Filename for the mask in MNI space')
     flipped_mask_mni_filename = Str(desc='Filename for the flipped mask in MNI space')
     flipped_mask_t1w_filename = Str(desc='Filename for the flipped mask in T1w space')

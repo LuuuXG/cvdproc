@@ -22,7 +22,27 @@ from .shiva_segmentation.shiva_nipype import PrepareShivaInput, ShivaSegmentatio
 
 class CMBSegmentationPipeline:
     def __init__(self, subject, session, output_path, **kwargs):
-        
+        """
+        Cerebral Microbleed (CMB) Segmentation Pipeline
+
+        Uses the SHiVAi toolbox for CMB detection from SWI images.
+        SWI is registered to T1w space before CMB segmentation.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            use_which_swi: specific string to select SWI image, e.g. 'acq-highres'. If None, use the first SWI image found.
+            use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, use the first T1w image found.
+            shiva_config: path to SHIVA configuration file. Defaults to '<bids_dir>/code/shiva_config.yml'.
+            method: currently only 'SHIVA' is supported.
+            modality: currently only 'swi' is supported.
+            threshold: detection threshold for CMB probability map (default: 0.5).
+            predictor_files: list of predictor model files for SHiVAi.
+            crop_or_pad_percentage: padding percentage for SHiVAi input (default: (0.5, 0.5, 0.5)).
+            save_intermediate_image: whether to save intermediate images (default: False).
+        """
+
         self.subject = subject
         self.session = session
         self.output_path = os.path.abspath(output_path)
@@ -93,32 +113,12 @@ class CMBSegmentationPipeline:
             if self.modality == 'swi':
                 print("Registering SWI to T1w image")
 
-                entities_t1w_mask = {
-                    'space': 'T1w',
-                }
-
-                entities_flair_mask = {
-                    'space': 'FLAIR',
-                }
-
-                entities_stripped = {
-                    'desc': 'stripped'
-                }
-
-                entities_swi2t1wxfm = {
-                    'from': 'swi',
-                    'to': 'T1w'
-                }
-
-                entities_t1w2swixfm = {
-                    'from': 'T1w',
-                    'to': 'swi'
-                }
-
-                entities_swiint1w = {
-                    'space': 'T1w',
-                    'desc': 'stripped'
-                }
+                entities_t1w_mask = {'space': 'T1w'}
+                entities_flair_mask = {'space': 'FLAIR'}
+                entities_stripped = {'desc': 'stripped'}
+                entities_swi2t1wxfm = {'from': 'swi', 'to': 'T1w'}
+                entities_t1w2swixfm = {'from': 'T1w', 'to': 'swi'}
+                entities_swiint1w = {'space': 'T1w', 'desc': 'stripped'}
 
                 t1w_mask_file = os.path.join(self.output_path_xfm,
                                              rename_bids_file(t1w_file, entities_t1w_mask, "brainmask", '.nii.gz'))

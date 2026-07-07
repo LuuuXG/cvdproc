@@ -1,12 +1,20 @@
-# Freesurfer pipeline
+# Freesurfer Pipeline
 
-::: cvdproc.pipelines.smri.freesurfer_pipeline
+This page covers the main Freesurfer pipelines. See also:
+
+- **SynthSR** ([synthsr](synthsr.md)): Generate synthetic 1 mm isotropic T1w images from clinical-quality scans.
+
+## Freesurfer recon-all
+
+::: cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline
+    options:
+      show_signature: false
 
 ----
 
 ## A more detailed description:
 
-### Freesurfer: Principle Methodological Considerations
+### Freesurfer: recon-all (standard)
 
 #### Freesurfer Version
 
@@ -58,3 +66,22 @@ Although Freesurfer provides `aparcstats2table` and `asegstats2table` commands t
 ### Freesurfer: recon-all-clinical.sh
 
 Some extra preprocessing steps were implemented to achieve output similar to `recon-all`, such as cortical morphology metrics. For detailed information on these steps, please refer to the [source code](https://github.com/LuuuXG/cvdproc/blob/main/cvdproc/pipelines/smri/freesurfer/recon_all_clinical.py).
+
+This pipeline is available as `freesurfer_clinical`. It runs `recon-all-clinical.sh` and includes SynthSR for generating a synthetic 1 mm isotropic T1w output.
+
+## Freesurfer Longitudinal Pipeline
+
+Run with `--pipeline freesurfer_longitudinal`. This pipeline runs FreeSurfer's longitudinal processing stream across multiple sessions.
+
+### Parameters
+
+- `subregion_ha`: Whether to segment hippocampus and amygdala subregions (default: `False`).
+- `subregion_thalamus`: Whether to segment thalamus subregions (default: `False`).
+- `subregion_brainstem`: Whether to segment brainstem subregions (default: `False`).
+- `subregion_hypothalamus`: Whether to segment hypothalamus subunits (default: `False`).
+- `stats2csv`: Whether to convert stats to CSV (default: `False`).
+- `extract_from`: Path to extract results from for population-level summary.
+
+## References
+
+\bibliography

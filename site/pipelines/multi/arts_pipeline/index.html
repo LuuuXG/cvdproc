@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../../dMRI/lqt_pipeline/">
+        <link rel="prev" href="../../perfusion/asl_pipeline/">
       
       
-        <link rel="next" href="../sepia_qsm/">
+        <link rel="next" href="../../qMRI/qsm_pipeline/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>QSM Pipeline - cvdproc</title>
+        <title>ARTS Pipeline - cvdproc</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#qsm-pipeline" class="md-skip">
+        <a href="#arts-pipeline" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              QSM Pipeline
+              ARTS Pipeline
             
           </span>
         </div>
@@ -431,12 +431,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/lesion_analysis/" class="md-nav__link">
+      <a href="../../sMRI/anat_seg/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Lesion Analysis
+    Anatomical Segmentation
     
   </span>
   
@@ -454,12 +454,58 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/t1_register/" class="md-nav__link">
+      <a href="../../sMRI/brainage/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    T1w Registration to MNI space
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/cat12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAT12 VBM Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/cmb_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CMB Quantification
     
   </span>
   
@@ -500,12 +546,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/anat_seg/" class="md-nav__link">
+      <a href="../../sMRI/fsl_anat/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Anatomical Segmentation
+    FSL Anat
     
   </span>
   
@@ -523,12 +569,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sMRI/wmh_quantification/" class="md-nav__link">
+      <a href="../../sMRI/hipsta/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    WMH Quantification
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/lesion_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lesion Analysis
     
   </span>
   
@@ -552,6 +621,98 @@
   
   <span class="md-ellipsis">
     PVS Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/scn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Structural Covariance Network
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/synthsr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SynthSR
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/t1_register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    T1w Registration to MNI Space
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sMRI/wmh_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    WMH Quantification
     
   </span>
   
@@ -654,137 +815,6 @@
 
               
             
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    Quantification MRI (qMRI) Pipelines
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5_4">
-            <span class="md-nav__icon md-icon"></span>
-            Quantification MRI (qMRI) Pipelines
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.qmri.qsm_pipeline.QSMPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
-    <span class="md-ellipsis">
-      A more detailed description:
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
               
                 
   
@@ -792,12 +822,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../sepia_qsm/" class="md-nav__link">
+      <a href="../../dMRI/nemo_postprocess/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Sepia QSM
+    NeMo Postprocessing
     
   </span>
   
@@ -831,15 +861,15 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
         
           
-          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
-    Perfusion MRI (PWI) Pipelines
+    Perfusion (ASL) Pipelines
     
   </span>
   
@@ -847,10 +877,344 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            Perfusion (ASL) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perfusion/asl_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ASL Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_5" id="__nav_5_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Multi-Modality Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
-            Perfusion MRI (PWI) Pipelines
+            Multi-Modality Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cvdproc.pipelines.multi.arts_pipeline.ARTSPipeline.__init__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __init__
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-more-detailed-description" class="md-nav__link">
+    <span class="md-ellipsis">
+      A more detailed description:
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modalities-and-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modalities and Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Quantitative MRI (qMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            Quantitative MRI (qMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SEPIA QSM (Deprecated)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    DSC-MRI (PWI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            DSC-MRI (PWI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -867,6 +1231,98 @@
   
   <span class="md-ellipsis">
     PWI Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Test Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            Test Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test_matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MATLAB Test
     
   </span>
   
@@ -904,7 +1360,7 @@
   
   
   <span class="md-ellipsis">
-    Containers Used
+    Containers Used and Docker Notes
     
   </span>
   
@@ -963,7 +1419,7 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.qmri.qsm_pipeline.QSMPipeline.__init__" class="md-nav__link">
+  <a href="#cvdproc.pipelines.multi.arts_pipeline.ARTSPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
@@ -977,6 +1433,48 @@
       A more detailed description:
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="A more detailed description:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modalities-and-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modalities and Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -996,7 +1494,7 @@
 
 
 
-<h1 id="qsm-pipeline">QSM Pipeline</h1>
+<h1 id="arts-pipeline">ARTS Pipeline</h1>
 
 
 <div class="doc doc-object doc-class">
@@ -1006,8 +1504,6 @@
 
     <div class="doc doc-contents first">
 
-
-        <p>QSM Processing Pipeline using Sepia and QQNet.</p>
 
 
 
@@ -1031,7 +1527,7 @@
 <div class="doc doc-object doc-function">
 
 
-<h2 id="cvdproc.pipelines.qmri.qsm_pipeline.QSMPipeline.__init__" class="doc doc-heading">
+<h2 id="cvdproc.pipelines.multi.arts_pipeline.ARTSPipeline.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span></code>
 
 </h2>
@@ -1039,7 +1535,8 @@
 
     <div class="doc doc-contents ">
 
-        <p>QSM processing pipeline.</p>
+        <p>ARTS: Arteriolosclerosis Biomarker
+10x faster than original pipeline</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1103,66 +1600,18 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>use_which_t1w</code>
+                <code>extract_from</code>
             </td>
             <td>
                   <code><span title="str">str</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Keyword to select the desired T1w image.</p>
+                <p>ARTS output directory to extract results from.</p>
               </div>
             </td>
             <td>
                   <code>None</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>normalize</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If True, normalize QSM (and other scalar maps) to MNI space via T1w.</p>
-              </div>
-            </td>
-            <td>
-                  <code>False</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>phase_image_correction</code>
-            </td>
-            <td>
-                  <code><span title="bool">bool</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>If True, apply phase image correction for inter-slice phase polarity differences in the GE data. (https://github.com/kschan0214/sepia/discussions/93)</p>
-              </div>
-            </td>
-            <td>
-                  <code>False</code>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>reverse_phase</code>
-            </td>
-            <td>
-                  <code><span title="int">int</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Set to 1 to inverse phase polarity (for GE scanners).</p>
-              </div>
-            </td>
-            <td>
-                  <code>0</code>
             </td>
           </tr>
       </tbody>
@@ -1181,15 +1630,36 @@
 
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<p>This pipeline contains the processing steps to compute Quantitative Susceptibility Mapping (QSM) and other scalar maps from multi-echo gradient echo (GRE) data by the following steps:</p>
-<ol>
-<li>QSM reconstruction using a combined approach from the SEPIA toolbox and Chisep toolbox, including:<ul>
-<li>Phase unwrapping (SEPIA: ROMEO total field calculation)</li>
-<li>Background field removal using V-SHARP (SEPIA)</li>
-<li>Dipole inversion using iLSQR (Chisep)</li>
+<p>ARTS (Arteriolosclerosis Biomarker) is a multi-modality pipeline that computes a composite score reflecting cerebral arteriolosclerosis burden <sup id="fnref:rudolph2026arts"><a class="footnote-ref" href="#fn:rudolph2026arts">1</a></sup>. The pipeline integrates information from multiple MRI-derived biomarkers and is approximately 10x faster than the original implementation.</p>
+<h3 id="modalities-and-dependencies">Modalities and Dependencies</h3>
+<p>ARTS requires outputs from several other pipelines (must be run first):</p>
+<ul>
+<li><strong>xfm</strong> (T1w registration): T1w brain and FLAIR brain in T1w space</li>
+<li><strong>anat_seg</strong>: SynthSeg anatomical segmentation</li>
+<li><strong>dwi_pipeline</strong>: FA map from DTI tensor fitting</li>
+<li><strong>wmh_quantification</strong>: WMH mask in T1w space</li>
 </ul>
+<p>Additional inputs:
+- <code>participants.tsv</code> for age and sex information
+- <code>IITmean_FA.nii.gz</code> mean FA template (IIT space)
+- ARTS Singularity image (<code>ARTS.sif</code>)</p>
+<h3 id="configuration-example">Configuration Example</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">pipelines</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">arts_pipeline</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</code></pre></div>
+<h3 id="parameters">Parameters</h3>
+<ul>
+<li><code>extract_from</code>: Path to ARTS output directory from which to extract group-level score summaries.</li>
+</ul>
+<h3 id="references">References</h3>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:rudolph2026arts">
+<p>Marc D Rudolph, Samuel N Lockhart, Melissa R Rundle, Richard A Barcus, Kathryn H Alphin, James R Bateman, Kiran K Solingapuram Sai, Michelle M Mielke, Thomas C Register, Suzanne Craft, Shannon L Risacher, and Timothy M Hughes. Evaluation of an in vivo biomarker of arteriolosclerosis (arts) and its associations with cognition and multimodal atn(v) biomarkers in a cardiometabolic-risk enriched community cohort. <em>Alzheimer's &amp; Dementia</em>, 22(5):e71483, 2026. <a href="https://doi.org/10.1002/alz.71483">doi:10.1002/alz.71483</a>.&#160;<a class="footnote-backref" href="#fnref:rudolph2026arts" title="Jump back to footnote 1 in the text">&#8617;</a></p>
 </li>
 </ol>
+</div>
 
 
 

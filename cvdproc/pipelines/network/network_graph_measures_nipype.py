@@ -25,62 +25,19 @@ from cvdproc.pipelines.network.network_measures import (
 
 
 class LoadConnectivityMatrixInputSpec(BaseInterfaceInputSpec):
-    csv_file = File(
-        exists=True,
-        mandatory=True,
-        desc="Path to connectivity CSV file",
-    )
-
-    header = traits.Any(
-        None,
-        usedefault=True,
-        desc="Header argument passed to pandas.read_csv",
-    )
-
-    index_col = traits.Any(
-        None,
-        usedefault=True,
-        desc="Index column argument passed to pandas.read_csv",
-    )
-
-    force_square = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Whether to require a square matrix",
-    )
-
-    force_symmetric = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Whether to force symmetry by averaging A and A.T",
-    )
-
-    zero_diagonal = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Whether to set diagonal entries to zero",
-    )
-
-    remove_negative = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Whether to set negative weights to zero",
-    )
-
-    output_npy = File(
-        desc="Optional output .npy file for the loaded matrix",
-    )
+    csv_file = File(exists=True, mandatory=True, desc="Path to connectivity CSV file")
+    header = traits.Any(None, usedefault=True, desc="Header argument passed to pandas.read_csv")
+    index_col = traits.Any(None, usedefault=True, desc="Index column argument passed to pandas.read_csv")
+    force_square = traits.Bool(True, usedefault=True, desc="Whether to require a square matrix")
+    force_symmetric = traits.Bool(True, usedefault=True, desc="Whether to force symmetry by averaging A and A.T")
+    zero_diagonal = traits.Bool(True, usedefault=True, desc="Whether to set diagonal entries to zero")
+    remove_negative = traits.Bool(True, usedefault=True, desc="Whether to set negative weights to zero")
+    output_npy = File(desc="Optional output .npy file for the loaded matrix")
 
 
 class LoadConnectivityMatrixOutputSpec(TraitedSpec):
-    matrix_file = File(
-        exists=True,
-        desc="Saved connectivity matrix in .npy format",
-    )
-
-    n_nodes = traits.Int(
-        desc="Number of nodes in the connectivity matrix",
-    )
+    matrix_file = File(exists=True, desc="Saved connectivity matrix in .npy format")
+    n_nodes = traits.Int(desc="Number of nodes in the connectivity matrix")
 
 
 class LoadConnectivityMatrix(BaseInterface):
@@ -123,19 +80,9 @@ class LoadConnectivityMatrix(BaseInterface):
 
 
 class ComputeGraphMeasuresInputSpec(BaseInterfaceInputSpec):
-    matrix_file = File(
-        exists=True,
-        mandatory=True,
-        desc="Input connectivity matrix in .npy format",
-    )
-
-    global_metrics_csv = File(
-        desc="Optional output CSV file for global graph metrics",
-    )
-
-    nodal_metrics_csv = File(
-        desc="Optional output CSV file for nodal graph metrics",
-    )
+    matrix_file = File(exists=True, mandatory=True, desc="Input connectivity matrix in .npy format")
+    global_metrics_csv = File(desc="Optional output CSV file for global graph metrics")
+    nodal_metrics_csv = File(desc="Optional output CSV file for nodal graph metrics")
 
 
 class ComputeGraphMeasuresOutputSpec(TraitedSpec):
@@ -145,16 +92,8 @@ class ComputeGraphMeasuresOutputSpec(TraitedSpec):
     mean_clustering_coefficient = traits.Float(desc="Mean clustering coefficient")
     characteristic_path_length = traits.Float(desc="Characteristic path length")
     mean_betweenness_centrality = traits.Float(desc="Mean betweenness centrality")
-
-    global_metrics_csv = File(
-        exists=True,
-        desc="CSV file containing global graph metrics",
-    )
-
-    nodal_metrics_csv = File(
-        exists=True,
-        desc="CSV file containing nodal graph metrics",
-    )
+    global_metrics_csv = File(exists=True, desc="CSV file containing global graph metrics")
+    nodal_metrics_csv = File(exists=True, desc="CSV file containing nodal graph metrics")
 
 
 class ComputeGraphMeasures(BaseInterface):

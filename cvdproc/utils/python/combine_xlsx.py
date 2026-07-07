@@ -155,12 +155,12 @@ def merge_and_save_excel(
 
 if __name__ == "__main__":
     merge_and_save_excel(
-        base_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\raw\rawdata_20260603.xlsx",
-        additional_file_path=r"C:\Users\Xiaog\WPSDrive\1136007837\WPS云盘\paper\rssi_glymphatic_analysis\data\source\TI\TI_synthseg.xlsx",
+        base_file_path=r"E:\WPS_Cloud\1136007837\WPS云盘\paper\visual_pathway\data\raw\vp_rawdata_20260705.xlsx",
+        additional_file_path=r"E:\WPS_Cloud\1136007837\WPS云盘\paper\visual_pathway\data\source\anat_seg_avpseg_summary.xlsx",
         match_column_base=["Subject", "Session"],
         match_column_additional=["Subject", "Session"],
-        selected_columns=['total intracranial'],
-        #selected_columns="ALL_EXCEPT_MATCH",
+        #selected_columns=['total intracranial'],
+        selected_columns="ALL_EXCEPT_MATCH",
         prefix="",
         zfill_columns={},
         update_same_name_mode="fillna",   # "overwrite" or "fillna" or "keep_base"

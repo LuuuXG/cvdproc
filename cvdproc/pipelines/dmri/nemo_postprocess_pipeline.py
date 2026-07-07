@@ -23,7 +23,21 @@ class NemoPostprocessPipeline:
                  extract_from: str = "",
                  **kwargs):
         """
-        Nemo postprocessing pipeline
+        NeMo Postprocessing Pipeline
+
+        Postprocesses outputs from the NeMo (Network Measures) toolbox, extracting
+        cortical metrics, subcortical volumes (ChacoVol), and structural connectivity
+        matrices (ChacoConn) for population-level analysis.
+
+        Args:
+            subject: BIDSSubject object
+            session: BIDSSession object
+            output_path: output directory for the pipeline
+            use_freesurfer_clinical: whether to use recon-all-clinical.sh outputs instead of standard recon-all. Defaults to False.
+            use_freesurfer_longitudinal: whether to use longitudinal FreeSurfer outputs. Defaults to False.
+            cortical_metrics: whether to extract weighted cortical metrics from NeMo outputs. Defaults to False.
+            results_to_csv: whether to convert ChacoVol/ChacoConn results to CSV format. Defaults to False.
+            extract_from: path to extract results from for population-level summary.
         """
         self.subject = subject
         self.session = session
@@ -183,6 +197,8 @@ class NemoPostprocessPipeline:
 
                 session_id = session_folder.split("-", 1)[1]
                 nemo_id = f"sub-{subject_id}_ses-{session_id}"
+                subject_label = f"sub-{subject_id}"
+                session_label = f"ses-{session_id}"
                 session_path = os.path.join(subject_folder_path, session_folder)
 
                 if not os.path.isdir(session_path):
@@ -210,8 +226,8 @@ class NemoPostprocessPipeline:
                             print(f"Failed to read {csv_path}: {e}")
                             continue
 
-                        df.insert(0, "subject_id", subject_id)
-                        df.insert(1, "session_id", session_id)
+                        df.insert(0, "Subject", subject_label)
+                        df.insert(1, "Session", session_label)
                         df.insert(2, "nemo_id", nemo_id)
 
                         merged_dfs.setdefault(chacovol_id, []).append(df)
@@ -250,8 +266,8 @@ class NemoPostprocessPipeline:
                             else:
                                 df = df.iloc[[0]].copy()
 
-                        df.insert(0, "subject_id", subject_id)
-                        df.insert(1, "session_id", session_id)
+                        df.insert(0, "Subject", subject_label)
+                        df.insert(1, "Session", session_label)
 
                         chacovol_merged.setdefault(atlas, []).append(df)
 
@@ -273,9 +289,9 @@ class NemoPostprocessPipeline:
             print("Warning: No weighted cortical metrics found to summarize.")
         else:
             summary_df = pd.concat(summary_rows, axis=0, ignore_index=True)
-            summary_csv_path = os.path.join(output_dir, "weighted_cortical_metrics_summary.csv")
-            summary_df.to_csv(summary_csv_path, index=False)
-            print(f"Saved weighted cortical metrics summary to: {summary_csv_path}")
+            summary_path = os.path.join(output_dir, "nemo_weighted_cortical_metrics_summary.xlsx")
+            summary_df.to_excel(summary_path, index=False)
+            print(f"Saved weighted cortical metrics summary to: {summary_path}")
 
         # 2) Chacovol summaries per atlas (NEW outputs)
         if len(chacovol_merged) == 0:
@@ -287,6 +303,6 @@ class NemoPostprocessPipeline:
                 # Make filename safe (optional, but helps if atlas has spaces)
                 safe_atlas = re.sub(r"[^A-Za-z0-9_.-]+", "_", atlas)
 
-                out_path = os.path.join(output_dir, f"{safe_atlas}_chacovol_summary.csv")
-                out_df.to_csv(out_path, index=False)
+                out_path = os.path.join(output_dir, f"nemo_{safe_atlas}_chacovol_summary.xlsx")
+                out_df.to_excel(out_path, index=False)
                 print(f"Saved chacovol summary for atlas={atlas} to: {out_path}")

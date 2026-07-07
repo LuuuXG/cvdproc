@@ -1,15 +1,54 @@
 # Pipelines Overview
 
+## Currently Available Pipelines
+
+### Structural MRI (sMRI) Pipelines
+- [x] Anatomical Segmentation ([anat_seg](./sMRI/anat_seg.md))
+- [x] Brain Age Estimation ([brain_age](./sMRI/brainage.md))
+- [x] CAT12 VBM Segmentation ([cat12](./sMRI/cat12.md))
+- [x] CMB Quantification ([cmb_quantification](./sMRI/cmb_quantification.md))
+- [x] Freesurfer recon-all ([freesurfer](./sMRI/freesurfer.md)) — also covers `freesurfer_clinical` and `freesurfer_longitudinal`
+- [x] FSL Anat ([fsl_anat](./sMRI/fsl_anat.md))
+- [x] HIPSTA ([hipsta](./sMRI/hipsta.md))
+- [x] Lesion Analysis ([lesion_analysis](./sMRI/lesion_analysis.md))
+- [x] PVS Quantification ([pvs_quantification](./sMRI/pvs_quantification.md))
+- [x] Structural Covariance Network ([scn](./sMRI/scn.md))
+- [x] SynthSR ([synthsr](./sMRI/synthsr.md))
+- [x] T1w Registration to MNI Space ([t1_register](./sMRI/t1_register.md))
+- [x] WMH Quantification ([wmh_quantification](./sMRI/wmh_quantification.md))
+
+### Diffusion MRI (dMRI) Pipelines
+- [x] General DWI Processing ([dwi_pipeline](./dMRI/dwi_pipeline.md))
+- [x] Lesion Quantification Toolkit (LQT) ([lqt_pipeline](./dMRI/lqt_pipeline.md))
+- [x] NeMo Postprocessing ([nemo_postprocess](./dMRI/nemo_postprocess.md))
+
+### Arterial Spin Labeling (ASL) Pipelines
+- [x] ASL Pipeline ([asl_pipeline](perfusion/asl_pipeline.md))
+
+### Multi-Modality Pipelines
+- [x] ARTS Pipeline ([arts_pipeline](multi/arts_pipeline.md))
+
+### Quantitative MRI (qMRI) Pipelines
+- [x] QSM Pipeline ([qsm_pipeline](./qMRI/qsm_pipeline.md))
+- [x] SEPIA QSM ([sepia_qsm](./qMRI/sepia_qsm.md)) — deprecated, archived as a record of the processing used in our paper
+
+### DSC-MRI (PWI) Pipelines
+- [x] PWI Pipeline ([pwi_pipeline](./pwi/pwi_pipeline.md))
+
+### Test Pipelines
+- [x] Base Nipype Test ([test](test/test.md))
+- [x] MATLAB Test ([test_matlab](test/test_matlab.md))
+
 ## Command to Run a Pipeline
 ```bash
-cvdproc --config_file <path/to/your/config/file> --run_pipeline --pipeline <pipeline name> --subject_id <subject id (with out -sub prefix)> --session_id <session id (with out -ses prefix)>
+cvdproc --config_file <path/to/your/config/file> --run_pipeline --pipeline <pipeline name> --subject_id <subject id (without -sub prefix)> --session_id <session id (without -ses prefix)>
 ```
 
 Generally, parameters concerning the pipeline should be set in the configuration file (this configuration file has been mentioned in the [dcm2bids](../dcm2bids/dcm2bids.md) section). As we already set the `bids_dir` parameter in the configuration file, we will need to add some new parameters:
 ```yaml
 # For example
 bids_dir: /mnt/f/BIDS/demo_wmh # we have done it in the dcm2bids section
-dcm2bids: 
+dcm2bids:
   config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json
 # New things
 output_dir: /mnt/f/BIDS/demo_wmh/derivatives # output directory, please use bids::/derivatives
@@ -28,35 +67,3 @@ pipelines:
 The `--pipeline` parameter is used to specify which pipeline to run. The `--subject_id` and `--session_id` parameters are used to specify the subject and session to be processed. You can run multiple subjects and sessions serially by specifying multiple `--subject_id` and `--session_id` parameters. For example, if you want to run the `wmh_quantification` pipeline for subjects `SUB0001` and `SUB0002`, both at session `01`, you can run: `cvdproc --config_file /mnt/f/BIDS/demo_wmh/code/config.yml --run_pipeline --pipeline wmh_quantification --subject_id 0001 0002 --session_id 01 01`.
 
 The detailed parameters for each pipeline can be found in the respective documentation pages (see below). Parameters except for `subject`, `session`, and `output_path` should be set in the configuration file.
-
-## Currently Available Pipelines
-
-### Structural MRI (sMRI) Pipelines
-- [x] Lesion Preprocess ([lesion_analysis](./sMRI/lesion_analysis.md))
-- [x] Freesurfer recon-all/recon-all-clinical.sh ([freesurfer](./sMRI/freesurfer.md))
-- [x] FSL anat (fsl_anat)
-- [x] T1w Registration to MNI space ([t1_register](./sMRI/t1_register.md))
-- [x] Anatomical Segmentation ([anat_seg](./sMRI/anat_seg.md))
-- [x] WMH Quantification ([wmh_quantification](./sMRI/wmh_quantification.md))
-- [x] PVS Quantification ([pvs_quantification](./sMRI/pvs_quantification.md))
-- [x] CMB Quantification (cmb_quantification)mkdocs serve
-- [x] Brain Age Estimation ([brain_age](./sMRI/brainage.md))
-- [x] HIPSTA ([hipsta](./sMRI/hipsta.md))
-
-### Diffusion MRI (dMRI) Pipelines
-- [x] General DWI Processing ([dwi_pipeline](./dMRI/dwi_pipeline.md))
-- [x] Lesion Quantification Toolkit (LQT) Pipeline ([lqt_pipeline](./dMRI/lqt_pipeline.md))
-
-### Functional MRI (fMRI) Pipelines
-- [ ] fMRI Pipeline (fmri_pipeline)
-
-### Arterial Spin Labeling (ASL) Pipelines
-- [ ] ASL Pipeline (asl_pipeline)
-
-### Quantitative MRI (qMRI) Pipelines
-- [x] QSM Pipeline ([qsm_pipeline](./qMRI/qsm_pipeline.md))
-- [x] SEPIA QSM (deprecated, archived as a record of the processing used in our paper) ([sepia_qsm](./qMRI/sepia_qsm.md))
-
-### DSC-MRI (PWI) Pipelines
-- [x] PWI Pipeline ([pwi_pipeline](./pwi/pwi_pipeline.md))
-  

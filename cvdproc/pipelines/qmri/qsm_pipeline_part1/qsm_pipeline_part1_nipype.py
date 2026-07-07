@@ -14,7 +14,6 @@ class QSMPipelinePart1InputSpec(BaseInterfaceInputSpec):
     cvdproc_dir = Directory(desc="Path to the cvdproc directory", exists=True, mandatory=True)
     phase_image_correction = Bool(desc="If True, apply phase image correction using FSL PRELUDE", mandatory=True)
     reverse_phase = Int(desc="Set to 1 to reverse phase polarity (for GE scanners)", mandatory=True)  # 0=no need, 1=reverse phase image (For GE scans)
-
     script_path = File(desc="Path to the QSM_pipeline_part1.m script", exists=True, mandatory=True)
 
 class QSMPipelinePart1OutputSpec(TraitedSpec):

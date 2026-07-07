@@ -821,45 +821,33 @@ class RefineVPInputSpec(BaseInterfaceInputSpec):
     rh_ot = Str(desc="Right optic tract TT file", mandatory=True)
     lh_or = Str(desc="Left optic radiation TT file", mandatory=True)
     rh_or = Str(desc="Right optic radiation TT file", mandatory=True)
-
     lh_ml = Str(desc="Left Meyer's loop TT file", mandatory=False)
     rh_ml = Str(desc="Right Meyer's loop TT file", mandatory=False)
-
     cho_roi = File(exists=True, desc="Chiasm ROI NIfTI file", mandatory=True)
-
     lh_lgn_roi = File(exists=True, desc="Left LGN ROI NIfTI file", mandatory=True)
     lh_lgn_dia_x_roi = File(exists=True, desc="Left dilated LGN ROI NIfTI file", mandatory=True)
     lh_lgn_extendpart_roi = File(exists=True, desc="Left extended LGN ROI NIfTI file", mandatory=True)
-
     rh_lgn_roi = File(exists=True, desc="Right LGN ROI NIfTI file", mandatory=True)
     rh_lgn_dia_x_roi = File(exists=True, desc="Right dilated LGN ROI NIfTI file", mandatory=True)
     rh_lgn_extendpart_roi = File(exists=True, desc="Right extended LGN ROI NIfTI file", mandatory=True)
-
     lh_v1_roi = File(exists=True, desc="Left V1 ROI NIfTI file", mandatory=True)
     rh_v1_roi = File(exists=True, desc="Right V1 ROI NIfTI file", mandatory=True)
-
     lh_meyersloop_roi = File(exists=True, desc="Left Meyer's loop ROI NIfTI file", mandatory=True)
     rh_meyersloop_roi = File(exists=True, desc="Right Meyer's loop ROI NIfTI file", mandatory=True)
-
     output_dir = Str(desc="Output directory", mandatory=True)
-
     output_lh_ot = Str("refined_lh_optic_tract.tt.gz", usedefault=True)
     output_rh_ot = Str("refined_rh_optic_tract.tt.gz", usedefault=True)
     output_lh_or = Str("refined_lh_optic_radiation.tt.gz", usedefault=True)
     output_rh_or = Str("refined_rh_optic_radiation.tt.gz", usedefault=True)
     output_lh_ml = Str("refined_lh_meyers_loop.tt.gz", usedefault=True)
     output_rh_ml = Str("refined_rh_meyers_loop.tt.gz", usedefault=True)
-
     min_points = Int(5, usedefault=True)
     max_step = Float(10.0, usedefault=True)
     n_points_new = Int(100, usedefault=True)
-
     or_qb_threshold = Float(10.0, usedefault=True)
     ot_qb_threshold = Float(10.0, usedefault=True)
-
     ot_y_drop_threshold = Int(3, usedefault=True)
     ot_z_drop_threshold = Int(5, usedefault=True)
-
     run_or_clustering = Bool(True, usedefault=True)
     run_ot_clustering = Bool(True, usedefault=True)
     run_ot_direction_filter = Bool(False, usedefault=True)
@@ -888,24 +876,12 @@ class RefineVP(BaseInterface):
         self._refined_lh_ml = ""
         self._refined_rh_ml = ""
 
-        output_lh_or_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_lh_or)
-        )
-        output_rh_or_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_rh_or)
-        )
-        output_lh_ot_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_lh_ot)
-        )
-        output_rh_ot_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_rh_ot)
-        )
-        output_lh_ml_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_lh_ml)
-        )
-        output_rh_ml_path = os.path.abspath(
-            os.path.join(self.inputs.output_dir, self.inputs.output_rh_ml)
-        )
+        output_lh_or_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_lh_or))
+        output_rh_or_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_rh_or))
+        output_lh_ot_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_lh_ot))
+        output_rh_ot_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_rh_ot))
+        output_lh_ml_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_lh_ml))
+        output_rh_ml_path = os.path.abspath(os.path.join(self.inputs.output_dir, self.inputs.output_rh_ml))
 
         if os.path.exists(self.inputs.lh_or):
             self._refined_lh_or = run_or_refinement(

@@ -9,19 +9,9 @@ import nibabel as nib
 from cvdproc.config.paths import get_package_path
 
 
-HCP842_QA = get_package_path(
-    "data",
-    "standard",
-    "MNI152",
-    "HCP842_QA_1mm.nii.gz"
-)
+HCP842_QA = get_package_path("data", "standard", "MNI152", "HCP842_QA_1mm.nii.gz")
 
-HCP842_TO_HCP1065_WARP = get_package_path(
-    "data",
-    "standard",
-    "MNI152",
-    "from-HCP842_to-HCP1065_warp.nii.gz"
-)
+HCP842_TO_HCP1065_WARP = get_package_path("data", "standard", "MNI152", "from-HCP842_to-HCP1065_warp.nii.gz")
 
 
 class LQTInputSpec(BaseInterfaceInputSpec):
@@ -31,36 +21,11 @@ class LQTInputSpec(BaseInterfaceInputSpec):
     parcel_path = File(exists=True, desc="Path to the parcel file", mandatory=True)
     lqt_script = File(exists=True, desc="Path to the LQT R script template", mandatory=True)
     dsi_path = Str(desc="Path to DSI Studio", mandatory=True)
-
-    postprocess_percent_tdi = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Postprocess raw LQT percent TDI maps"
-    )
-
-    convert_percent_to_fraction = traits.Bool(
-        True,
-        usedefault=True,
-        desc="Convert percent TDI values from 0-100 to 0-1 before spatial transformation"
-    )
-
-    output_space_label = Str(
-        "MNI152NLin6ASym",
-        usedefault=True,
-        desc="Output space label for the final postprocessed TDI file"
-    )
-
-    output_desc_label = Str(
-        "LQTdisconnection",
-        usedefault=True,
-        desc="Output description label"
-    )
-
-    keep_intermediate = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Keep intermediate HCP842 TDI file"
-    )
+    postprocess_percent_tdi = traits.Bool(True, usedefault=True, desc="Postprocess raw LQT percent TDI maps")
+    convert_percent_to_fraction = traits.Bool(True, usedefault=True, desc="Convert percent TDI values from 0-100 to 0-1 before spatial transformation")
+    output_space_label = Str("MNI152NLin6ASym", usedefault=True, desc="Output space label for the final postprocessed TDI file")
+    output_desc_label = Str("LQTdisconnection", usedefault=True, desc="Output description label")
+    keep_intermediate = traits.Bool(False, usedefault=True, desc="Keep intermediate HCP842 TDI file")
 
 
 class LQTOutputSpec(TraitedSpec):
@@ -103,18 +68,12 @@ class LQT(BaseInterface):
         )
 
         os.makedirs(self.inputs.output_dir, exist_ok=True)
-        generated_script_path = os.path.join(
-            self.inputs.output_dir,
-            "generated_lqt_analysis.R"
-        )
+        generated_script_path = os.path.join(self.inputs.output_dir, "generated_lqt_analysis.R")
 
         with open(generated_script_path, "w", encoding="utf-8") as file:
             file.write(script_content)
 
-        result = subprocess.run(
-            ["Rscript", generated_script_path],
-            cwd=self.inputs.output_dir
-        )
+        result = subprocess.run(["Rscript", generated_script_path], cwd=self.inputs.output_dir)
 
         if result.returncode != 0:
             raise RuntimeError("Rscript execution failed. Check console output for details.")
@@ -258,11 +217,7 @@ class LQT(BaseInterface):
         header = ref_img.header.copy()
         header.set_data_dtype(np.float32)
 
-        out_img = nib.Nifti1Image(
-            data.astype(np.float32),
-            ref_img.affine,
-            header
-        )
+        out_img = nib.Nifti1Image(data.astype(np.float32), ref_img.affine, header)
 
         out_img.set_qform(ref_img.affine, code=1)
         out_img.set_sform(ref_img.affine, code=1)
@@ -351,15 +306,9 @@ class LQT(BaseInterface):
         target_space = str(self.inputs.output_space_label).strip()
 
         if target_space:
-            pattern = os.path.join(
-                map_dir,
-                f"*_space-{target_space}_desc-{desc_label}_tdi.nii.gz"
-            )
+            pattern = os.path.join(map_dir, f"*_space-{target_space}_desc-{desc_label}_tdi.nii.gz")
         else:
-            pattern = os.path.join(
-                map_dir,
-                f"*_desc-{desc_label}_tdi.nii.gz"
-            )
+            pattern = os.path.join(map_dir, f"*_desc-{desc_label}_tdi.nii.gz")
 
         return sorted(glob.glob(pattern))
 

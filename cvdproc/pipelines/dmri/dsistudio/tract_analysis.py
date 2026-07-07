@@ -20,30 +20,12 @@ from cvdproc.config.paths import get_package_path
 dsi_studio_path = get_package_path('data', 'dsi-studio', 'dsi_studio')
 
 class TractStatsInputSpec(CommandLineInputSpec):
-    source = File(
-        exists=True,
-        desc="Input source file (.fib.gz or .fz).",
-        mandatory=True,
-        argstr="--source=%s",
-    )
-    tract = File(
-        exists=True,
-        desc="Input tract file (.tt.gz).",
-        mandatory=True,
-        argstr="--tract=%s",
-    )
-    export = Str(
-        desc="Export format. Typically 'stat'.",
-        mandatory=True,
-        argstr="--export=%s",
-    )
+    source = File(exists=True, desc="Input source file (.fib.gz or .fz).", mandatory=True, argstr="--source=%s")
+    tract = File(exists=True, desc="Input tract file (.tt.gz).", mandatory=True, argstr="--tract=%s")
+    export = Str(desc="Export format. Typically 'stat'.", mandatory=True, argstr="--export=%s")
 
     # Not passed to command line
-    output_txt = Str(
-        desc="Desired output text file path for tract statistics (renamed from DSI Studio default).",
-        mandatory=True,
-        usedefault=False,
-    )
+    output_txt = Str(desc="Desired output text file path for tract statistics (renamed from DSI Studio default).", mandatory=True, usedefault=False)
 
 
 class TractStatsOutputSpec(TraitedSpec):

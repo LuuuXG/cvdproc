@@ -12,41 +12,28 @@ from nipype.interfaces.base import (
 
 class PlotTckOnSliceCmdInputSpec(CommandLineInputSpec):
     # Must appear immediately after "python" in the command
-    script_path = File(
-        exists=True,
-        mandatory=True,
-        argstr="%s",
-        position=0,
-        desc="Path to plot_tck_cli.py",
-    )
-
+    script_path = File(exists=True, mandatory=True, argstr="%s", position=0, desc="Path to plot_tck_cli.py")
     ref_nii = File(exists=True, mandatory=True, argstr="--ref-nii %s", position=1)
     tck_files = traits.List(File(exists=True), mandatory=True, argstr="--tck %s", position=2, sep=" ")
     out_png = File(mandatory=True, argstr="--out-png %s", position=3)
-
     # Enum: do NOT set default_value kwarg here (it conflicts in older traits)
     slice_plane = traits.Enum("axial", "sagittal", "coronal", usedefault=True, argstr="--slice-plane %s")
     slice_index = traits.Int(argstr="--slice-index %d")
     slice_opacity = traits.Float(0.60, usedefault=True, argstr="--slice-opacity %f")
-
     use_fixed_window = traits.Bool(False, usedefault=True, argstr="--use-fixed-window")
     fixed_vmin = traits.Float(0.0, usedefault=True, argstr="--fixed-vmin %f")
     fixed_vmax = traits.Float(0.6, usedefault=True, argstr="--fixed-vmax %f")
     p_low = traits.Float(2.0, usedefault=True, argstr="--p-low %f")
     p_high = traits.Float(99.5, usedefault=True, argstr="--p-high %f")
-
     max_streamlines_per_tck = traits.Int(4000, usedefault=True, argstr="--max-streamlines-per-tck %d")
     seed = traits.Int(0, usedefault=True, argstr="--seed %d")
-
     # Tuple defaults are handled in the interface __init__ for maximum compatibility
     streamline_color = traits.Tuple(traits.Float, traits.Float, traits.Float, argstr="--streamline-color %f %f %f")
     streamline_opacity = traits.Float(0.98, usedefault=True, argstr="--streamline-opacity %f")
     streamline_linewidth = traits.Float(2.5, usedefault=True, argstr="--streamline-linewidth %f")
-
     snapshot_width = traits.Int(1600, usedefault=True, argstr="--snapshot-width %d")
     snapshot_height = traits.Int(1200, usedefault=True, argstr="--snapshot-height %d")
     zoom = traits.Float(1.35, usedefault=True, argstr="--zoom %f")
-
     force_chroma_key = traits.Bool(False, usedefault=True, argstr="--force-chroma-key")
     chroma_bg = traits.Tuple(traits.Float, traits.Float, traits.Float, argstr="--chroma-bg %f %f %f")
     chroma_tol = traits.Int(10, usedefault=True, argstr="--chroma-tol %d")

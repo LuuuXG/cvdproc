@@ -33,24 +33,14 @@ print("Mask shape:", mask.shape, "masked voxels:", mask.sum())
 big_delta = 0.0365  # seconds (example value)
 small_delta = 0.0157  # seconds (example value)
 
-gtab = gradient_table(
-    bvals=bvals,
-    bvecs=bvecs,
-    big_delta=big_delta,
-    small_delta=small_delta,
-)
+gtab = gradient_table(bvals=bvals, bvecs=bvecs, big_delta=big_delta, small_delta=small_delta)
 
 # --------------------------------------------------
 # 4. Fit MAP-MRI model within mask
 # --------------------------------------------------
 radial_order = 6
 
-map_model = mapmri.MapmriModel(
-    gtab,
-    radial_order=radial_order,
-    laplacian_regularization=False,
-    positivity_constraint=True,
-)
+map_model = mapmri.MapmriModel(gtab, radial_order=radial_order, laplacian_regularization=False, positivity_constraint=True)
 
 # The mask argument ensures fitting is done only inside the mask
 mapfit = map_model.fit(data, mask=mask)

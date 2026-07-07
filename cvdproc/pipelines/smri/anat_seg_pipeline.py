@@ -4,6 +4,7 @@ import subprocess
 from nipype import Node, Workflow
 from nipype.interfaces.utility import IdentityInterface, Merge, Function
 
+from cvdproc.pipelines.smri.anat_seg.avp_seg.avpseg import AvpSeg
 from cvdproc.pipelines.smri.anat_seg.cp_seg.chpseg import ChPSeg
 from cvdproc.pipelines.smri.freesurfer.synthseg import SynthSeg, SynthSegPostProcess
 
@@ -18,7 +19,7 @@ class AnatSegPipeline:
                  session: object,
                  output_path: str,
                  use_which_t1w: str = "T1w",
-                 methods: list = ["synthseg", "chpseg"],
+                 methods: list = ["synthseg", "chpseg", "avpseg"],
                  cpu_first: bool = False,
                  extract_from: str = None,
                  **kwargs):
@@ -30,7 +31,7 @@ class AnatSegPipeline:
             session: Session object
             output_path: Output directory
             use_which_t1w: specific string to select T1w image, e.g. 'acq-highres'. If None, T1w image is not used
-            methods: List of methods to use. Options include 'synthseg' and 'chpseg'.
+            methods: List of methods to use. Options include 'synthseg', 'chpseg', and 'avpseg'.
             cpu_first: Whether to use CPU first for SynthSeg (if available).
             extract_from: Path to extract results from
             **kwargs: Additional arguments
@@ -68,35 +69,57 @@ class AnatSegPipeline:
         anatseg_workflow = Workflow(name='anatseg_workflow')
         anatseg_workflow.base_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'workflows', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}')
 
-        inputnode = Node(IdentityInterface(fields=['t1w_file']),
-                         name='inputnode')
+        inputnode = Node(IdentityInterface(fields=['t1w_file']), name='inputnode')
         inputnode.inputs.t1w_file = t1w_file
 
         # outputnode = Node(IdentityInterface(fields=['synthseg_out', 'chpseg_out']),
         #                   name='outputnode')
 
-        if 'synthseg' in self.methods:
-            synthseg = Node(SynthSeg(), name='synthseg')
-            anatseg_workflow.connect(inputnode, 't1w_file', synthseg, 'image')
-            synthseg.inputs.out = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
-            synthseg.inputs.vol = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w', 'desc': "synthseg"}, 'volumes', '.csv'))
-            synthseg.inputs.robust = True
-            synthseg.inputs.parc = True
-            synthseg.inputs.keepgeom = True
-            if self.cpu_first:
-                synthseg.inputs.cpu = True
-                synthseg.inputs.threads = 16
-            
-            synthseg_postprocess = Node(SynthSegPostProcess(), name='synthseg_postprocess')
-            anatseg_workflow.connect(synthseg, 'out', synthseg_postprocess, 'synthseg_input')
-            synthseg_postprocess.inputs.wm_output = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w', 'desc': "WM"}, 'mask', '.nii.gz'))
+        # Determine expected SynthSeg output path (used for both synthseg and avpseg methods)
+        synthseg_out_file = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w'}, 'synthseg', '.nii.gz'))
+        synthseg_vol_file = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w', 'desc': "synthseg"}, 'volumes', '.csv'))
+        synthseg_wm_file = os.path.join(self.output_path, 'synthseg', rename_bids_file(t1w_file, {'space': 'T1w', 'desc': "WM"}, 'mask', '.nii.gz'))
 
-        
+        # SynthSeg node is needed if explicitly requested, or if avpseg needs it and output doesn't exist yet
+        need_synthseg = 'synthseg' in self.methods or ('avpseg' in self.methods and not os.path.exists(synthseg_out_file))
+        synthseg_node = None
+
+        if need_synthseg:
+            synthseg_node = Node(SynthSeg(), name='synthseg')
+            anatseg_workflow.connect(inputnode, 't1w_file', synthseg_node, 'image')
+            synthseg_node.inputs.out = synthseg_out_file
+            synthseg_node.inputs.vol = synthseg_vol_file
+            synthseg_node.inputs.robust = True
+            synthseg_node.inputs.parc = True
+            synthseg_node.inputs.keepgeom = True
+            if self.cpu_first:
+                synthseg_node.inputs.cpu = True
+                synthseg_node.inputs.threads = 16
+
+        if 'synthseg' in self.methods:
+            synthseg_postprocess = Node(SynthSegPostProcess(), name='synthseg_postprocess')
+            anatseg_workflow.connect(synthseg_node, 'out', synthseg_postprocess, 'synthseg_input')
+            synthseg_postprocess.inputs.wm_output = synthseg_wm_file
+
+        if 'avpseg' in self.methods:
+            avpseg = Node(AvpSeg(), name='avpseg')
+            anatseg_workflow.connect(inputnode, 't1w_file', avpseg, 't1w')
+            avpseg.inputs.output_dir = os.path.join(self.output_path, 'avpseg')
+            avpseg.inputs.mask_name = rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'avp'}, 'mask', '.nii.gz')
+            avpseg.inputs.prob_name = rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'avp'}, 'probseg', '.nii.gz')
+            avpseg.inputs.five_label_name = rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'avp'}, 'dseg', '.nii.gz')
+            avpseg.inputs.metrics_name = rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'opticnerve'}, 'metrics', '.xlsx')
+            avpseg.inputs.qc_name = rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'avp'}, 'qc', '.html')
+            if synthseg_node is not None:
+                anatseg_workflow.connect(synthseg_node, 'out', avpseg, 'synthseg')
+            else:
+                avpseg.inputs.synthseg = synthseg_out_file
+
         if 'chpseg' in self.methods:
             chpseg = Node(ChPSeg(), name='chpseg')
             anatseg_workflow.connect(inputnode, 't1w_file', chpseg, 'in_t1')
             chpseg.inputs.output_dir = os.path.join(self.output_path, 'chpseg')
-        
+
         return anatseg_workflow
 
     def extract_results(self):
@@ -122,6 +145,10 @@ class AnatSegPipeline:
             'total_volume_mm3', 'volume_right_mm3', 'volume_left_mm3'
         ]
         chpseg_df = pd.DataFrame(columns=chpseg_columns)
+
+        # AvpSeg output extraction: empty dataframe
+        avpseg_metrics_columns = ['Subject', 'Session']
+        avpseg_metrics_df = pd.DataFrame(columns=avpseg_metrics_columns)
 
         for subject_folder in os.listdir(anat_seg_output_path):
             subject_path = os.path.join(anat_seg_output_path, subject_folder)
@@ -153,14 +180,33 @@ class AnatSegPipeline:
                             vol_data.insert(0, 'Session', session_folder)
                             vol_data.insert(0, 'Subject', subject_folder)
                             chpseg_df = pd.concat([chpseg_df, vol_data], ignore_index=True)
+                    elif method_folder == 'avpseg':
+                        # Read optic nerve metrics (BIDS-named: *_desc-opticnerve_metrics.xlsx)
+                        metrics_files = [f for f in os.listdir(method_path) if f.endswith('_metrics.xlsx')]
+                        if len(metrics_files) == 1:
+                            metrics_file_path = os.path.join(method_path, metrics_files[0])
+                            metrics_data = pd.read_excel(metrics_file_path)
+                            # Pivot long-format (one row per nerve) to wide-format (one row per subject/session)
+                            melted = metrics_data.melt(id_vars=['region', 'label'], var_name='metric', value_name='value')
+                            melted['col'] = melted['region'] + '_' + melted['metric']
+                            wide_row = melted.pivot_table(index=None, columns='col', values='value').reset_index(drop=True)
+                            if wide_row.empty:
+                                wide_row = pd.DataFrame(index=[0])
+                            wide_row.insert(0, 'Session', session_folder)
+                            wide_row.insert(0, 'Subject', subject_folder)
+                            avpseg_metrics_df = pd.concat([avpseg_metrics_df, wide_row], ignore_index=True)
                 
                 print(f"[ANAT SEG] Extracted results for subject {subject_folder}, session {session_folder}")
         # Save the dataframes to CSV
         if not synthseg_df.empty:
-            synthseg_output_file = os.path.join(self.output_path, 'synthseg_volumes_summary.csv')
-            synthseg_df.to_csv(synthseg_output_file, index=False)
+            synthseg_output_file = os.path.join(self.output_path, 'anat_seg_synthseg_summary.xlsx')
+            synthseg_df.to_excel(synthseg_output_file, index=False)
             print(f"SynthSeg volumes summary saved to {synthseg_output_file}")
         if not chpseg_df.empty:
-            chpseg_output_file = os.path.join(self.output_path, 'chpseg_volumes_summary.csv')
-            chpseg_df.to_csv(chpseg_output_file, index=False)
+            chpseg_output_file = os.path.join(self.output_path, 'anat_seg_chpseg_summary.xlsx')
+            chpseg_df.to_excel(chpseg_output_file, index=False)
             print(f"ChPSeg volumes summary saved to {chpseg_output_file}")
+        if not avpseg_metrics_df.empty:
+            avpseg_output_file = os.path.join(self.output_path, 'anat_seg_avpseg_summary.xlsx')
+            avpseg_metrics_df.to_excel(avpseg_output_file, index=False)
+            print(f"AvpSeg metrics summary saved to {avpseg_output_file}")

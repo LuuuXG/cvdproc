@@ -75,11 +75,13 @@ from nipype.interfaces.base import (
 class CalculateScalarMapsInputSpec(BaseInterfaceInputSpec):
     data_files = traits.List(traits.Str, desc="List of scalar map files to process", mandatory=True)
     mask_file = File(exists=True, desc="Binary mask or multi-label ROI file", mandatory=True)
-    roi_label = traits.Either(traits.Int, traits.Any, desc="Single ROI label. If Undefined, all nonzero ROI labels are used.")
+    roi_label = traits.Either(traits.Int, traits.Any, desc="Single ROI label. If Undefined, roi_labels or all nonzero labels are used.")
+    roi_labels = traits.List(traits.Int, desc="Selected ROI labels. If empty, roi_label or all nonzero labels are used.")
     colnames = traits.List(traits.Str, desc="Column names for scalar maps", mandatory=True)
     output_csv = traits.File(desc="Output CSV file", mandatory=True)
     ignore_background = traits.Bool(True, usedefault=True)
     statistic = traits.Enum("mean", "median", desc="Statistic to extract from ROI", usedefault=True)
+    combine_rois = traits.Bool(False, usedefault=True, desc="If True, selected labels are combined into one ROI.")
 
 
 class CalculateScalarMapsOutputSpec(TraitedSpec):
@@ -104,37 +106,37 @@ class CalculateScalarMaps(BaseInterface):
     @staticmethod
     def _load_3d_data(image_file, roi_img):
         img = nib.load(image_file)
-
         if not CalculateScalarMaps._same_grid(img, roi_img):
             raise RuntimeError(f"Grid mismatch between scalar map and ROI mask: {image_file}")
-
         data = img.get_fdata(dtype=np.float64)
-
         if data.ndim == 4:
             if data.shape[3] != 1:
                 raise RuntimeError(f"Scalar map must be 3D or 4D with one volume, got {data.shape}: {image_file}")
             data = data[..., 0]
-
         return data
 
     @staticmethod
     def _extract_value(data, roi_mask, ignore_background, statistic):
         valid = roi_mask & np.isfinite(data)
-
         if ignore_background:
             valid &= data != 0
-
         if not np.any(valid):
             return float("nan")
-
         values = data[valid]
-
         if statistic == "mean":
             return float(np.mean(values))
         if statistic == "median":
             return float(np.median(values))
-
         raise ValueError(f"Unsupported statistic: {statistic}")
+
+    @staticmethod
+    def _get_selected_labels(roi_data, roi_label, roi_labels):
+        if roi_labels is not Undefined and len(roi_labels) > 0:
+            return [int(x) for x in roi_labels]
+        if roi_label is not Undefined:
+            return [int(roi_label)]
+        labels = np.unique(roi_data[np.isfinite(roi_data)])
+        return [int(x) for x in labels if x != 0]
 
     def _run_interface(self, runtime):
         data_files = list(self.inputs.data_files)
@@ -147,6 +149,7 @@ class CalculateScalarMaps(BaseInterface):
         out_csv = os.path.abspath(str(self.inputs.output_csv))
         ignore_background = bool(self.inputs.ignore_background)
         statistic = str(self.inputs.statistic)
+        combine_rois = bool(self.inputs.combine_rois)
 
         roi_img = nib.load(mask_file)
         roi_data = roi_img.get_fdata(dtype=np.float64)
@@ -163,39 +166,32 @@ class CalculateScalarMaps(BaseInterface):
             else:
                 scalar_data.append(None)
 
-        single_roi_mode = self.inputs.roi_label is not Undefined
+        selected_labels = self._get_selected_labels(roi_data, self.inputs.roi_label, self.inputs.roi_labels)
 
-        if single_roi_mode:
-            roi_label = int(self.inputs.roi_label)
-            roi_mask = roi_data > 0 if roi_label == 0 else np.isclose(roi_data, roi_label)
+        if len(selected_labels) == 0:
+            raise ValueError("No ROI labels were selected.")
 
+        if combine_rois:
+            roi_mask = np.isin(roi_data, selected_labels)
             row = []
             for data in scalar_data:
                 if data is None:
                     row.append(float("nan"))
                 else:
                     row.append(self._extract_value(data, roi_mask, ignore_background, statistic))
-
             header = colnames
             rows = [row]
-
         else:
-            roi_labels = np.unique(roi_data[np.isfinite(roi_data)])
-            roi_labels = [int(x) for x in roi_labels if x != 0]
-
             header = ["roi_label"] + colnames
             rows = []
-
-            for roi_label in roi_labels:
+            for roi_label in selected_labels:
                 roi_mask = np.isclose(roi_data, roi_label)
                 row = [roi_label]
-
                 for data in scalar_data:
                     if data is None:
                         row.append(float("nan"))
                     else:
                         row.append(self._extract_value(data, roi_mask, ignore_background, statistic))
-
                 rows.append(row)
 
         out_dir = os.path.dirname(out_csv)
@@ -278,36 +274,11 @@ def tdi_weighted_mean_with_background_value(scalar_nii, weight_nii, background_v
     return num / denom
 
 class CalculateTDIWeightedScalarsInputSpec(BaseInterfaceInputSpec):
-    data_files = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="List of scalar NIfTI files (e.g., ICVF, ODI, ISO)",
-    )
-
-    weight_file = File(
-        exists=True,
-        mandatory=True,
-        desc="TDI NIfTI file used as weights",
-    )
-
-    colnames = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="Column names for the output CSV (same length as data_files)",
-    )
-
-    output_csv = File(
-        mandatory=True,
-        desc="Output CSV file (single-row)",
-    )
-
-    background_value = traits.Int(
-        -1,
-        usedefault=True,
-        desc="Background value rule. "
-             "Use -1 to automatically ignore {0,1}. "
-             "Use >=0 to ignore that exact scalar value.",
-    )
+    data_files = traits.List(traits.Str, mandatory=True, desc="List of scalar NIfTI files (e.g., ICVF, ODI, ISO)")
+    weight_file = File(exists=True, mandatory=True, desc="TDI NIfTI file used as weights")
+    colnames = traits.List(traits.Str, mandatory=True, desc="Column names for the output CSV (same length as data_files)")
+    output_csv = File(mandatory=True, desc="Output CSV file (single-row)")
+    background_value = traits.Int(-1, usedefault=True, desc="Background value rule. Use -1 to automatically ignore {0,1}. Use >=0 to ignore that exact scalar value.")
 
 
 class CalculateTDIWeightedScalarsOutputSpec(TraitedSpec):
@@ -380,40 +351,12 @@ class CalculateTDIWeightedScalars(BaseInterface):
 # tcksample: along tract
 
 class TckSampleMultiScalarProfileInputSpec(BaseInterfaceInputSpec):
-    tck_file = File(
-        exists=True,
-        mandatory=True,
-        desc="Input TCK file (single bundle)",
-    )
-
-    scalar_files = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="List of scalar NIfTI files",
-    )
-
-    scalar_names = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="Names for each scalar (same length as scalar_files)",
-    )
-
-    output_csv = File(
-        mandatory=True,
-        desc="Output CSV: rows=points, cols=scalars",
-    )
-
-    precise = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Use tcksample -precise",
-    )
-
-    nointerp = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Use tcksample -nointerp",
-    )
+    tck_file = File(exists=True, mandatory=True, desc="Input TCK file (single bundle)")
+    scalar_files = traits.List(traits.Str, mandatory=True, desc="List of scalar NIfTI files")
+    scalar_names = traits.List(traits.Str, mandatory=True, desc="Names for each scalar (same length as scalar_files)")
+    output_csv = File(mandatory=True, desc="Output CSV: rows=points, cols=scalars")
+    precise = traits.Bool(False, usedefault=True, desc="Use tcksample -precise")
+    nointerp = traits.Bool(False, usedefault=True, desc="Use tcksample -nointerp")
 
 
 class TckSampleMultiScalarProfileOutputSpec(TraitedSpec):
@@ -499,60 +442,14 @@ class TckSampleMultiScalarProfile(BaseInterface):
 # tcksample: tract mean
 
 class TckSampleMultiScalarBundleInputSpec(BaseInterfaceInputSpec):
-    tck_file = File(
-        exists=True,
-        mandatory=True,
-        desc="Input TCK file (single bundle).",
-    )
-
-    scalar_files = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="List of scalar NIfTI files.",
-    )
-
-    scalar_names = traits.List(
-        traits.Str,
-        mandatory=True,
-        desc="Names for each scalar (same length as scalar_files).",
-    )
-
-    output_csv = File(
-        mandatory=True,
-        desc="Output CSV: single row with one value per scalar.",
-    )
-
-    stat_tck = traits.Enum(
-        "mean",
-        "median",
-        "min",
-        "max",
-        "sum",
-        usedefault=True,
-        desc="tcksample -stat_tck option; produces one value per streamline.",
-    )
-
-    bundle_reduce = traits.Enum(
-        "mean",
-        "median",
-        "min",
-        "max",
-        "sum",
-        usedefault=True,
-        desc="How to reduce per-streamline values into a single bundle-level value.",
-    )
-
-    precise = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Use tcksample -precise.",
-    )
-
-    nointerp = traits.Bool(
-        False,
-        usedefault=True,
-        desc="Use tcksample -nointerp.",
-    )
+    tck_file = File(exists=True, mandatory=True, desc="Input TCK file (single bundle).")
+    scalar_files = traits.List(traits.Str, mandatory=True, desc="List of scalar NIfTI files.")
+    scalar_names = traits.List(traits.Str, mandatory=True, desc="Names for each scalar (same length as scalar_files).")
+    output_csv = File(mandatory=True, desc="Output CSV: single row with one value per scalar.")
+    stat_tck = traits.Enum("mean", "median", "min", "max", "sum", usedefault=True, desc="tcksample -stat_tck option; produces one value per streamline.")
+    bundle_reduce = traits.Enum("mean", "median", "min", "max", "sum", usedefault=True, desc="How to reduce per-streamline values into a single bundle-level value.")
+    precise = traits.Bool(False, usedefault=True, desc="Use tcksample -precise.")
+    nointerp = traits.Bool(False, usedefault=True, desc="Use tcksample -nointerp.")
 
 
 class TckSampleMultiScalarBundleOutputSpec(TraitedSpec):

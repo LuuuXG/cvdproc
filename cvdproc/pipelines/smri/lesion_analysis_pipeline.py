@@ -107,8 +107,7 @@ class LesionAnalysisPipeline:
         # Create the workflow
         lesion_filling_wf = Workflow(name='lesion_filling_workflow')
 
-        inputnode = Node(IdentityInterface(fields=['t1w', 'lesion_mask']),
-                         name='inputnode')
+        inputnode = Node(IdentityInterface(fields=['t1w', 'lesion_mask']), name='inputnode')
         inputnode.inputs.t1w = t1w_file
         inputnode.inputs.lesion_mask = lesion_mask_file
 
@@ -116,8 +115,7 @@ class LesionAnalysisPipeline:
                                                 name='gather_lesionfilled_t1w_node')
         if self.lesion_fill:
             if self.lesion_fill_method == 'left-right':
-                lesion_fill_node = Node(LeftRightLesionFill(),
-                                        name='lesion_fill_node')
+                lesion_fill_node = Node(LeftRightLesionFill(), name='lesion_fill_node')
                 
                 lesion_filling_wf.connect([(inputnode, lesion_fill_node, [('t1w', 't1w_file'),
                                                                         ('lesion_mask', 'lesion_mask')])])
@@ -127,8 +125,7 @@ class LesionAnalysisPipeline:
 
                 lesion_filling_wf.connect(lesion_fill_node, 'output_file', gather_lesionfilled_t1w_node, 'lesion_filled_t1w')
             elif self.lesion_fill_method == 'LIT':
-                lit_lesion_fill_node = Node(LIT(),
-                                            name='lit_lesion_fill_node')
+                lit_lesion_fill_node = Node(LIT(), name='lit_lesion_fill_node')
                 lesion_filling_wf.connect([(inputnode, lit_lesion_fill_node, [('t1w', 'input_image'),
                                                                              ('lesion_mask', 'mask_image')])])
                 lit_lesion_fill_node.inputs.output_directory = os.path.join(self.output_path, 'LIT')
@@ -168,8 +165,7 @@ class LesionAnalysisPipeline:
                 # contra: add 'contra' in original entity
                 contra_entity = desc_entity + 'contra'
 
-                sym_mni_lesion_fill_node = Node(SymmetricMniLesionFill(),
-                                               name='sym_mni_lesion_fill_node')
+                sym_mni_lesion_fill_node = Node(SymmetricMniLesionFill(), name='sym_mni_lesion_fill_node')
                 lesion_filling_wf.connect([(inputnode, sym_mni_lesion_fill_node, [('t1w', 't1w_file'),
                                                                                   ('lesion_mask', 'lesion_mask')])])
                 sym_mni_lesion_fill_node.inputs.mni_template = get_package_path('data', 'standard', 'MNI152', 'mni_icbm152_nlin_sym_09a_nifti', 'mni_icbm152_t1_tal_nlin_sym_09a.nii')
@@ -198,8 +194,7 @@ class LesionAnalysisPipeline:
                 # skip
                 print(f"[WARNING] Lesion size analysis requires exactly one lesion cluster, but found {num_features} clusters. Skipping lesion size analysis.")
             else:
-                lesion_size_analysis_node = Node(LesionSizeAnalysis(),
-                                                name='lesion_size_analysis_node')
+                lesion_size_analysis_node = Node(LesionSizeAnalysis(), name='lesion_size_analysis_node')
                 lesion_filling_wf.connect([(inputnode, lesion_size_analysis_node, [('lesion_mask', 'lesion_mask')])])
                 lesion_size_analysis_node.inputs.out_csv = os.path.join(self.output_path, f'lesion_metrics.csv')
             
@@ -211,8 +206,7 @@ class LesionAnalysisPipeline:
             target_warp_fwd = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
 
             if os.path.exists(target_warp_fwd):
-                normalize_lesion_node = Node(MRIConvertApplyWarp(),
-                                            name='normalize_lesion_node')
+                normalize_lesion_node = Node(MRIConvertApplyWarp(), name='normalize_lesion_node')
                 lesion_filling_wf.connect([(inputnode, normalize_lesion_node, [('lesion_mask', 'input_image')])])
                 normalize_lesion_node.inputs.warp_image = target_warp_fwd
                 normalize_lesion_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(lesion_mask_file, {'space': 'MNI152NLin6ASym'}, 'mask', '.nii.gz'))
@@ -225,8 +219,7 @@ class LesionAnalysisPipeline:
                 register_node.inputs.t1_2_mni_warp = target_warp_fwd
                 register_node.inputs.mni_2_t1_warp = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
 
-                normalize_lesion_node = Node(MRIConvertApplyWarp(),
-                                            name='normalize_lesion_node')
+                normalize_lesion_node = Node(MRIConvertApplyWarp(), name='normalize_lesion_node')
                 lesion_filling_wf.connect([(inputnode, normalize_lesion_node, [('lesion_mask', 'input_image')])])
                 lesion_filling_wf.connect(register_node, 't1_2_mni_warp', normalize_lesion_node, 'warp_image')
                 normalize_lesion_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(lesion_mask_file, {'space': 'MNI152NLin6ASym'}, 'mask', '.nii.gz'))
@@ -276,6 +269,6 @@ class LesionAnalysisPipeline:
 
                 lesion_analysis_df = pd.concat([lesion_analysis_df, temp_df], ignore_index=True)
         # Save combined results
-        combined_results_file = os.path.join(self.output_path, 'lesion_size_analysis_summary.csv')
-        lesion_analysis_df.to_csv(combined_results_file, index=False)
+        combined_results_file = os.path.join(self.output_path, 'lesion_analysis_summary.xlsx')
+        lesion_analysis_df.to_excel(combined_results_file, index=False)
         print(f"[INFO] Lesion size analysis summary saved to: {combined_results_file}")

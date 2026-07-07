@@ -25,13 +25,11 @@ class LSTSegmentationInputSpec(BaseInterfaceInputSpec):
     t1w = Str(desc="Path to the T1-weighted image", mandatory=False)
     threshold = Float(desc="Threshold for WMH segmentation", mandatory=True)
     output_path = Str(desc="Output directory to save the results", mandatory=True)
-    
     WMH_mask_flair = Str(desc="Name of the WMH mask file in FLAIR space")
     WMH_prob_flair = Str(desc="Name of the WMH probability map file in FLAIR space")
     WMH_mask_t1w = Str(desc="Name of the WMH mask file in T1w space")
     WMH_prob_t1w = Str(desc="Name of the WMH probability map file in T1w space")
     FLAIR_in_T1w = Str(desc="Name of the FLAIR image in T1w space")
-
     spm_path = Directory(desc="Path to SPM installation")
     lst_path = Str(desc="Path to MATLAB executable")
     script_path = File(desc="Path to the .m script", exists=True, mandatory=True)
@@ -282,7 +280,6 @@ class WMHSynthSegSingleInputSpec(CommandLineInputSpec):
     threads = Int(desc="Number of CPU cores to be used", argstr='--threads %d', default=1)
     save_lesion_probabilities = Bool(desc="Saves lesion probability maps", argstr='--save_lesion_probabilities', default=False)
     crop = Bool(desc="Does two passes, to limit size to 192x224x192 cuboid (needed for GPU processing)", argstr='--crop', default=False)
-
     prob_filepath = File(desc="Path to the probability map file", argstr='--prob_filepath %s', mandatory=False)
     wmh_filepath = File(desc="Path to the WMH mask file", argstr='--wmh_filepath %s', mandatory=False)
 

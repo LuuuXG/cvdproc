@@ -15,7 +15,6 @@ class ConcInputSpec(BaseInterfaceInputSpec):
     repetition_time = Float(mandatory=True, desc='Repetition time in seconds')
     output_path = Str(exists=True, mandatory=True, desc='Output directory for the modified script')
     output_conc_path = Str(mandatory=True, desc='Output path for the concentration image')
-
     script_path = Str(desc='Path to the MATLAB script that runs the concentration processing')
 
 class ConcOutputSpec(TraitedSpec):
@@ -82,7 +81,6 @@ class DSCMRIInputSpec(BaseInterfaceInputSpec):
     output_mtt_osvd_path = File(mandatory=True, desc='Output path for the MTT_OSVD image')
     output_ttp_path = File(mandatory=True, desc='Output path for the TTP image')
     output_s0_path = File(mandatory=True, desc='Output path for the S0 image')
-
     script_path = Str(desc='Path to the MATLAB script that runs the DSC-MRI processing')
 
 class DSCMRIOutputSpec(TraitedSpec):

@@ -60,8 +60,7 @@ class HipstaPipeline:
         if not os.path.exists(lh_hip_subfield_seg) or not os.path.exists(rh_hip_subfield_seg):
             raise FileNotFoundError("[HIPSTA Pipeline] One or both hippocampal subfield segmentations not found.")
 
-        inputnode = Node(IdentityInterface(fields=['hip_subfield_seg']),
-                         name='inputnode')
+        inputnode = Node(IdentityInterface(fields=['hip_subfield_seg']), name='inputnode')
         inputnode.inputs.hip_subfield_seg = [lh_hip_subfield_seg, rh_hip_subfield_seg]
 
         hipsta_node = MapNode(HipstaDocker(), name='hipsta_node', iterfield=['filename', 'hemi'])

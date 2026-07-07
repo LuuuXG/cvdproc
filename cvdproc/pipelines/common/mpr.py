@@ -10,16 +10,8 @@ import os
 
 
 class minIPInputSpec(BaseInterfaceInputSpec):
-    in_file = File(
-        exists=True,
-        desc="Input 3D image file",
-        mandatory=True,
-    )
-    axis = Str(
-        "z",
-        desc="Axis along which to compute the minimum intensity projection. One of {'x','y','z'}.",
-        mandatory=True,
-    )
+    in_file = File(exists=True, desc="Input 3D image file", mandatory=True)
+    axis = Str("z", desc="Axis along which to compute the minimum intensity projection. One of {'x','y','z'}.", mandatory=True)
     slice_number = Either(
         Int,
         Str("all"),
@@ -30,14 +22,7 @@ class minIPInputSpec(BaseInterfaceInputSpec):
         ),
         mandatory=True,
     )
-    out_file = Str(
-        "",
-        desc=(
-            "Output file name for the minimum intensity projection (NIfTI). "
-            "If empty, will be derived from the input file name."
-        ),
-        mandatory=False,
-    )
+    out_file = Str("", desc="Output file name for the minimum intensity projection (NIfTI). If empty, will be derived from the input file name.", mandatory=False)
 
 
 class minIPOutputSpec(TraitedSpec):
@@ -96,9 +81,7 @@ class minIP(BaseInterface):
                 raise ValueError("slice_number must be a positive integer.")
 
             if N > axis_len:
-                raise ValueError(
-                    f"slice_number ({N}) cannot be larger than axis length ({axis_len})."
-                )
+                raise ValueError(f"slice_number ({N}) cannot be larger than axis length ({axis_len}).")
 
             # Move chosen axis to last position: (..., L)
             moved = np.moveaxis(data, axis_idx, -1)
