@@ -239,7 +239,8 @@ def main():
                 "lesion_analysis",
                 "freesurfer_longitudinal",
                 "nemo_postprocess",
-                "freesurfer"
+                "freesurfer",
+                "synthsr"
             )):
                 os.makedirs(output_path, exist_ok=True)
 

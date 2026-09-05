@@ -18,6 +18,7 @@ class ExploreASLCustomInputSpec(BaseInterfaceInputSpec):
     asl_filter_filename = Str(mandatory=True, desc="Only copy perf files containing this string in filename")
     script_path = Str(desc='Path to the MATLAB script for ExploreASL', mandatory=True)
     exploreasl_dir = Str(desc='Path to the ExploreASL directory', mandatory=True)
+    ignore_m0 = traits.Bool(False, usedefault=True, desc="If True, skip separate M0 files and set M0Type to Absent in ASL JSON")
 
 class ExploreASLCustomOutputSpec(TraitedSpec):
     rt1 = Str(desc="Path to the T1.nii.gz file")
@@ -43,6 +44,7 @@ class ExploreASLCustom(BaseInterface):
             new_script_content = new_script_content.replace('/this/is/for/nipype/t1w_filter_filename', self.inputs.t1w_filter_filename)
             new_script_content = new_script_content.replace('/this/is/for/nipype/asl_filter_filename', self.inputs.asl_filter_filename)
             new_script_content = new_script_content.replace('/this/is/for/nipype/exploreasl_dir', self.inputs.exploreasl_dir)
+            new_script_content = new_script_content.replace('/this/is/for/nipype/ignore_m0', 'true' if self.inputs.ignore_m0 else 'false')
             f.write(new_script_content)
         
         cmd_str = f"run('{subject_matlab_script}'); exit;"

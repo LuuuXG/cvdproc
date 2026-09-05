@@ -38,6 +38,7 @@ if ischar(phase_image_correction)
 end
 %% ----------------------00 Load Funtions---------------------------
 chisep_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'Chisep_Toolbox_v1.2');
+vesselseg_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'Chisep_Toolbox_v1.2', 'models');
 sepia_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'sepia');
 sti_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'STISuite_V3.0');
 medi_path = fullfile(cvdproc_dir, 'cvdproc', 'data', 'matlab_toolbox', 'MEDI_toolbox');
@@ -57,6 +58,7 @@ addpath(genpath(segue_path));
 addpath(genpath(mrisc_path));
 addpath(genpath(fansi_path));
 addpath(genpath(chisep_path));
+addpath(genpath(vesselseg_path));
 
 if ispc
     mritools_path = mritools_win_path;
@@ -286,7 +288,7 @@ if phase_image_correction
     img_imag(:,:,2:2:end,:) = -img_imag(:,:,2:2:end,:);
 
     img_phase = angle(complex(img_real, img_imag));
-    
+
     phase_raw_corrected = sprintf('%spart-phase_desc-corrected_GRE.nii.gz', raw_qsm_prefix);
     save_nii_img_only(phase_raw, phase_raw_corrected, img_phase);
     delete(phase_raw);
@@ -322,9 +324,9 @@ else
     fprintf('Found first magnitude echo-1 file: %s\n', first_mag_echo1);
 end
 
-brain_mask_out = sprintf('%sdesc-brain_mask.nii.gz', raw_qsm_prefix);
+brain_mask_out = sprintf('%slabel-brain_mask.nii.gz', raw_qsm_prefix);
 
-cmd = sprintf('mri_synthstrip -i %s -m %s', first_mag_echo1, brain_mask_out);
+cmd = sprintf('mri_synthstrip -i "%s" -m "%s"', first_mag_echo1, brain_mask_out);
 fprintf('Running: %s\n', cmd);
 [status, result] = system(cmd);
 
@@ -369,7 +371,7 @@ input(2).name = mag_smooth;
 input(3).name = '' ;
 input(4).name = sepia_header;
 output_basename = sepia_output_basename;
-mask_filename = [''] ;
+mask_filename = [brain_mask_out] ;
 
 % General algorithm parameters
 algorParam = struct();
@@ -382,7 +384,35 @@ algorParam.r2s.s0mode = 'Weighted sum' ;
 
 sepiaIO(input,output_basename,mask_filename,algorParam);
 
+% ----------------------------Post-process---------------------------------
 r2s = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_R2starmap.nii.gz', subject_id, session_id));
+swi = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_clearswi.nii.gz', subject_id, session_id));
+mip = fullfile(sepia_output_dir, sprintf('sub-%s_ses-%s_clearswi-minIP.nii.gz', subject_id, session_id));
+
+mask = niftiread(brain_mask_out);
+mask = logical(mask);
+
+files_in = {swi, mip};
+
+for i = 1:numel(files_in)
+    data = niftiread(files_in{i});
+    info = niftiinfo(files_in{i});
+
+    % Apply mask
+    data_masked = data .* cast(mask, class(data));
+
+    % Get prefix by stripping extension(s)
+    [folder, name, ~] = fileparts(files_in{i});
+    if endsWith(name, '.nii')  % handle .nii.gz case
+        [~, name, ~] = fileparts(name);
+    end
+    out_prefix = fullfile(folder, name);
+
+    % Overwrite (keep compressed)
+    niftiwrite(data_masked, out_prefix, info, 'Compressed', true);
+
+    fprintf('Masked and overwritten: %s\n', files_in{i});
+end
 
 %% -------------03 ChiSep & SEPIA: QSM, ChiDia, ChiPara-------------
 sub_and_ses_str_sepia = sprintf('sub-%s_ses-%s', subject_id, session_id);
@@ -443,7 +473,7 @@ end
 
 unwrapped_phase_average_data = weightedSum / TE_eff * (TE_s(2)-TE_s(1)) .* brain_mask_data;
 unwrapped_phase_average = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_part-phase_unwrapped_weighted_average.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, unwrapped_phase_average, unwrapped_phase_average_data);
+save_nii_img_only(unwrapped_phase_raw, unwrapped_phase_average, unwrapped_phase_average_data);
 
 % ------------------------02 backgroud field remove------------------------
 info = niftiinfo(unwrapped_phase_average);
@@ -454,13 +484,13 @@ local_field_hz_data = double(local_field_data) / (2*pi*delta_TE);
 local_field = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_localfield.nii.gz', subject_id, session_id));
 local_field_hz = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_localfield_hz.nii.gz', subject_id, session_id));
 mask_qsm = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_mask_QSM.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, local_field, local_field_data);
-save_nii_img_only(brain_mask, local_field_hz, local_field_hz_data);
-save_nii_img_only(brain_mask, mask_qsm, brain_mask_new_data);
+save_nii_img_only(unwrapped_phase_raw, local_field, local_field_data);
+save_nii_img_only(unwrapped_phase_raw, local_field_hz, local_field_hz_data);
+save_nii_img_only(unwrapped_phase_raw, mask_qsm, brain_mask_new_data);
 
 % -----------------------------03 raw QSM----------------------------------
 pad_size = [12, 12, 12];
-voxelSize_QSM = double([voxelSize(:).']); 
+voxelSize_QSM = double([voxelSize(:).']);
 QSM_data = QSM_iLSQR( ...
     local_field_data, ...
     brain_mask_new_data, ...
@@ -472,7 +502,7 @@ QSM_data = QSM_iLSQR( ...
 );
 
 QSM = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-raw_Chimap.nii.gz', subject_id, session_id));
-save_nii_img_only(brain_mask, QSM, QSM_data);
+save_nii_img_only(unwrapped_phase_raw, QSM, QSM_data);
 
 % -----------------------------04 ChiSep-----------------------------------
 RunOptions = struct();
@@ -534,35 +564,11 @@ Data.x_dia(Data.x_dia < 0) = 0;
 Data.r2p_map(Data.r2p_map < 0) = 0;
 
 % % vessel seg
-% % Params for vessel enhancement filter (MFAT, Default)
-% params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
-% params.spacing = Data.VoxelSize;
-% params.scales = 4; params.sigmas = [0.25,0.5,0.75,1];
-% params.whiteondark = true;
-% 
-% % params for Seed Generation
-% params.alpha = 2; % Threshold for large vessel seeds
-% params.beta = 1; % Threshold for small vessel seeds
-% params.mipSlice = round(16 / params.spacing(3) / 2) * 2;
-% params.overlap = params.mipSlice / 2;
-%     
-% % params for Region Growing
-% params.limit = [0.5, -0.5]; %% gamma1 and gamma2
-% params.Aniso_Thresh = 0.0012;
-% params.similarity = 0.5; % see (Eq. 3)
-% 
-% seedInput.img1 = Data.R2s; seedInput.img2 = Data.x_para .* Data.x_dia;
-% baseInput.img1 = Data.x_para; baseInput.img2 = Data.x_dia;
-% 
-% [paraMask_init, diaMask_init, homogeneityMeasure_p, homogeneityMeasure_d] = ...
-%                     vesselSegmentation_Chiseparation(seedInput, baseInput, Data.mask_brain_new, min(Data.mask_brain_new, 1 - Data.mask_CSF), params);
-% Data.vesselMask_para = filterVesselsByAnisotropy(paraMask_init, homogeneityMeasure_p, params.Aniso_Thresh);
-% Data.vesselMask_dia  = filterVesselsByAnisotropy(diaMask_init, homogeneityMeasure_d, params.Aniso_Thresh);
+% [Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
 
 % save data
 if ~(sum(RunOptions.EvenSizePadding) == 0)
     input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new'};
-    %input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new','vesselMask_para','vesselMask_dia'};
     for i = 1:length(input_field)
         if isfield(Data,cell2mat(input_field(i)))
             [Data.(cell2mat(input_field(i)))] = even_unpad(Data.(cell2mat(input_field(i))),RunOptions.EvenSizePadding);
@@ -582,7 +588,7 @@ chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
 chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
 chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
 chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
-chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-Chisep_Chimap.nii.gz', subject_id, session_id));
+chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-QSMnet_Chimap.nii.gz', subject_id, session_id));
 % vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
 % vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
 

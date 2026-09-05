@@ -565,7 +565,7 @@ Data.x_dia(Data.x_dia < 0) = 0;
 Data.r2p_map(Data.r2p_map < 0) = 0;
 
 % % vessel seg
-[Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
+% [Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
 % % Params for vessel enhancement filter (MFAT, Default)
 % params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
 % params.spacing = Data.VoxelSize;
@@ -594,7 +594,6 @@ Data.r2p_map(Data.r2p_map < 0) = 0;
 % save data
 if ~(sum(RunOptions.EvenSizePadding) == 0)
     input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new'};
-    %input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new','vesselMask_para','vesselMask_dia'};
     for i = 1:length(input_field)
         if isfield(Data,cell2mat(input_field(i)))
             [Data.(cell2mat(input_field(i)))] = even_unpad(Data.(cell2mat(input_field(i))),RunOptions.EvenSizePadding);
@@ -608,28 +607,28 @@ chidia_old = fullfile(qsm_output_dir, 'ChiDia.nii');
 chipara_old = fullfile(qsm_output_dir, 'ChiPara.nii');
 chitotal_old = fullfile(qsm_output_dir, 'ChiTot.nii');
 chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
-vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
-vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
+% vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
+% vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
 
 chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
 chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
 chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
 chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-QSMnet_Chimap.nii.gz', subject_id, session_id));
-vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
-vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
+% vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
+% vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
 
 convert_nii_to_gz(chidia_old,   chidia);
 convert_nii_to_gz(chipara_old,  chipara);
 convert_nii_to_gz(chitotal_old, chitotal);
 convert_nii_to_gz(chimap_old,   chimap);
-convert_nii_to_gz(vesseldia_old,   vesseldia);
-convert_nii_to_gz(vesselpara_old,   vesselpara);
+% convert_nii_to_gz(vesseldia_old,   vesseldia);
+% convert_nii_to_gz(vesselpara_old,   vesselpara);
 
 delete(chidia_old);
 delete(chipara_old);
 delete(chitotal_old);
 delete(chimap_old);
-delete(vesseldia_old);
-delete(vesselpara_old);
+% delete(vesseldia_old);
+% delete(vesselpara_old);
 
 % all done !

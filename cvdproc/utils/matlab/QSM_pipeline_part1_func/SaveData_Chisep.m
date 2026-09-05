@@ -17,10 +17,18 @@ if strcmp(RunOptions.InputType, 'nifti')
     save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
     [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.qsm_map, 'QSM_map');
     save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
-    [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_para, 'vesselMask_para');
-    save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
-    [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_dia, 'vesselMask_dia');
-    save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
+    save_vessel_masks = ~isfield(RunOptions, 'SaveVesselMasks') || RunOptions.SaveVesselMasks;
+    if save_vessel_masks
+        if ~isfield(Data, 'vesselMask_para') || ~isfield(Data, 'vesselMask_dia')
+            error('SaveData_Chisep:MissingVesselMasks', ...
+                ['RunOptions.SaveVesselMasks is enabled, but Data.vesselMask_para ' ...
+                 'or Data.vesselMask_dia is missing.']);
+        end
+        [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_para, 'vesselMask_para');
+        save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
+        [save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.vesselMask_dia, 'vesselMask_dia');
+        save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
+    end
     %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.QSM, 'QSM');
     %save_func(Data.nii_file,[Data.output_root,'\',Data.save_name]);
     %[save_func, Data.nii_file, Data.save_name]=load_nii_template_and_make_nii(Data, Data.local_field, 'local_field');
@@ -81,9 +89,9 @@ function [save_func, nii_file, save_name]=load_nii_template_and_make_nii(Data, d
         nii_file = [];
     end
     
+    save_name = [save_name, '.nii'];
     if isempty(nii_file)
         save_func = @save_nii;
-        save_name = [save_name, '.nii'];
         origin = [1 1 1];
         nii_file = make_nii(rot90(data,-1), voxel_size, origin);
         [q, nii_file.hdr.hist.pixdim(1)] = CalculateQuatFromB0Dir(Data.B0dir);

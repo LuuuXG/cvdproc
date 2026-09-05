@@ -8,17 +8,29 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import nibabel as nib
 import numpy as np
+from nipype.interfaces.base import File
 from nipype.interfaces.freesurfer import ReconAll
+from nipype.interfaces.freesurfer.preprocess import ReconAllInputSpec
 from nipype import Node, Workflow, MapNode
 from nipype.interfaces.utility import IdentityInterface, Function
 from .freesurfer.recon_all_clinical import ReconAllClinical, CopySynthSR, PostProcess
 from .freesurfer.synthSR import SynthSR
+from .freesurfer.synthstrip import SynthStrip
 from cvdproc.pipelines.smri.freesurfer.subfieldseg import SegmentSubregions, SegmentHACross, SegmentBS, SegmentThalamic, HypothalamicSubunits
 from cvdproc.pipelines.smri.freesurfer.post_freesurfer import FSQC, Stats2CSV
 from cvdproc.pipelines.smri.freesurfer.recon_all_longitudinal import FreesurferLongitudinal
 from cvdproc.pipelines.smri.freesurfer.results_extractor import FreesurferStatsExtractorMixin
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
+
+
+class ReconAllXMaskInputSpec(ReconAllInputSpec):
+    xmask = File(exists=True, mandatory=True, argstr="-xmask %s", desc="External brain mask")
+
+
+class ReconAllXMask(ReconAll):
+    input_spec = ReconAllXMaskInputSpec
+
 
 def build_long_stats2csv_inputs(long_subject_dirs):
     import os
@@ -108,6 +120,10 @@ class FreesurferPipeline(FreesurferStatsExtractorMixin):
 
         print(f"[Freesurfer Pipeline] Using T1w file: {t1w_file}")
 
+        brain_mask = os.path.join(self.subject.bids_dir, "derivatives", "xfm", f"sub-{self.subject.subject_id}", f"ses-{self.session.session_id}", rename_bids_file(t1w_file, {"space": "T1w", "desc": "brain"}, "mask", ".nii.gz"))
+        if self.recon_all:
+            print(f"[Freesurfer Pipeline] External brain mask (generated if missing): {brain_mask}")
+
         fs_output_path = os.path.dirname(self.output_path)
         fs_output_id = os.path.basename(self.output_path)
         os.makedirs(fs_output_path, exist_ok=True)
@@ -124,12 +140,22 @@ class FreesurferPipeline(FreesurferStatsExtractorMixin):
         inputnode.inputs.subjects_dir = fs_output_path
 
         if self.recon_all:
-            reconall_node = Node(ReconAll(), name="reconall")
+            reconall_node = Node(ReconAllXMask(), name="reconall")
             reconall_node.inputs.directive = "all"
             reconall_node.inputs.flags = "-qcache -no-isrunning"
             fs_workflow.connect(inputnode, "t1w_file", reconall_node, "T1_files")
             fs_workflow.connect(inputnode, "fs_output_id", reconall_node, "subject_id")
             fs_workflow.connect(inputnode, "subjects_dir", reconall_node, "subjects_dir")
+
+            if os.path.isfile(brain_mask):
+                reconall_node.inputs.xmask = brain_mask
+            else:
+                os.makedirs(os.path.dirname(brain_mask), exist_ok=True)
+                synthstrip_node = Node(SynthStrip(), name="synthstrip_brain_mask")
+                synthstrip_node.inputs.mask_file = brain_mask
+                synthstrip_node.inputs.no_csf = True
+                fs_workflow.connect(inputnode, "t1w_file", synthstrip_node, "image")
+                fs_workflow.connect(synthstrip_node, "mask_file", reconall_node, "xmask")
         else:
             print("[Freesurfer Pipeline] Skipping recon-all step, assuming it has been run already.")
             reconall_node = Node(IdentityInterface(fields=["subject_id", "subjects_dir"]), name="reconall")
@@ -545,6 +571,7 @@ class SynthSRPipeline:
         inputnode.inputs.output_path = synthsr_img_name
 
         synthsr_node = Node(SynthSR(), name="synthsr")
+        synthsr_node.inputs.cpu = True
         synthsr_workflow.connect(inputnode, "input_file", synthsr_node, "input")
         synthsr_workflow.connect(inputnode, "output_path", synthsr_node, "output")
 

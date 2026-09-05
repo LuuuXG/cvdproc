@@ -1,6 +1,7 @@
 import subprocess
 import os
 import shutil
+import yaml
 import nibabel as nib
 import numpy as np
 import json
@@ -87,7 +88,250 @@ class Dcm2BidsProcessor:
 
         print("participants.json created/reset.")
 
+        # === Generate config template in code/ ===
+        self._generate_config_template()
+
         print('Initialization completed.')
+
+    def _generate_config_template(self):
+        """Generate a config.yml template in the code/ folder with all pipeline defaults."""
+        code_dir = os.path.join(self.BIDS_root_folder, 'code')
+        os.makedirs(code_dir, exist_ok=True)
+        config_path = os.path.join(code_dir, 'config_template.yml')
+
+        config = {
+            'bids_dir': '',
+            'output_dir': '',
+            'matlab_path': None,
+            'dcm2bids': {
+                'config_file': '',
+                'ignore': [],
+                'keep_filtered_dicom': False,
+                'dwi_fix_bvecbval': [],
+                'perf_fix_aslcontext': [],
+                'deface_anat': False,
+                'fix_intendedfor': False,
+                'resample_to_iso': [],
+            },
+            'check_data': [],
+            'pipelines': {
+                # --- Structural MRI ---
+                'freesurfer': {
+                    'use_which_t1w': None,
+                    'recon_all': True,
+                    'subregion_ha': False,
+                    'subregion_thalamus': False,
+                    'subregion_brainstem': False,
+                    'subregion_hypothalamus': False,
+                    'fsqc': False,
+                    'stats2csv': False,
+                    'extract_from': None,
+                },
+                'freesurfer_clinical': {
+                    'use_which_t1w': None,
+                },
+                'freesurfer_longitudinal': {
+                    'subregion_ha': False,
+                    'subregion_thalamus': False,
+                    'subregion_brainstem': False,
+                    'subregion_hypothalamus': False,
+                    'stats2csv': False,
+                    'extract_from': None,
+                },
+                'synthsr': {
+                    'input_type': 'T1w',
+                    'use_which_t1w': None,
+                    'use_which_flair': None,
+                },
+                't1_register': {
+                    'use_which_t1w': None,
+                    'template_space': 'MNI152NLin6Asym',
+                    'cohort': '',
+                    'resolution': 1,
+                },
+                'lesion_analysis': {
+                    'use_which_t1w': None,
+                    'use_which_lesion_mask': None,
+                    'lesion_fill': False,
+                    'lesion_fill_method': 'LIT',
+                    'out_contra_mask': False,
+                    'lesion_size_analysis': True,
+                    'normalize': False,
+                    'extract_from': None,
+                },
+                'cat12': {
+                    'use_which_t1w': None,
+                    'job': 'segmentation',
+                    'cat12_path': None,
+                    'cat12_standalone_path': None,
+                    'extract_from': None,
+                },
+                'fsl_anat': {
+                    'use_which_t1w': None,
+                },
+                'anat_seg': {
+                    'use_which_t1w': 'T1w',
+                    'methods': ['synthseg', 'chpseg', 'avpseg'],
+                    'cpu_first': False,
+                    'extract_from': None,
+                },
+                'brain_age': {
+                    'use_which_t1w': 'T1w',
+                    'method': 'brainageR',
+                    'extract_from': None,
+                },
+                'hipsta': {
+                    'use_freesurfer_clinical': False,
+                    'extract_from': None,
+                },
+                'scn': {
+                    'method': ['MIND'],
+                    'use_freesurfer_clinical': False,
+                },
+                # --- CSVD markers ---
+                'wmh_quantification': {
+                    'use_which_t1w': None,
+                    'use_which_flair': None,
+                    'seg_method': 'LST',
+                    'exclude_mask': 'lesion_mask',
+                    'use_which_exclude_mask': None,
+                    'ignore_t1w_in_truenet': False,
+                    'seg_threshold': 0.5,
+                    'location_method': ['Fazekas'],
+                    'ventmask_method': 'SynthSeg',
+                    'use_bianca_mask': False,
+                    'normalize_to_mni': False,
+                    'shape_features': False,
+                    'extract_from': None,
+                },
+                'pvs_quantification': {
+                    'use_which_t1w': None,
+                    'use_which_flair': None,
+                    'method': 'segcsvd',
+                    'modality': 'T1w',
+                    'shiva_config': None,
+                    'use_wmh': False,
+                    'extract_from': None,
+                },
+                'cmb_quantification': {
+                    'use_which_swi': None,
+                    'use_which_t1w': None,
+                    'method': 'SHIVA',
+                    'modality': 'swi',
+                    'swi_stripped': False,
+                    'shiva_config': None,
+                    'predictor_files': [],
+                    'crop_or_pad_percentage': [0.5, 0.5, 0.5],
+                    'save_intermediate_image': False,
+                    'threshold': 0.5,
+                },
+                # --- Diffusion MRI ---
+                'dwi_pipeline': {
+                    'use_which_dwi': None,
+                    'use_which_t1w': None,
+                    'use_which_flair': None,
+                    'use_freesurfer_longitudinal': False,
+                    'preprocess': False,
+                    'output_resolution': 2.0,
+                    'degibbs': True,
+                    'flip_b_table_axis': [],
+                    'preprocess_method': 'fdt',
+                    'synb0': False,
+                    'use_which_reverse_b0': None,
+                    'dti_fit': False,
+                    'dwi_t1w_register': False,
+                    'dsistudio_dti': False,
+                    'dsistudio_gqi': False,
+                    'dsistudio_qsdr': False,
+                    'amico_noddi': False,
+                    'connectome': [],
+                    'tractography': [],
+                    'seed_mask': 'lesion_mask',
+                    'use_which_mask': None,
+                    'dtialps': False,
+                    'dtialps_register_method': 1,
+                    'pved': False,
+                    'pved_method': 'v2',
+                    'freewater': [],
+                    'psmd': False,
+                    'psmd_exclude_seed_mask': False,
+                    'visual_pathway_analysis': False,
+                    'visual_pathway_analysis_flip_y': False,
+                    'calculate_dwi_metrics': False,
+                    'use_synthseg_wm_mask': False,
+                    'exclude_seed_mask': True,
+                    'exclude_wmh_mask': False,
+                    'extract_from': None,
+                },
+                'nemo_postprocess': {
+                    'use_freesurfer_clinical': False,
+                    'use_freesurfer_longitudinal': False,
+                    'cortical_metrics': False,
+                    'results_to_csv': False,
+                    'extract_from': None,
+                },
+                'lqt_pipeline': {
+                    'seed_mask': 'lesion_mask',
+                    'use_which_mask': 'infarction',
+                    'alps_roi_disconnection': False,
+                    'extract_from': None,
+                },
+                # --- Perfusion MRI ---
+                'asl_pipeline': {
+                    'use_which_asl': None,
+                    'use_which_t1w': None,
+                    'preprocess_method': 'ExploreASL',
+                    'ignore_m0': False,
+                    'calculate_asl_metrics': False,
+                    'skip_preprocess': False,
+                    'extract_from': None,
+                },
+                # --- Quantitative MRI ---
+                'qsm_pipeline': {
+                    'use_which_t1w': None,
+                    'normalize': False,
+                    'phase_image_correction': False,
+                    'reverse_phase': 0,
+                    'qsm_metrics_stats': False,
+                    'skip_reconstruction': False,
+                    'extract_from': None,
+                },
+                'sepia_qsm': {
+                    'use_which_t1w': None,
+                    'normalize': False,
+                    'sepia_toolbox_path': None,
+                    'reverse_phase': 0,
+                },
+                # --- PWI (DSC-MRI) ---
+                'pwi_pipeline': {
+                    'use_which_pwi': 'pwi',
+                    'use_which_t1w': None,
+                    'extract_from': None,
+                },
+                # --- Multi-Modality ---
+                'arts_pipeline': {
+                    'method': 'v2',
+                    'extract_from': None,
+                },
+            },
+        }
+
+        header = (
+            "# ============================================================\n"
+            "# CVDProc Configuration Template\n"
+            "# Auto-generated during BIDS initialization.\n"
+            "# Copy this file to config.yml and fill in your settings.\n"
+            "# - Required: bids_dir, output_dir\n"
+            "# - Optional: matlab_path (set if pipelines need MATLAB)\n"
+            "# - Optional: check_data (data presence verification criteria)\n"
+            "# ============================================================\n\n"
+        )
+
+        with open(config_path, 'w') as f:
+            f.write(header)
+            yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True, indent=2)
+
+        print(f"Config template generated at {config_path}")
 
     def _build_ignore_predicate(self, ignore_list):
         """

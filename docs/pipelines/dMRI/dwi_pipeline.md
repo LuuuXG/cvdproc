@@ -87,7 +87,16 @@ The original method was proposed in [@taoka2017evaluation]. It is important to n
 
 ![PVeD](./PVeD.png)
 
-periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain [@chen2025periventricular]. It is calculated using the official [EstPVeD](https://github.com/ChangleChen/EstPVeD) script.
+Periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain [@chen2025periventricular]. Enable it with `pved: true` and select the implementation with `pved_method`. The default `v2` method calls the `Atropos` executable from the system ANTs installation and does not require `antspyx`:
+
+- `v2` (default) fits the tensor with dtifit, applies the existing DWI-to-T1w affine and T1w-to-`MNI152NLin6Asym` warp to the FA, MD, and tensor maps, and estimates PVeD using ANTs Atropos instead of SPM. If the T1w-to-MNI warp is unavailable, the pipeline reports the missing file and falls back to `v1`.
+- `v1` uses the legacy QSDR, MATLAB, SPM12, and official [EstPVeD](https://github.com/ChangleChen/EstPVeD) workflow.
+
+```yaml
+dwi_pipeline:
+    pved: true
+    pved_method: v2
+```
 
 Things to concern: A region growing method is used to determine the periventricular region. However, if there are lesions (such as lacunar infarcts with high MD values) in this region, these lesion areas will be ignored, leading to variability in the periventricular region among subjects.
 

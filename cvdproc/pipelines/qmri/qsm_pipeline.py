@@ -8,7 +8,7 @@ from .qsm_pipeline_part1.qsm_pipeline_part1_nipype import QSMPipelinePart1
 from .qqnet.qqnet_nipype import QQNet
 from cvdproc.pipelines.common.files import FilterExisting
 from cvdproc.pipelines.qmri.qsm_register.qsm_register2_nipype import QSMRegister
-from cvdproc.pipelines.dmri.stats.dti_scalar_maps import CalculateScalarMaps
+from cvdproc.pipelines.common.image_calc import CalculateScalarMaps
 from cvdproc.pipelines.common.register import Tkregister2fs2t1w, MRIConvertApplyWarp, SynthmorphNonlinear, ModalityRegistration
 from nipype.interfaces.fsl import FLIRT
 from nipype.interfaces.freesurfer import MRIConvert
@@ -270,13 +270,16 @@ class QSMPipeline:
                 synthseg = True
 
                 # dk_fs: self.freesurfer_dir/mri/aparc+aseg.mgz (should be 1 file)
-                dk_fs_file = glob.glob(os.path.join(self.session.freesurfer_dir, 'mri', 'aparc+aseg.mgz'))
-                if not dk_fs_file:
+                if self.session.freesurfer_dir is not None:
+                    dk_fs_file = glob.glob(os.path.join(self.session.freesurfer_dir, 'mri', 'aparc+aseg.mgz'))
+                    if not dk_fs_file:
+                        dk = False
+                    if len(dk_fs_file) > 1:
+                        raise ValueError("[QSM Pipeline] Multiple aparc+aseg files found.")
+                    dk_fs = dk_fs_file[0]
+                    dk = True
+                else:
                     dk = False
-                if len(dk_fs_file) > 1:
-                    raise ValueError("[QSM Pipeline] Multiple aparc+aseg files found.")
-                dk_fs = dk_fs_file[0]
-                dk = True
 
                 mni_to_t1w = True
 

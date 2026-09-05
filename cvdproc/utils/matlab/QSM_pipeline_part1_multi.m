@@ -1,9 +1,3 @@
-%% =========================================
-% Batch wrapper for running multiple subjects/sessions
-% Put this block ABOVE your existing pipeline code.
-% Only code comments are in English as requested.
-% =========================================
-
 clear;
 cd(fileparts(matlab.desktop.editor.getActiveFilename));
 
@@ -17,7 +11,7 @@ ants_path     = ""; % currently not used
 %  - subjects = 'auto' will scan BIDS for all sub-*
 %  - or provide a cell array, e.g., {'HC0261','HC0262'}
 subjects = { ...
-    'HC0366'
+    'AFib0050'
 };
 
 % sessions_mode:
@@ -26,7 +20,7 @@ subjects = { ...
 %  - 'list'  : provide sessions_list_map for per-subject sessions (containers.Map)
 %  - 'none'  : for datasets without ses-* level (rare in your data)
 sessions_mode = 'single';
-forced_session_id = 'baseline';  % used only when sessions_mode == 'single'
+forced_session_id = 'followup1';  % used only when sessions_mode == 'single'
 
 % GPU and environment checks you already had:
 parallel.gpu.enableCUDAForwardCompatibility(true);
@@ -571,6 +565,7 @@ for si = 1:numel(subjects)
         RunOptions.tukey_strength = 0.5;
         RunOptions.tukey_pad = 0.1;
         RunOptions.InputType = 'nifti';
+        RunOptions.SaveVesselMasks = false;
         
         Data = struct();
         Data.RunOptions = RunOptions;
@@ -617,7 +612,7 @@ for si = 1:numel(subjects)
         Data.r2p_map(Data.r2p_map < 0) = 0;
         
         % % vessel seg
-        [Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
+        % [Data.vesselMask_para, Data.vesselMask_dia] = vesselSegmentation_Chiseparation_DL(chisep_path, Data.x_para, Data.x_dia, Data.mask_brain_new, Data.VoxelSize);
         % % Params for vessel enhancement filter (MFAT, Default)
         % params.tau = 0.02; params.tau2 = 0.35; params.D = 0.3;
         % params.spacing = Data.VoxelSize;
@@ -646,7 +641,6 @@ for si = 1:numel(subjects)
         % save data
         if ~(sum(RunOptions.EvenSizePadding) == 0)
             input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new'};
-            %input_field = {'x_para', 'x_dia', 'x_tot','qsm_map','R2p','UnwrappedPhase','mask_brain_new','vesselMask_para','vesselMask_dia'};
             for i = 1:length(input_field)
                 if isfield(Data,cell2mat(input_field(i)))
                     [Data.(cell2mat(input_field(i)))] = even_unpad(Data.(cell2mat(input_field(i))),RunOptions.EvenSizePadding);
@@ -654,35 +648,38 @@ for si = 1:numel(subjects)
             end
         end
         
+        % Vessel segmentation is disabled in this pipeline.  Keep the save
+        % option explicit so SaveData_Chisep does not expect or write the two
+        % vessel-mask fields.
         SaveData_Chisep(Data, RunOptions)
         
         chidia_old = fullfile(qsm_output_dir, 'ChiDia.nii');
         chipara_old = fullfile(qsm_output_dir, 'ChiPara.nii');
         chitotal_old = fullfile(qsm_output_dir, 'ChiTot.nii');
         chimap_old = fullfile(qsm_output_dir, 'QSM_map.nii');
-        vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
-        vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
-        
+        % vesseldia_old = fullfile(qsm_output_dir, 'vesselMask_dia.nii');
+        % vesselpara_old = fullfile(qsm_output_dir, 'vesselMask_para.nii');
+
         chidia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiDia.nii.gz', subject_id, session_id));
         chipara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiPara.nii.gz', subject_id, session_id));
         chitotal = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_ChiTotal.nii.gz', subject_id, session_id));
         chimap = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_desc-QSMnet_Chimap.nii.gz', subject_id, session_id));
-        vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
-        vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
-        
+        % vesseldia = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselDia_mask.nii.gz', subject_id, session_id));
+        % vesselpara = fullfile(qsm_output_dir, sprintf('sub-%s_ses-%s_label-VesselPara_mask.nii.gz', subject_id, session_id));
+
         convert_nii_to_gz(chidia_old,   chidia);
         convert_nii_to_gz(chipara_old,  chipara);
         convert_nii_to_gz(chitotal_old, chitotal);
         convert_nii_to_gz(chimap_old,   chimap);
-        convert_nii_to_gz(vesseldia_old,   vesseldia);
-        convert_nii_to_gz(vesselpara_old,   vesselpara);
-        
+        % convert_nii_to_gz(vesseldia_old,   vesseldia);
+        % convert_nii_to_gz(vesselpara_old,   vesselpara);
+
         delete(chidia_old);
         delete(chipara_old);
         delete(chitotal_old);
         delete(chimap_old);
-        delete(vesseldia_old);
-        delete(vesselpara_old);
+        % delete(vesseldia_old);
+        % delete(vesselpara_old);
         
         % all done !
     end

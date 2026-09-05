@@ -6,12 +6,16 @@ from nipype.interfaces.base import (
     File, traits
 )
 
-from traits.api import Either, Float
+from traits.api import Either, Float, Undefined
 
 class PSMDInputSpec(CommandLineInputSpec):
+    # -p mode: from pre-processed DWI
     dwi_data = File(exists=True, desc="Preprocessed DWI data file", argstr="-p %s")
     bval_file = File(exists=True, desc="B-value file", argstr="-b %s")
     bvec_file = File(exists=True, desc="B-vector file", argstr="-r %s")
+    # -f mode: from fully processed DTI (FA + MD), recommended for consistency with pipeline dtifit
+    fa_image = File(exists=True, desc="FA image (brain extracted)", argstr="-f %s")
+    md_image = File(exists=True, desc="MD image (brain extracted)", argstr="-m %s")
     mask_file = File(exists=True, desc="Skeleton mask file", argstr="-s %s")
     enhanced_masking = traits.Int(desc="Use enhanced masking (provide b value)", argstr="-e %d")
     lesion_mask = File(exists=True, desc="Lesion mask file to exclude", argstr="-l %s")
@@ -34,7 +38,10 @@ class PSMDCommandLine(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs["dwi"] = os.path.abspath(self.inputs.dwi_data)
+        if self.inputs.dwi_data is not Undefined:
+            outputs["dwi"] = os.path.abspath(self.inputs.dwi_data)
+        elif self.inputs.fa_image is not Undefined:
+            outputs["dwi"] = os.path.abspath(self.inputs.fa_image)
         outputs["psmd_out_file"] = os.path.join(self.inputs.output_dir, "psmd_out.txt")
         return outputs
     

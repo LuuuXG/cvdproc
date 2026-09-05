@@ -173,19 +173,20 @@ def qqnet_predict(
     p_s= np.real(load_mat(p_s_path, varname='p_s')) # p_s should be (59, 1)
 
     os.environ["CUDA_VISIBLE_DEVICES"]="0"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0") # GPU
 
     avgs = [1.0983, 20.1093, 0.6833, 0.0183, -0.0100]
     stds = [0.0396, 7.2432, 0.1003, 0.0109/2, 0.0371]
 
-    criterion = torch.nn.MSELoss() 
+    criterion = torch.nn.MSELoss()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
 
     # parameter boundary
     # [S0,R2,Y,v,chinb]
     ymins = [0.8,2,0,0,-1]
     ymaxs = [2.5,190,0.98,0.08,1.6]
-    xmins = zeros([5,1], dtype=np.float32)
-    xmaxs = zeros([5,1], dtype=np.float32)
+    xmins = zeros([5,1])
+    xmaxs = zeros([5,1])
 
     xmins[0] = (ymins[0]-avgs[0])/stds[0]
     xmins[1] = (ymins[1]-avgs[1])/stds[1]
@@ -205,10 +206,10 @@ def qqnet_predict(
     #  model loading
     model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'models', 'qqnet', 'QQ_NET_trained_model.pt'))
     model = unet3d()
-    model = model.float()
+    model = model.double()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay = wd)
 
-    checkpoint=torch.load(model_path, weights_only=False)
+    checkpoint=torch.load(model_path)
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
@@ -240,10 +241,10 @@ def qqnet_predict(
     batch_test = np.zeros([batch_total.shape[0],5,batch_size[0],batch_size[1],batch_size[2]])
     checkc = round(batch_total.shape[0]/20)
 
-    model = model.cuda()
-
     with torch.no_grad():
-        for q in range(batch_total.shape[0]):
+        for q in range(batch_total.shape[0]): 
+
+            model = model.cuda()
 
             Output_temp = batch_total[q,:,:,:,:]
             Output_temp1 = np.transpose(Output_temp,(3,2,1,0))
@@ -252,14 +253,14 @@ def qqnet_predict(
             Mask_temp1 = np.transpose(Mask_temp,(3,2,1,0))
             Mask_batch = zeros([1, Mask_temp1.shape[0], Mask_temp1.shape[1], Mask_temp1.shape[2], Mask_temp1.shape[3]])
             Mask_batch[0,:,:,:,:] = Mask_temp1[:,:,:,:]
-            Mask_t1 = torch.FloatTensor(Mask_batch).cuda()
+            Mask_t1 = torch.DoubleTensor(Mask_batch).cuda()
 
-            # Change to 5D  [1,channel,z,y,x]
+            # Change to 5D  [1,channel,z,y,x]  
             ppx = Output_temp1.shape
             Output1_batch = zeros([1,ppx[0],ppx[1],ppx[2],ppx[3]])
             Output1_batch[0,:,:,:,:] = Output_temp1
             # y_batch = model(torch.FloatTensor(Output1_batch).cuda())
-            y_batch = model(torch.FloatTensor(Output1_batch).cuda(),xmins,xmaxs,Mask_t1)
+            y_batch = model(torch.DoubleTensor(Output1_batch).cuda(),xmins,xmaxs,Mask_t1)
 
             y_batch1 = y_batch.cpu().numpy()
             y_batch2 = np.transpose(y_batch1,(0,1,4,3,2))

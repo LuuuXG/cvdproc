@@ -383,18 +383,11 @@ fi
 # Histogram analysis
 redirect_cmd fslmaths stats/all_MD_skeletonised.nii.gz -mas "${finalmask}" -mul 1000000 MD_skeletonized_masked.nii.gz
 
-# Save QC files
+# Save QC files (streamlined: skeletonized MD + summary TSV + histogram PNG)
 if [ -n "${outdir:-}" ]; then
   mkdir -p "${outdir}/qc"
 
   cp MD_skeletonized_masked.nii.gz "${outdir}/qc/MD_skeletonized_masked.nii.gz"
-  cp stats/all_MD_skeletonised.nii.gz "${outdir}/qc/all_MD_skeletonised.nii.gz"
-  cp stats/mean_FA_skeleton.nii.gz "${outdir}/qc/mean_FA_skeleton.nii.gz"
-  cp stats/all_FA_skeletonised.nii.gz "${outdir}/qc/all_FA_skeletonised.nii.gz"
-  cp "${finalmask}" "${outdir}/qc/final_skeleton_mask.nii.gz"
-
-  fslstats MD_skeletonized_masked.nii.gz -V > "${outdir}/qc/MD_skeletonized_masked_voxel_count.txt"
-  fslstats MD_skeletonized_masked.nii.gz -M -S -P 5 -P 50 -P 95 > "${outdir}/qc/MD_skeletonized_masked_summary.txt"
 
   python3 - <<PY
 import numpy as np
@@ -436,18 +429,6 @@ with open(qcdir / "MD_histogram_summary.tsv", "w") as f:
     for k, v in summary.items():
         f.write(f"{k}\t{v:.8f}\n")
 
-hist, edges = np.histogram(values, bins=100)
-hist_table = np.column_stack([edges[:-1], edges[1:], hist])
-
-np.savetxt(
-    qcdir / "MD_histogram_100bins.tsv",
-    hist_table,
-    fmt=["%.6f", "%.6f", "%d"],
-    delimiter="\t",
-    header="bin_left_micro\tbin_right_micro\tcount",
-    comments=""
-)
-
 fig, ax = plt.subplots(figsize=(7, 5))
 ax.hist(values, bins=100)
 ax.axvline(p5, linestyle="--", linewidth=1)
@@ -468,7 +449,6 @@ ax.text(
 
 fig.tight_layout()
 fig.savefig(qcdir / "MD_histogram_100bins.png", dpi=300)
-fig.savefig(qcdir / "MD_histogram_100bins.pdf")
 plt.close(fig)
 PY
 fi

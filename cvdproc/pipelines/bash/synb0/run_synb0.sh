@@ -27,10 +27,18 @@ fi
 mkdir -p "$INPUTS" "$OUTPUTS" "$FMAP_DIR"
 
 # === Extract parameters from the DWI JSON ===
-# PE_DIR=$(jq -r '.PhaseEncodingDirection' "$DWI_JSON")
-# TOTAL_READOUT_TIME=$(jq -r '.TotalReadoutTime' "$DWI_JSON")
 PE_DIR=$(grep -oP '"PhaseEncodingDirection"\s*:\s*"\K[^"]+' "$DWI_JSON")
 TOTAL_READOUT_TIME=$(grep -oP '"TotalReadoutTime"\s*:\s*\K[0-9eE\.+-]+' "$DWI_JSON")
+
+if [[ -z "$PE_DIR" ]]; then
+  echo "Error: PhaseEncodingDirection not found in $DWI_JSON" >&2
+  exit 1
+fi
+
+if [[ -z "$TOTAL_READOUT_TIME" ]]; then
+  echo "Error: TotalReadoutTime not found in $DWI_JSON" >&2
+  exit 1
+fi
 
 # === Map PhaseEncodingDirection to a vector ===
 declare -A PE_MAP=( ["i"]="1 0 0" ["i-"]="-1 0 0" ["j"]="0 1 0" ["j-"]="0 -1 0" ["k"]="0 0 1" ["k-"]="0 0 -1" )

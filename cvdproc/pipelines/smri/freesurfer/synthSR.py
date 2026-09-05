@@ -17,7 +17,7 @@ class SynthSRInputSpec(CommandLineInputSpec):
     lowfield = Bool(False, usedefault=True, argstr="--lowfield")
     v1 = Bool(False, usedefault=True, argstr="--v1")
     threads = Int(1, usedefault=True, argstr="--threads %d")
-    cpu = Bool(False, usedefault=True, argstr="--cpu")
+    cpu = Bool(True, usedefault=True, argstr="--cpu")
     model = Str(argstr="--model %s")
 
 

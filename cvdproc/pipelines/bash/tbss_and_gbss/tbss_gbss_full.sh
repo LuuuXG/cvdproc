@@ -9,11 +9,11 @@ threads="${3:-16}"
 dwi_pipeline_dir="$bids_dir/derivatives/dwi_pipeline"
 qsiprep_dir="$bids_dir/derivatives/qsiprep"
 xfm_dir="$bids_dir/derivatives/xfm"
+qsirecon_dir="$bids_dir/derivatives/qsirecon-DSIStudio"
 
 mkdir -p "$output_dir"
 
 raw_img_dir="$output_dir/raw_images"
-t1w_img_dir="$output_dir/t1w_space_images"
 mni_img_dir="$output_dir/mni_space_images"
 mean_img_dir="$output_dir/mean_images"
 skeleton_dir="$output_dir/skeleton_images"
@@ -23,7 +23,6 @@ merge_dir="$output_dir/merged_4d"
 
 mkdir -p "$mean_img_dir" "$tmp_dir" "$skeleton_dir" "$log_dir" "$merge_dir"
 mkdir -p "$raw_img_dir"/{FA,MD,NDI,ODI,ISOVF,GM_fraction,WM_fraction,pseudoT1w}
-mkdir -p "$t1w_img_dir"/{FA,MD,NDI,ODI,ISOVF,GM_fraction,WM_fraction,pseudoT1w}
 mkdir -p "$mni_img_dir"/{FA,MD,NDI,ODI,ISOVF,GM_fraction,WM_fraction,pseudoT1w}
 mkdir -p "$merge_dir"/{FA,MD,NDI,ODI,ISOVF,GM_fraction,WM_fraction,pseudoT1w}
 mkdir -p "$skeleton_dir"/{WM_skeleton,GM_skeleton}
@@ -45,6 +44,7 @@ process_one_subject_session() {
     local dwi_pipeline_single_dir="$dwi_pipeline_dir/$subject_id/$session_id"
     local xfm_single_dir="$xfm_dir/$subject_id/$session_id"
     local qsiprep_single_dir="$qsiprep_dir/$subject_id/$session_id/dwi"
+    local qsirecon_single_dir="$qsirecon_dir/$subject_id/$session_id/dwi"
     local tmp_single_dir="$tmp_dir/$subject_id/$session_id"
 
     mkdir -p "$tmp_single_dir"
@@ -66,7 +66,7 @@ process_one_subject_session() {
     local t1w_ref
 
     fa_img="$(get_first_match "$dwi_pipeline_single_dir/dtifit" "*fa_dwimap.nii.gz")"
-    md_img="$(get_first_match "$dwi_pipeline_single_dir/dtifit" "*md_dwimap.nii.gz")"
+    md_img="$(get_first_match "$qsirecon_single_dir" "*md_dwimap.nii.gz")"
     ndi_img="$(get_first_match "$dwi_pipeline_single_dir/NODDI" "*icvf_dwimap.nii.gz")"
     odi_img="$(get_first_match "$dwi_pipeline_single_dir/NODDI" "*odi_dwimap.nii.gz")"
     iso_img="$(get_first_match "$dwi_pipeline_single_dir/NODDI" "*isovf_dwimap.nii.gz")"
@@ -127,55 +127,57 @@ process_one_subject_session() {
     wm_con="$tmp_single_dir/${base_prefix}_space-${space_entity}_desc-wm_con.nii.gz"
     gm_con="$tmp_single_dir/${base_prefix}_space-${space_entity}_desc-gm_con.nii.gz"
 
-    Atropos \
-      -d 3 \
-      -a "$fa_img" \
-      -x "$dwi_mask_img" \
-      -i Kmeans[2] \
-      -m [0.3,1x1x1] \
-      -o ["$atropos_seg","$tmp_single_dir/${base_prefix}_space-${space_entity}_desc-atropos_prob%02d.nii.gz"]
+    if [[ ! -f "$wm_prob_raw" ]]; then
+        Atropos \
+          -d 3 \
+          -a "$fa_img" \
+          -x "$dwi_mask_img" \
+          -i Kmeans[2] \
+          -m [0.3,1x1x1] \
+          -o ["$atropos_seg","$tmp_single_dir/${base_prefix}_space-${space_entity}_desc-atropos_prob%02d.nii.gz"]
 
-    fa_mean_1="$(fslstats "$fa_img" -k "$atropos_prob01" -M)"
-    fa_mean_2="$(fslstats "$fa_img" -k "$atropos_prob02" -M)"
+        fa_mean_1="$(fslstats "$fa_img" -k "$atropos_prob01" -M)"
+        fa_mean_2="$(fslstats "$fa_img" -k "$atropos_prob02" -M)"
 
-    if (( $(echo "$fa_mean_1 > $fa_mean_2" | bc -l) )); then
-        wm_prob_source="$atropos_prob01"
-    else
-        wm_prob_source="$atropos_prob02"
+        if (( $(echo "$fa_mean_1 > $fa_mean_2" | bc -l) )); then
+            wm_prob_source="$atropos_prob01"
+        else
+            wm_prob_source="$atropos_prob02"
+        fi
+
+        cp "$wm_prob_source" "$wm_prob_raw"
+
+        fslmaths "$wm_prob_raw" \
+          -add "$iso_img" \
+          -sub 1 -mul -1 \
+          -thr 0 \
+          -mul "$dwi_mask_img" \
+          "$gm_prob_raw"
+
+        ImageMath 3 "$wm_largest_component" \
+          GetLargestComponent "$wm_prob_raw"
+
+        fslmaths "$wm_prob_raw" \
+          -bin \
+          -sub "$wm_largest_component" \
+          -thr 0 -bin \
+          "$wm_rim"
+
+        fslmaths "$wm_prob_raw" \
+          -mul "$wm_largest_component" \
+          -mul 2 \
+          "$wm_con"
+
+        fslmaths "$gm_prob_raw" \
+          -thr 0 \
+          -mul 1 \
+          "$gm_con"
+
+        fslmaths "$gm_con" \
+          -add "$wm_con" \
+          -mul "$dwi_mask_img" \
+          "$pseudo_t1_raw"
     fi
-
-    cp "$wm_prob_source" "$wm_prob_raw"
-
-    fslmaths "$wm_prob_raw" \
-      -add "$iso_img" \
-      -sub 1 -mul -1 \
-      -thr 0 \
-      -mul "$dwi_mask_img" \
-      "$gm_prob_raw"
-
-    ImageMath 3 "$wm_largest_component" \
-      GetLargestComponent "$wm_prob_raw"
-
-    fslmaths "$wm_prob_raw" \
-      -bin \
-      -sub "$wm_largest_component" \
-      -thr 0 -bin \
-      "$wm_rim"
-
-    fslmaths "$wm_prob_raw" \
-      -mul "$wm_largest_component" \
-      -mul 2 \
-      "$wm_con"
-
-    fslmaths "$gm_prob_raw" \
-      -thr 0 \
-      -mul 1 \
-      "$gm_con"
-
-    fslmaths "$gm_con" \
-      -add "$wm_con" \
-      -mul "$dwi_mask_img" \
-      "$pseudo_t1_raw"
 
     cp "$fa_img" "$raw_img_dir/FA/"
     cp "$md_img" "$raw_img_dir/MD/"
@@ -192,23 +194,14 @@ process_one_subject_session() {
     local gm_t1w
     local pseudo_t1w
 
-    fa_t1w="$t1w_img_dir/FA/${base_prefix}_space-T1w_model-tensor_param-fa_dwimap.nii.gz"
-    md_t1w="$t1w_img_dir/MD/${base_prefix}_space-T1w_model-tensor_param-md_dwimap.nii.gz"
-    ndi_t1w="$t1w_img_dir/NDI/${base_prefix}_space-T1w_model-noddi_param-icvf_dwimap.nii.gz"
-    odi_t1w="$t1w_img_dir/ODI/${base_prefix}_space-T1w_model-noddi_param-odi_dwimap.nii.gz"
-    iso_t1w="$t1w_img_dir/ISOVF/${base_prefix}_space-T1w_model-noddi_param-isovf_dwimap.nii.gz"
-    wm_t1w="$t1w_img_dir/WM_fraction/${base_prefix}_space-T1w_label-WM_probability.nii.gz"
-    gm_t1w="$t1w_img_dir/GM_fraction/${base_prefix}_space-T1w_label-GM_probability.nii.gz"
-    pseudo_t1w="$t1w_img_dir/pseudoT1w/${base_prefix}_space-T1w_desc-pseudoT1w_T1w.nii.gz"
-
-    flirt -in "$fa_img" -ref "$t1w_ref" -out "$fa_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$md_img" -ref "$t1w_ref" -out "$md_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$ndi_img" -ref "$t1w_ref" -out "$ndi_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$odi_img" -ref "$t1w_ref" -out "$odi_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$iso_img" -ref "$t1w_ref" -out "$iso_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$wm_prob_raw" -ref "$t1w_ref" -out "$wm_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$gm_prob_raw" -ref "$t1w_ref" -out "$gm_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
-    flirt -in "$pseudo_t1_raw" -ref "$t1w_ref" -out "$pseudo_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+    fa_t1w="$tmp_single_dir/${base_prefix}_space-T1w_model-tensor_param-fa_dwimap.nii.gz"
+    md_t1w="$tmp_single_dir/${base_prefix}_space-T1w_model-tensor_param-md_dwimap.nii.gz"
+    ndi_t1w="$tmp_single_dir/${base_prefix}_space-T1w_model-noddi_param-icvf_dwimap.nii.gz"
+    odi_t1w="$tmp_single_dir/${base_prefix}_space-T1w_model-noddi_param-odi_dwimap.nii.gz"
+    iso_t1w="$tmp_single_dir/${base_prefix}_space-T1w_model-noddi_param-isovf_dwimap.nii.gz"
+    wm_t1w="$tmp_single_dir/${base_prefix}_space-T1w_label-WM_probability.nii.gz"
+    gm_t1w="$tmp_single_dir/${base_prefix}_space-T1w_label-GM_probability.nii.gz"
+    pseudo_t1w="$tmp_single_dir/${base_prefix}_space-T1w_desc-pseudoT1w_T1w.nii.gz"
 
     local fa_mni
     local md_mni
@@ -228,14 +221,31 @@ process_one_subject_session() {
     gm_mni="$mni_img_dir/GM_fraction/${base_prefix}_space-MNI152NLin6ASym_label-GM_probability.nii.gz"
     pseudo_mni="$mni_img_dir/pseudoT1w/${base_prefix}_space-MNI152NLin6ASym_desc-pseudoT1w_T1w.nii.gz"
 
+    flirt -in "$fa_img" -ref "$t1w_ref" -out "$fa_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+    flirt -in "$md_img" -ref "$t1w_ref" -out "$md_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+    if [[ ! -f "$ndi_mni" ]]; then
+        flirt -in "$ndi_img" -ref "$t1w_ref" -out "$ndi_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+        flirt -in "$odi_img" -ref "$t1w_ref" -out "$odi_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+        flirt -in "$iso_img" -ref "$t1w_ref" -out "$iso_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+    fi
+    if [[ ! -f "$wm_mni" ]]; then
+        flirt -in "$wm_prob_raw" -ref "$t1w_ref" -out "$wm_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+        flirt -in "$gm_prob_raw" -ref "$t1w_ref" -out "$gm_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+        flirt -in "$pseudo_t1_raw" -ref "$t1w_ref" -out "$pseudo_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
+    fi
+
     mri_convert -at "$t1_to_mni_warp" "$fa_t1w" "$fa_mni"
     mri_convert -at "$t1_to_mni_warp" "$md_t1w" "$md_mni"
-    mri_convert -at "$t1_to_mni_warp" "$ndi_t1w" "$ndi_mni"
-    mri_convert -at "$t1_to_mni_warp" "$odi_t1w" "$odi_mni"
-    mri_convert -at "$t1_to_mni_warp" "$iso_t1w" "$iso_mni"
-    mri_convert -at "$t1_to_mni_warp" "$wm_t1w" "$wm_mni"
-    mri_convert -at "$t1_to_mni_warp" "$gm_t1w" "$gm_mni"
-    mri_convert -at "$t1_to_mni_warp" "$pseudo_t1w" "$pseudo_mni"
+    if [[ ! -f "$ndi_mni" ]]; then
+        mri_convert -at "$t1_to_mni_warp" "$ndi_t1w" "$ndi_mni"
+        mri_convert -at "$t1_to_mni_warp" "$odi_t1w" "$odi_mni"
+        mri_convert -at "$t1_to_mni_warp" "$iso_t1w" "$iso_mni"
+    fi
+    if [[ ! -f "$wm_mni" ]]; then
+        mri_convert -at "$t1_to_mni_warp" "$wm_t1w" "$wm_mni"
+        mri_convert -at "$t1_to_mni_warp" "$gm_t1w" "$gm_mni"
+        mri_convert -at "$t1_to_mni_warp" "$pseudo_t1w" "$pseudo_mni"
+    fi
 
     echo "Done: $subject_id $session_id"
 }
@@ -246,8 +256,8 @@ export threads
 export dwi_pipeline_dir
 export qsiprep_dir
 export xfm_dir
+export qsirecon_dir
 export raw_img_dir
-export t1w_img_dir
 export mni_img_dir
 export mean_img_dir
 export skeleton_dir

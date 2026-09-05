@@ -4,7 +4,7 @@ import shutil
 import nibabel as nib
 import numpy as np
 import pandas as pd
-from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, File, TraitedSpec, CommandLine, Directory
+from nipype.interfaces.base import BaseInterface, BaseInterfaceInputSpec, TraitedSpec, File, Directory, traits, CommandLineInputSpec, CommandLine, isdefined
 from nipype.interfaces.utility import IdentityInterface
 from traits.api import Bool, Int, Str
 
@@ -193,12 +193,17 @@ class ALPSInputSpec(CommandLineInputSpec):
     t1_img = File(exists=True, argstr='-t1_img %s', position=8, desc='Input T1w image', mandatory=False)
     fa_to_t1w_affine = File(exists=True, argstr='-fa_to_t1w_affine %s', position=9, desc='Input FA-to-T1w affine matrix', mandatory=False)
     t1_to_mni_warp = File(exists=True, argstr='-t1_to_mni_warp %s', position=10, desc='Input T1w-to-MNI warp file', mandatory=False)
+    fa_out = traits.Str(argstr='-fa_out %s', position=11, desc='Output FA in template space (BIDS filename)', mandatory=False)
+    xx_out = traits.Str(argstr='-xx_out %s', position=12, desc='Output XX in template space (BIDS filename)', mandatory=False)
+    yy_out = traits.Str(argstr='-yy_out %s', position=13, desc='Output YY in template space (BIDS filename)', mandatory=False)
+    zz_out = traits.Str(argstr='-zz_out %s', position=14, desc='Output ZZ in template space (BIDS filename)', mandatory=False)
 
 
 class ALPSOutputSpec(TraitedSpec):
     output_dir = Directory(desc='Output directory')
     alps_stat_dir = Directory(desc='ALPS statistics directory')
     alps_csv = File(desc='ALPS statistics CSV file')
+    fa_to_template = File(desc='FA in template space')
     xx_to_template = File(desc='XX tensor component in template space')
     yy_to_template = File(desc='YY tensor component in template space')
     zz_to_template = File(desc='ZZ tensor component in template space')
@@ -217,8 +222,9 @@ class ALPS(CommandLine):
         outputs['output_dir'] = output_dir
         outputs['alps_stat_dir'] = os.path.join(output_dir, 'alps.stat')
         outputs['alps_csv'] = os.path.join(output_dir, 'alps.stat', 'alps.csv')
-        outputs['xx_to_template'] = os.path.join(output_dir, 'xx_to_template.nii.gz')
-        outputs['yy_to_template'] = os.path.join(output_dir, 'yy_to_template.nii.gz')
-        outputs['zz_to_template'] = os.path.join(output_dir, 'zz_to_template.nii.gz')
+        outputs['fa_to_template'] = self.inputs.fa_out if isdefined(self.inputs.fa_out) else os.path.join(output_dir, 'fa_to_template.nii.gz')
+        outputs['xx_to_template'] = self.inputs.xx_out if isdefined(self.inputs.xx_out) else os.path.join(output_dir, 'xx_to_template.nii.gz')
+        outputs['yy_to_template'] = self.inputs.yy_out if isdefined(self.inputs.yy_out) else os.path.join(output_dir, 'yy_to_template.nii.gz')
+        outputs['zz_to_template'] = self.inputs.zz_out if isdefined(self.inputs.zz_out) else os.path.join(output_dir, 'zz_to_template.nii.gz')
 
         return outputs

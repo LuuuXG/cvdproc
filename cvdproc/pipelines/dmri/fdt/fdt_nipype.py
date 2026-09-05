@@ -295,6 +295,7 @@ class DTIFitBIDSInputSpec(CommandLineInputSpec):
     output_basename = Str(mandatory=True, desc="Path to the output basename", argstr="-o %s")
     bids_rename = traits.Bool(True, usedefault=True, desc="Rename outputs to BIDS style after dtifit")
     overwrite = traits.Bool(False, usedefault=True, desc="Overwrite destination files if they already exist")
+    dti_low_b = traits.Bool(True, usedefault=True, desc="Only use b<=1500 volumes for DTI fitting")
 
 
 class DTIFitBIDSOutputSpec(TraitedSpec):
@@ -405,7 +406,52 @@ class DTIFitBIDS(CommandLine):
     def _run_interface(self, runtime):
         self._ensure_outdir()
 
+        # ---- low-b filtering: select volumes with b <= 1500 ----
+        _orig_dwi = self.inputs.dwi_file
+        _orig_bval = self.inputs.bval_file
+        _orig_bvec = self.inputs.bvec_file
+        _temp_files = []
+
+        if bool(self.inputs.dti_low_b):
+            bvals = np.loadtxt(self.inputs.bval_file)
+            low_b_idx = np.where(bvals <= 1500)[0]
+
+            if len(low_b_idx) < len(bvals):
+                out_dir = os.path.dirname(self.inputs.output_basename)
+                base = os.path.join(out_dir, "_lowb_temp")
+
+                # extract volumes with fslselectvols
+                vols_str = ",".join(str(i) for i in low_b_idx)
+                filtered_dwi = base + "_dwi.nii.gz"
+                subprocess.run(["fslselectvols", "-i", self.inputs.dwi_file, "-o", filtered_dwi, "--vols=" + vols_str], check=True)
+                _temp_files.append(filtered_dwi)
+
+                # filter bval
+                filtered_bval = base + ".bval"
+                np.savetxt(filtered_bval, bvals[low_b_idx][None, :], fmt="%d")
+                _temp_files.append(filtered_bval)
+
+                # filter bvec (3 rows x N cols)
+                bvecs = np.loadtxt(self.inputs.bvec_file)
+                filtered_bvec = base + ".bvec"
+                np.savetxt(filtered_bvec, bvecs[:, low_b_idx], fmt="%.6f")
+                _temp_files.append(filtered_bvec)
+
+                self.inputs.dwi_file = filtered_dwi
+                self.inputs.bval_file = filtered_bval
+                self.inputs.bvec_file = filtered_bvec
+
         runtime = super()._run_interface(runtime)
+
+        # restore originals
+        self.inputs.dwi_file = _orig_dwi
+        self.inputs.bval_file = _orig_bval
+        self.inputs.bvec_file = _orig_bvec
+
+        # clean up temp files
+        for f in _temp_files:
+            if os.path.exists(f):
+                os.remove(f)
 
         if bool(self.inputs.bids_rename):
             src = self._dtifit_expected_files()

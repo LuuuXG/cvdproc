@@ -14,6 +14,10 @@ tensor_img='' # Input 4D tensor image (NIfTI format): -tensor_img <path>
 t1_img='' # Input T1w image (NIfTI format): -t1_img <path>
 fa_to_t1w_affine='' # Input FA to T1w affine matrix: -fa_to_t1w_affine <path>
 t1_to_mni_warp='' # Input T1 to MNI warp file: -t1_to_mni_warp <path>
+fa_out='' # Output FA in template space (default: $output_dir/fa_to_template.nii.gz)
+xx_out='' # Output XX in template space (default: $output_dir/xx_to_template.nii.gz)
+yy_out='' # Output YY in template space (default: $output_dir/yy_to_template.nii.gz)
+zz_out='' # Output ZZ in template space (default: $output_dir/zz_to_template.nii.gz)
 
 # PARSE ARGUMENTS
 while [[ $# -gt 0 ]]; do
@@ -63,6 +67,22 @@ while [[ $# -gt 0 ]]; do
       t1_to_mni_warp="$2"
       shift; shift
       ;;
+    -fa_out)
+      fa_out="$2"
+      shift; shift
+      ;;
+    -xx_out)
+      xx_out="$2"
+      shift; shift
+      ;;
+    -yy_out)
+      yy_out="$2"
+      shift; shift
+      ;;
+    -zz_out)
+      zz_out="$2"
+      shift; shift
+      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -75,6 +95,12 @@ done
 #################
 
 mkdir -p "$output_dir"
+
+# Default output filenames (backward compatible)
+if [ -z "$fa_out" ]; then fa_out="$output_dir/fa_to_template.nii.gz"; fi
+if [ -z "$xx_out" ]; then xx_out="$output_dir/xx_to_template.nii.gz"; fi
+if [ -z "$yy_out" ]; then yy_out="$output_dir/yy_to_template.nii.gz"; fi
+if [ -z "$zz_out" ]; then zz_out="$output_dir/zz_to_template.nii.gz"; fi
 
 if [ -z "$FSLDIR" ]; then
   echo "Error: FSLDIR environment variable is not set. Please set it to your FSL installation directory."
@@ -134,18 +160,19 @@ if [ -z "$t1_img" ]; then
   echo "No T1w image provided, using FA image for registration."
 
   if [ "$register_method" == "flirt" ]; then
-    flirt -in "$fa_img" -ref "$template_img" -out "$output_dir/fa_to_template.nii.gz" -omat "$output_dir/fa_to_template.mat" -dof 12
+    flirt -in "$fa_img" -ref "$template_img" -out "${fa_out}" -omat "$output_dir/_fa_to_template.mat" -dof 12
 
-    flirt -in "$xx_img" -ref "$template_img" -out "$output_dir/xx_to_template.nii.gz" -applyxfm -init "$output_dir/fa_to_template.mat"
-    flirt -in "$yy_img" -ref "$template_img" -out "$output_dir/yy_to_template.nii.gz" -applyxfm -init "$output_dir/fa_to_template.mat"
-    flirt -in "$zz_img" -ref "$template_img" -out "$output_dir/zz_to_template.nii.gz" -applyxfm -init "$output_dir/fa_to_template.mat"
+    flirt -in "$xx_img" -ref "$template_img" -out "${xx_out}" -applyxfm -init "$output_dir/_fa_to_template.mat"
+    flirt -in "$yy_img" -ref "$template_img" -out "${yy_out}" -applyxfm -init "$output_dir/_fa_to_template.mat"
+    flirt -in "$zz_img" -ref "$template_img" -out "${zz_out}" -applyxfm -init "$output_dir/_fa_to_template.mat"
 
   elif [ "$register_method" == "synthmorph" ]; then
-    mri_synthmorph -t "$output_dir/fa_to_template_warp.nii.gz" "$fa_img" "$template_img" -g
+    mri_synthmorph -t "$output_dir/_fa_to_template_warp.nii.gz" "$fa_img" "$template_img" -g
 
-    mri_convert -at "$output_dir/fa_to_template_warp.nii.gz" "$xx_img" "$output_dir/xx_to_template.nii.gz"
-    mri_convert -at "$output_dir/fa_to_template_warp.nii.gz" "$yy_img" "$output_dir/yy_to_template.nii.gz"
-    mri_convert -at "$output_dir/fa_to_template_warp.nii.gz" "$zz_img" "$output_dir/zz_to_template.nii.gz"
+    mri_convert -at "$output_dir/_fa_to_template_warp.nii.gz" "$fa_img" "${fa_out}"
+    mri_convert -at "$output_dir/_fa_to_template_warp.nii.gz" "$xx_img" "${xx_out}"
+    mri_convert -at "$output_dir/_fa_to_template_warp.nii.gz" "$yy_img" "${yy_out}"
+    mri_convert -at "$output_dir/_fa_to_template_warp.nii.gz" "$zz_img" "${zz_out}"
 
   else
     echo "Error: Unknown registration method: $register_method"
@@ -153,7 +180,7 @@ if [ -z "$t1_img" ]; then
   fi
 
 else
-  t1_brain="${output_dir}/t1_brain.nii.gz"
+  t1_brain="${output_dir}/_t1_brain.nii.gz"
   mri_synthstrip -i "$t1_img" -o "$t1_brain" --no-csf
 
   if [ -n "$fa_to_t1w_affine" ]; then
@@ -163,24 +190,25 @@ else
     fi
 
     echo "Using provided FA to T1w affine matrix: $fa_to_t1w_affine"
-    cp "$fa_to_t1w_affine" "$output_dir/fa_to_t1.mat"
+    cp "$fa_to_t1w_affine" "$output_dir/_fa_to_t1.mat"
 
-    flirt -in "$fa_img" -ref "$t1_brain" -out "$output_dir/fa_to_t1.nii.gz" -applyxfm -init "$output_dir/fa_to_t1.mat"
+    flirt -in "$fa_img" -ref "$t1_brain" -out "$output_dir/_fa_to_t1.nii.gz" -applyxfm -init "$output_dir/_fa_to_t1.mat"
   else
     echo "No FA to T1w affine matrix provided, running FLIRT FA to T1w registration."
-    flirt -in "$fa_img" -ref "$t1_brain" -out "$output_dir/fa_to_t1.nii.gz" -omat "$output_dir/fa_to_t1.mat" -dof 12
+    flirt -in "$fa_img" -ref "$t1_brain" -out "$output_dir/_fa_to_t1.nii.gz" -omat "$output_dir/_fa_to_t1.mat" -dof 12
   fi
 
-  flirt -in "$xx_img" -ref "$t1_brain" -out "$output_dir/xx_to_t1.nii.gz" -applyxfm -init "$output_dir/fa_to_t1.mat"
-  flirt -in "$yy_img" -ref "$t1_brain" -out "$output_dir/yy_to_t1.nii.gz" -applyxfm -init "$output_dir/fa_to_t1.mat"
-  flirt -in "$zz_img" -ref "$t1_brain" -out "$output_dir/zz_to_t1.nii.gz" -applyxfm -init "$output_dir/fa_to_t1.mat"
+  flirt -in "$xx_img" -ref "$t1_brain" -out "$output_dir/_xx_to_t1.nii.gz" -applyxfm -init "$output_dir/_fa_to_t1.mat"
+  flirt -in "$yy_img" -ref "$t1_brain" -out "$output_dir/_yy_to_t1.nii.gz" -applyxfm -init "$output_dir/_fa_to_t1.mat"
+  flirt -in "$zz_img" -ref "$t1_brain" -out "$output_dir/_zz_to_t1.nii.gz" -applyxfm -init "$output_dir/_fa_to_t1.mat"
 
   if [ "$register_method" == "flirt" ]; then
-    flirt -in "$t1_brain" -ref "$template_img" -out "$output_dir/t1_to_template.nii.gz" -omat "$output_dir/t1_to_template.mat" -dof 12
+    flirt -in "$t1_brain" -ref "$template_img" -out "$output_dir/_t1_to_template.nii.gz" -omat "$output_dir/_t1_to_template.mat" -dof 12
 
-    flirt -in "$output_dir/xx_to_t1.nii.gz" -ref "$template_img" -out "$output_dir/xx_to_template.nii.gz" -applyxfm -init "$output_dir/t1_to_template.mat"
-    flirt -in "$output_dir/yy_to_t1.nii.gz" -ref "$template_img" -out "$output_dir/yy_to_template.nii.gz" -applyxfm -init "$output_dir/t1_to_template.mat"
-    flirt -in "$output_dir/zz_to_t1.nii.gz" -ref "$template_img" -out "$output_dir/zz_to_template.nii.gz" -applyxfm -init "$output_dir/t1_to_template.mat"
+    flirt -in "$output_dir/_fa_to_t1.nii.gz" -ref "$template_img" -out "${fa_out}" -applyxfm -init "$output_dir/_t1_to_template.mat"
+    flirt -in "$output_dir/_xx_to_t1.nii.gz" -ref "$template_img" -out "${xx_out}" -applyxfm -init "$output_dir/_t1_to_template.mat"
+    flirt -in "$output_dir/_yy_to_t1.nii.gz" -ref "$template_img" -out "${yy_out}" -applyxfm -init "$output_dir/_t1_to_template.mat"
+    flirt -in "$output_dir/_zz_to_t1.nii.gz" -ref "$template_img" -out "${zz_out}" -applyxfm -init "$output_dir/_t1_to_template.mat"
 
   elif [ "$register_method" == "synthmorph" ]; then
     if [ -n "$t1_to_mni_warp" ]; then
@@ -189,15 +217,17 @@ else
         exit 1
       fi
 
-      mri_convert -at "$t1_to_mni_warp" "$output_dir/xx_to_t1.nii.gz" "$output_dir/xx_to_template.nii.gz"
-      mri_convert -at "$t1_to_mni_warp" "$output_dir/yy_to_t1.nii.gz" "$output_dir/yy_to_template.nii.gz"
-      mri_convert -at "$t1_to_mni_warp" "$output_dir/zz_to_t1.nii.gz" "$output_dir/zz_to_template.nii.gz"
+      mri_convert -at "$t1_to_mni_warp" "$output_dir/_fa_to_t1.nii.gz" "${fa_out}"
+      mri_convert -at "$t1_to_mni_warp" "$output_dir/_xx_to_t1.nii.gz" "${xx_out}"
+      mri_convert -at "$t1_to_mni_warp" "$output_dir/_yy_to_t1.nii.gz" "${yy_out}"
+      mri_convert -at "$t1_to_mni_warp" "$output_dir/_zz_to_t1.nii.gz" "${zz_out}"
     else
-      mri_synthmorph -t "$output_dir/t1_to_template_warp.nii.gz" "$t1_brain" "$template_img" -g
+      mri_synthmorph -t "$output_dir/_t1_to_template_warp.nii.gz" "$t1_brain" "$template_img" -g
 
-      mri_convert -at "$output_dir/t1_to_template_warp.nii.gz" "$output_dir/xx_to_t1.nii.gz" "$output_dir/xx_to_template.nii.gz"
-      mri_convert -at "$output_dir/t1_to_template_warp.nii.gz" "$output_dir/yy_to_t1.nii.gz" "$output_dir/yy_to_template.nii.gz"
-      mri_convert -at "$output_dir/t1_to_template_warp.nii.gz" "$output_dir/zz_to_t1.nii.gz" "$output_dir/zz_to_template.nii.gz"
+      mri_convert -at "$output_dir/_t1_to_template_warp.nii.gz" "$output_dir/_fa_to_t1.nii.gz" "${fa_out}"
+      mri_convert -at "$output_dir/_t1_to_template_warp.nii.gz" "$output_dir/_xx_to_t1.nii.gz" "${xx_out}"
+      mri_convert -at "$output_dir/_t1_to_template_warp.nii.gz" "$output_dir/_yy_to_t1.nii.gz" "${yy_out}"
+      mri_convert -at "$output_dir/_t1_to_template_warp.nii.gz" "$output_dir/_zz_to_t1.nii.gz" "${zz_out}"
     fi
 
   else
@@ -206,9 +236,9 @@ else
   fi
 fi
 
-xx_in_template_img="$output_dir/xx_to_template.nii.gz"
-yy_in_template_img="$output_dir/yy_to_template.nii.gz"
-zz_in_template_img="$output_dir/zz_to_template.nii.gz"
+xx_in_template_img="${xx_out}"
+yy_in_template_img="${yy_out}"
+zz_in_template_img="${zz_out}"
 
 # statistics calculation
 mkdir -p "${output_dir}/alps.stat"
@@ -247,3 +277,6 @@ g_alps_sum="$(echo "(($x_proj_LR+$x_assoc_LR)-$y_proj_LR)/$z_assoc_LR" | bc -l)"
 echo "${id},${scanner},${x_proj_L},${x_assoc_L},${y_proj_L},${z_assoc_L},${x_proj_R},${x_assoc_R},${y_proj_R},${z_assoc_R},${alps_L},${alps_R},${alps},${g_alps_L},${g_alps_R},${g_alps_avg},${g_alps_sum}" >> "${output_dir}/alps.stat/alps.csv"
 
 echo "ALPS and G-ALPS calculation completed. Results saved to ${output_dir}/alps.stat/alps.csv"
+
+# Clean up intermediate files, keep only QC images and stats
+rm -f "${output_dir}"/_* "${output_dir}"/xx.nii.gz "${output_dir}"/yy.nii.gz "${output_dir}"/zz.nii.gz

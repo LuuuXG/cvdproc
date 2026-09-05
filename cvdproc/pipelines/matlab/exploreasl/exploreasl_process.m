@@ -20,6 +20,7 @@ t1w_filter_filename = '/this/is/for/nipype/t1w_filter_filename';
 asl_filter_filename = '/this/is/for/nipype/asl_filter_filename';
 
 ExploreASL_dir = '/this/is/for/nipype/exploreasl_dir';
+ignore_m0_str = '/this/is/for/nipype/ignore_m0';
 
 author_name = 'Temporary Author';
 
@@ -29,6 +30,8 @@ perf_dir = fullfile(bids_root_dir, ['sub-' subject_id], ['ses-' session_id], 'pe
 rawdata_dir = fullfile(output_dir, 'rawdata');
 target_anat_dir = fullfile(rawdata_dir, ['sub-' subject_id], ['ses-' session_id], 'anat');
 target_perf_dir = fullfile(rawdata_dir, ['sub-' subject_id], ['ses-' session_id], 'perf');
+
+ignore_m0 = strcmp(strtrim(ignore_m0_str), 'true');
 
 dirs_to_make = {
     output_dir
@@ -76,6 +79,10 @@ if exist(perf_dir, 'dir')
 
         fname = perf_files(i).name;
         if contains(fname, asl_filter_filename)
+            if ignore_m0 && contains(fname, '_m0scan')
+                fprintf('[SKIP] ignore_m0 is true, skipping M0 file: %s\n', fname);
+                continue;
+            end
             src_file = fullfile(perf_dir, fname);
             dst_file = fullfile(target_perf_dir, fname);
             safe_copy_file(src_file, dst_file, true);
@@ -88,6 +95,24 @@ end
 
 fprintf('Copied %d anat file(s).\n', anat_copy_count);
 fprintf('Copied %d perf file(s).\n', perf_copy_count);
+
+if ignore_m0
+    asl_json_files = dir(fullfile(target_perf_dir, '*_asl.json'));
+    for i = 1:numel(asl_json_files)
+        asl_json_path = fullfile(target_perf_dir, asl_json_files(i).name);
+        if exist(asl_json_path, 'file')
+            fid = fopen(asl_json_path, 'r');
+            raw = fread(fid, inf, '*char')';
+            fclose(fid);
+            asl_meta = jsondecode(raw);
+            if isfield(asl_meta, 'M0Type') && strcmp(asl_meta.M0Type, 'Separate')
+                asl_meta.M0Type = 'Absent';
+                write_json(asl_json_path, asl_meta);
+                fprintf('[INFO] Changed M0Type from Separate to Absent in: %s\n', asl_json_path);
+            end
+        end
+    end
+end
 
 studypar_path = fullfile(output_dir, 'studyPar.json');
 datapar_path = fullfile(output_dir, 'dataPar.json');
@@ -150,15 +175,13 @@ fprintf('dataPar.json: %s\n', datapar_path);
 fprintf('dataset_description.json: %s\n', dataset_description_path);
 
 cd(ExploreASL_dir);
-x = ExploreASL(output_dir, 0, [1 1 1]); %#ok<NASGU>
+x = ExploreASL(output_dir, 0, [1 1 0]); %#ok<NASGU>
 
 %% Post-process
 raw_output_dir = fullfile(output_dir, 'derivatives', 'ExploreASL', ['sub-' subject_id, '_', session_id]);
-raw_output_dir_population = fullfile(output_dir, 'derivatives', 'ExploreASL', 'Population');
 
 target_output_dir = output_dir;
 target_subject_dir = fullfile(target_output_dir, ['sub-' subject_id, '_', session_id]);
-target_output_dir_population = fullfile(output_dir, 'Population');
 
 % 1. Copy subject/session output as a whole folder
 if exist(raw_output_dir, 'dir')
@@ -174,39 +197,7 @@ else
     fprintf('[WARN] Subject output not found: %s\n', raw_output_dir);
 end
 
-% 2. Copy population output contents
-if exist(raw_output_dir_population, 'dir')
-    fprintf('[INFO] Copying population output contents...\n');
-    ensure_dir_exists(target_output_dir_population);
-
-    files = dir(raw_output_dir_population);
-    for i = 1:length(files)
-        name = files(i).name;
-
-        if strcmp(name, '.') || strcmp(name, '..')
-            continue;
-        end
-
-        src = fullfile(raw_output_dir_population, name);
-        dst = fullfile(target_output_dir_population, name);
-
-        if files(i).isdir
-            safe_copy_dir(src, dst, true);
-        else
-            safe_copy_file(src, dst, true);
-        end
-    end
-
-    if try_remove_dir(raw_output_dir_population)
-        fprintf('[INFO] Removed source population directory: %s\n', raw_output_dir_population);
-    else
-        fprintf('[WARN] Could not remove source population directory: %s\n', raw_output_dir_population);
-    end
-else
-    fprintf('[WARN] Population folder not found: %s\n', raw_output_dir_population);
-end
-
-% 3. Clean unnecessary folders/files
+% 2. Clean unnecessary folders/files
 fprintf('[INFO] Cleaning unnecessary files...\n');
 
 delete_targets = {

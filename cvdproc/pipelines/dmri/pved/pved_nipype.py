@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import shutil
 import nibabel as nib
@@ -10,6 +11,7 @@ from traits.api import Bool, Int, Str
 import gzip
 
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
+from cvdproc.config.paths import get_package_path
 
 class PVeDInputSpec(BaseInterfaceInputSpec):
     qsdr_fib_file = File(exists=True, desc='Path to the QSDR fib file')
@@ -114,6 +116,102 @@ class PVeD(BaseInterface):
         outputs['ttr_map'] = os.path.join(output_dir, rename_bids_file(qsdr_fib_file, {'model': 'tensor', 'param': 'ttr', 'space': 'MNI'}, 'dwimap', '.nii.gz'))
         outputs['metrics_csv'] = os.path.join(output_dir, "PVeD_metrics.csv")
 
+        return outputs
+
+
+pved_atropos_script = get_package_path("pipelines", "dmri", "pved", "pved_atropos.py")
+
+
+class PVeDAtroposInputSpec(CommandLineInputSpec):
+    fa_file = File(exists=True, mandatory=True, argstr="--fa %s", position=0, desc="FA map in MNI152NLin6Asym space.")
+    md_file = File(exists=True, mandatory=True, argstr="--md %s", position=1, desc="MD map in MNI152NLin6Asym space.")
+    tensor_file = File(exists=True, mandatory=True, argstr="--tensor %s", position=2, desc="Six-component tensor map in MNI152NLin6Asym space.")
+    output_dir = Directory(mandatory=True, argstr="--output-dir %s", position=3, desc="PVeD output directory.")
+    subject_id = Str(mandatory=True, argstr="--subject %s", position=4, desc="BIDS subject identifier.")
+    session_id = Str(mandatory=True, argstr="--session %s", position=5, desc="BIDS session identifier.")
+
+
+class PVeDAtroposOutputSpec(TraitedSpec):
+    ttr_map = File(desc="Transverse tensor ratio map.")
+    lateral_ventricle_mask = File(desc="Lateral ventricle mask.")
+    csf_mask = File(desc="Atropos CSF mask.")
+    pvs_mask = File(desc="Periventricular area mask.")
+    final_pvs_mask = File(desc="CSF-excluded periventricular area mask.")
+    md_map = File(desc="MD map resampled to 2 mm.")
+    metrics_csv = File(desc="PVeD metrics CSV.")
+    summary_json = File(desc="PVeD metrics and mask-size summary.")
+
+
+class PVeDAtropos(CommandLine):
+    input_spec = PVeDAtroposInputSpec
+    output_spec = PVeDAtroposOutputSpec
+    _cmd = f'"{sys.executable}" "{pved_atropos_script}"'
+
+    def _run_interface(self, runtime):
+        if not os.path.isfile(pved_atropos_script):
+            raise FileNotFoundError(f"PVeD Atropos script not found: {pved_atropos_script}")
+        os.makedirs(os.path.abspath(self.inputs.output_dir), exist_ok=True)
+        return super()._run_interface(runtime)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        output_dir = os.path.abspath(self.inputs.output_dir)
+        prefix = f"{self.inputs.subject_id}_{self.inputs.session_id}"
+        outputs["ttr_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_param-ttr_dwimap.nii.gz")
+        outputs["lateral_ventricle_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-LateralVentricle_mask.nii.gz")
+        outputs["csf_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-CSF_desc-Atropos_mask.nii.gz")
+        outputs["pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-PeriventricularArea_mask.nii.gz")
+        outputs["final_pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-PeriventricularArea_desc-CSFExcluded_mask.nii.gz")
+        outputs["md_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_model-tensor_param-md_dwimap.nii.gz")
+        outputs["metrics_csv"] = os.path.join(output_dir, "PVeD_metrics.csv")
+        outputs["summary_json"] = os.path.join(output_dir, "PVeD_summary.json")
+        return outputs
+
+
+class PVeDPrepareMNIInputSpec(BaseInterfaceInputSpec):
+    fa_file = File(exists=True, mandatory=True, desc="Native-space FA map from dtifit.")
+    md_file = File(exists=True, mandatory=True, desc="Native-space MD map from dtifit.")
+    tensor_file = File(exists=True, mandatory=True, desc="Native-space six-component tensor map from dtifit.")
+    dwi_to_t1w_affine = File(exists=True, mandatory=True, desc="DWI-to-T1w FLIRT affine.")
+    t1w_reference = File(exists=True, mandatory=True, desc="T1w reference image.")
+    t1w_to_mni_warp = File(exists=True, mandatory=True, desc="Existing T1w-to-MNI152NLin6Asym warp.")
+    output_dir = Directory(mandatory=True, desc="DWI session output directory.")
+    subject_id = Str(mandatory=True, desc="BIDS subject identifier.")
+    session_id = Str(mandatory=True, desc="BIDS session identifier.")
+
+
+class PVeDPrepareMNIOutputSpec(TraitedSpec):
+    fa_file = File(desc="FA map in MNI152NLin6Asym space.")
+    md_file = File(desc="MD map in MNI152NLin6Asym space.")
+    tensor_file = File(desc="Tensor map in MNI152NLin6Asym space.")
+
+
+class PVeDPrepareMNI(BaseInterface):
+    input_spec = PVeDPrepareMNIInputSpec
+    output_spec = PVeDPrepareMNIOutputSpec
+
+    def _run_interface(self, runtime):
+        output_dir = os.path.abspath(self.inputs.output_dir)
+        work_dir = os.path.join(output_dir, "_pved_mni_work")
+        os.makedirs(work_dir, exist_ok=True)
+        outputs = self._list_outputs()
+        inputs = {"fa_file": self.inputs.fa_file, "md_file": self.inputs.md_file, "tensor_file": self.inputs.tensor_file}
+        try:
+            for name, input_file in inputs.items():
+                t1w_file = os.path.join(work_dir, f"{name}_t1w.nii.gz")
+                subprocess.run(["flirt", "-in", input_file, "-ref", self.inputs.t1w_reference, "-out", t1w_file, "-applyxfm", "-init", self.inputs.dwi_to_t1w_affine, "-interp", "trilinear"], check=True)
+                subprocess.run(["mri_convert", "-at", self.inputs.t1w_to_mni_warp, t1w_file, outputs[name]], check=True)
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        output_dir = os.path.abspath(self.inputs.output_dir)
+        prefix = f"{self.inputs.subject_id}_{self.inputs.session_id}_space-MNI152NLin6ASym_model-tensor_param"
+        outputs["fa_file"] = os.path.join(output_dir, f"{prefix}-fa_dwimap.nii.gz")
+        outputs["md_file"] = os.path.join(output_dir, f"{prefix}-md_dwimap.nii.gz")
+        outputs["tensor_file"] = os.path.join(output_dir, f"{prefix}-tensor_dwimap.nii.gz")
         return outputs
 
 if __name__ == '__main__':

@@ -1,0 +1,1 @@
+AAL cortex parcellation: https://github.com/DiedrichsenLab/DCBC
