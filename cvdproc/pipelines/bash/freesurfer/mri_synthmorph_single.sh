@@ -121,7 +121,8 @@ mri_synthmorph -o "$t1_mni_out" \
   -T "$mni_2_t1_warp" \
   "$t1_input" \
   "$mni_template" \
-  -j 12
+  -g
+  #-j 12
 
 rm -rf "$temp_dir"
 

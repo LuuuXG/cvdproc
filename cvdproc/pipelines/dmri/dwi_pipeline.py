@@ -137,7 +137,7 @@ class DWIPipeline:
             use_synthseg_wm_mask (bool, optional): Whether to use SynthSeg WM mask (instead of Freesurfer results). Defaults to False.
             exclude_seed_mask (bool, optional): Whether to exclude seed mask in DWI metrics calculation (For NAWM). Defaults to True.
             exclude_wmh_mask (bool, optional): Whether to exclude WMH mask in DWI metrics calculation (For NAWM). Defaults to False.
-            keep_preproc_intermediate (bool, optional): Whether to keep the preproc_intermediate directory after preprocessing. Defaults to False (clean up to save disk space).
+            keep_preproc_intermediate (bool, optional): Whether to keep the preproc_intermediate directory after preprocessing. Defaults to True. Set False to clean up after the final DWI, gradients, and brain mask are ready; workflow caches and QSIPrep outputs are not removed.
             extract_from (str, optional): Folder name to extract results from.
         """
         self.subject = subject
@@ -831,19 +831,32 @@ class DWIPipeline:
             preproc_dwi_node.inputs.b0 = os.path.join(self.output_path, rename_bids_file(dwi_image, {"space": space_entity}, 'dwiref', '.nii.gz'))
             preproc_dwi_filename = rename_bids_file(dwi_image, {"space": space_entity, "desc": "preproc"}, 'dwi', '.nii.gz')
 
-            # Clean up preproc_intermediate directory if not needed
-            if not self.keep_preproc_intermediate:
-                def _cleanup_intermediate(preproc_dwi, intermediate_dir):
-                    import os, shutil
-                    if os.path.isdir(intermediate_dir):
-                        shutil.rmtree(intermediate_dir)
-                    return preproc_dwi
+        # Wait for all final outputs, including the mask whose creation can still
+        # read intermediate files after the final DWI has been written.
+        if not self.keep_preproc_intermediate and self.preprocess_method != 'post_qsiprep':
+            def _cleanup_intermediate(preproc_dwi, bvec, bval, dwi_mask, intermediate_dir):
+                import os
+                import shutil
 
-                cleanup_node = Node(Function(input_names=['preproc_dwi', 'intermediate_dir'],
-                                             output_names=['dummy'],
-                                             function=_cleanup_intermediate), name='cleanup_preproc_intermediate')
-                cleanup_node.inputs.intermediate_dir = preproc_intermediate_dir
-                dwi_workflow.connect(preproc_dwi_node, 'preproc_dwi', cleanup_node, 'preproc_dwi')
+                if os.path.isdir(intermediate_dir):
+                    target = os.path.realpath(intermediate_dir)
+                    for path in (preproc_dwi, bvec, bval, dwi_mask):
+                        if not os.path.isfile(path):
+                            raise FileNotFoundError(f"Cannot clean preprocessing intermediates: missing final output {path}")
+                        if os.path.commonpath([target, os.path.realpath(path)]) == target:
+                            raise ValueError(f"Cannot remove intermediate directory containing final output {path}")
+                    shutil.rmtree(intermediate_dir)
+                    print(f"[DWI Pipeline] Removed preprocessing intermediates: {intermediate_dir}")
+                return preproc_dwi
+
+            cleanup_fields = ['preproc_dwi', 'bvec', 'bval', 'dwi_mask']
+            cleanup_node = Node(Function(input_names=cleanup_fields + ['intermediate_dir'],
+                                         output_names=['dummy'],
+                                         function=_cleanup_intermediate),
+                                name='cleanup_preproc_intermediate', always_run=True)
+            cleanup_node.inputs.intermediate_dir = os.path.join(self.output_path, 'preproc_intermediate')
+            for field in cleanup_fields:
+                dwi_workflow.connect(preproc_dwi_node, field, cleanup_node, field)
 
         # MRtrix3 conversion (nifti to mif): preprocessed DWI and brain mask
         if mrtrix3_preproc:

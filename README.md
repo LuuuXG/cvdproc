@@ -1,4 +1,5 @@
 # CVDProc: CerebroVascular Disease imaging Processing
+![LOGO](cvdproc_logo_transparent.png)
 
 > **⚠️ Important Notice**
 >
@@ -67,7 +68,7 @@ The `cvdproc/data/` directory is excluded from the repository due to its large s
 After downloading, unzip and place the contents into `./cvdproc/data/` (the same level with `pipelines`)
 
 ## Usage
-Please refer to the [documentation](https://LuuuXG.github.io/cvdproc) (🚧 under construction).
+Please refer to the [documentation](https://LuuuXG.github.io/cvdproc).
 
 If you are interested in reproducing our analysis process, we recommend starting from DICOM data. This is because the handling of BIDS format in the code may not be fully standard and compliant (for example, we require a session level and include non-standard suffixes).
 

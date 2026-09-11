@@ -232,6 +232,7 @@ class Dcm2BidsProcessor:
                     'use_which_flair': None,
                     'use_freesurfer_longitudinal': False,
                     'preprocess': False,
+                    'keep_preproc_intermediate': True,
                     'output_resolution': 2.0,
                     'degibbs': True,
                     'flip_b_table_axis': [],
@@ -275,6 +276,16 @@ class Dcm2BidsProcessor:
                     'use_which_mask': 'infarction',
                     'alps_roi_disconnection': False,
                     'extract_from': None,
+                },
+                'disconnection': {
+                    'lesion_mask': 'lesion_mask',
+                    'use_which_lesion_mask': None,
+                    'force_lesion_probability_one': True,
+                    'lesion_threshold': 0.0,
+                    'atlas_assignment_radius_mm': 2.0,
+                    'individual_connectome_source': 'qsirecon',
+                    'mrtrix_bin_dir': None,
+                    'nthreads': 0,
                 },
                 # --- Perfusion MRI ---
                 'asl_pipeline': {

@@ -50,6 +50,7 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         'seg': r"seg-([^_]+)",
         'res': r"res-([^_]+)",
         'den': r"den-([^_]+)",
+        'atlas': r"atlas-([^_]+)",
         'label': r"label-([^_]+)",
         'from': r"from-([^_]+)",
         'to': r"to-([^_]+)",
@@ -98,6 +99,7 @@ def rename_bids_file(original_filename, entities, suffix, extension):
     seg_id = entities.get('seg', extracted_entities.get('seg', None))
     res_id = entities.get('res', extracted_entities.get('res', None))
     den_id = entities.get('den', extracted_entities.get('den', None))
+    atlas_id = entities.get('atlas', extracted_entities.get('atlas', None))
     label_id = entities.get('label', extracted_entities.get('label', None))
     from_id = entities.get('from', extracted_entities.get('from', None))
     to_id = entities.get('to', extracted_entities.get('to', None))
@@ -168,6 +170,8 @@ def rename_bids_file(original_filename, entities, suffix, extension):
         new_filename_parts.append(f"res-{res_id}")
     if den_id:
         new_filename_parts.append(f"den-{den_id}")
+    if atlas_id:
+        new_filename_parts.append(f"atlas-{atlas_id}")
     if label_id:
         new_filename_parts.append(f"label-{label_id}")
     if from_id:

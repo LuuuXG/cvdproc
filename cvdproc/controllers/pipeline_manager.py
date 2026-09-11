@@ -82,6 +82,9 @@ class PipelineManager:
         elif pipeline_name.lower() == "lqt_pipeline":
             from ..pipelines.dmri.lqt_pipeline import LQTPipeline
             return LQTPipeline(subject, session, output_path=output_path, **kwargs)
+        elif pipeline_name.lower() == "disconnection":
+            from ..pipelines.dmri.disconnection_pipeline import DisconnectionPipeline
+            return DisconnectionPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Perfusion MRI ####
         elif pipeline_name.lower() == "asl_pipeline":

@@ -10,6 +10,25 @@
 
 ### DWI Preprocessing
 
+#### Intermediate files
+
+The standard generated config includes `keep_preproc_intermediate: true`, matching
+the pipeline default. To remove preprocessing intermediates, set:
+
+```yaml
+dwi_pipeline:
+    preprocess: true
+    keep_preproc_intermediate: false
+```
+
+Cleanup runs once the final preprocessed DWI, bvec, bval, and brain mask are ready.
+It removes only `preproc_intermediate` under this pipeline's output directory;
+it does not remove Nipype workflow caches, Synb0 outputs, or QSIPrep outputs.
+With `preprocess: false`, it can also remove leftovers from a previous local
+preprocessing run once the existing final outputs are available. It is skipped
+for `preprocess_method: post_qsiprep`. Failed preprocessing retains intermediates
+for troubleshooting. Existing config files must have this option added manually.
+
 #### Single-shell and Multi-shell DWI preprocessing
 
 We use customized scripts to preprocess single-shell and multi-shell DWI data, because current popular DWI preprocessing tools (e.g., [MRtrix3](https://www.mrtrix.org/), [QSIPrep](https://qsiprep.readthedocs.io/en/latest/index.html)) do not provide an easy way to use [Synb0-DISCO](https://github.com/MASILab/Synb0-DISCO) for distortion correction when no field map is available.

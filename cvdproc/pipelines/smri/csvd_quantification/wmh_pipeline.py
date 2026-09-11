@@ -101,8 +101,14 @@ class WMHSegmentationPipeline:
         print("[WMH Pipeline] IMPORTANT:")
         print("[WMH Pipeline] If provide T1w image, please make sure it is 3D-T1w image!")
 
-        if self.session.get_flair_files():
-            flair_files = self.session.get_flair_files()
+        # Initialize both optional inputs before applying the selectors.  A selector
+        # that matches zero or multiple files means that modality is intentionally
+        # not used, so its selected file must remain None.
+        flair_file = None
+        t1w_file = None
+
+        flair_files = self.session.get_flair_files()
+        if flair_files:
             if self.use_which_flair:
                 flair_files = [f for f in flair_files if self.use_which_flair in f]
                 if len(flair_files) != 1:
@@ -113,11 +119,9 @@ class WMHSegmentationPipeline:
                 flair_files = [flair_files[0]]
                 flair_file = flair_files[0]
                 print(f"No specific FLAIR file selected. Using the first one.")
-        else:
-            flair_file = None
         
-        if self.session.get_t1w_files():
-            t1w_files = self.session.get_t1w_files()
+        t1w_files = self.session.get_t1w_files()
+        if t1w_files:
             if self.use_which_t1w:
                 t1w_files = [f for f in t1w_files if self.use_which_t1w in f]
                 if len(t1w_files) != 1:
@@ -130,8 +134,6 @@ class WMHSegmentationPipeline:
                 t1w_files = [t1w_files[0]]
                 t1w_file = t1w_files[0]
                 print(f"No specific T1w file selected. Using the first one (Assume it is 3D-T1w).")
-        else:
-            t1w_file = None
 
         if flair_file is None and t1w_file is None:
             raise FileNotFoundError("No FLAIR or T1w file found for this session. At least one FLAIR or T1w image is required.")
