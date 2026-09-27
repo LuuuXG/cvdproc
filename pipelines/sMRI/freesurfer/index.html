@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../t1_register/">
+        <link rel="prev" href="../cmb_quantification/">
       
       
-        <link rel="next" href="../anat_seg/">
+        <link rel="next" href="../fsl_anat/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -433,12 +433,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../lesion_analysis/" class="md-nav__link">
+      <a href="../anat_seg/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Lesion Analysis
+    Anatomical Segmentation
     
   </span>
   
@@ -456,12 +456,58 @@
   
   
     <li class="md-nav__item">
-      <a href="../t1_register/" class="md-nav__link">
+      <a href="../brainage/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    T1w Registration to MNI space
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cat12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAT12 VBM Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cmb_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CMB Quantification
     
   </span>
   
@@ -529,74 +575,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline" class="md-nav__link">
+  <a href="#freesurfer-recon-all" class="md-nav__link">
     <span class="md-ellipsis">
-      FreesurferClinicalPipeline
+      Freesurfer recon-all
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="FreesurferClinicalPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      FreesurferPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="FreesurferPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      SynthSRPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="SynthSRPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -611,13 +603,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#freesurfer-principle-methodological-considerations" class="md-nav__link">
+  <a href="#freesurfer-recon-all-standard" class="md-nav__link">
     <span class="md-ellipsis">
-      Freesurfer: Principle Methodological Considerations
+      Freesurfer: recon-all (standard)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Freesurfer: Principle Methodological Considerations">
+    <nav class="md-nav" aria-label="Freesurfer: recon-all (standard)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -726,6 +718,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#freesurfer-longitudinal-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Freesurfer Longitudinal Pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Freesurfer Longitudinal Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -742,12 +767,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../anat_seg/" class="md-nav__link">
+      <a href="../fsl_anat/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Anatomical Segmentation
+    FSL Anat
     
   </span>
   
@@ -765,12 +790,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../wmh_quantification/" class="md-nav__link">
+      <a href="../hipsta/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    WMH Quantification
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lesion_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lesion Analysis
     
   </span>
   
@@ -811,12 +859,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../brainage/" class="md-nav__link">
+      <a href="../scn/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Brain Age Estimation
+    Structural Covariance Network
     
   </span>
   
@@ -834,12 +882,58 @@
   
   
     <li class="md-nav__item">
-      <a href="../hipsta/" class="md-nav__link">
+      <a href="../synthsr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    HIPSTA
+    SynthSR
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../t1_register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    T1w Registration to MNI Space
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wmh_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    WMH Quantification
     
   </span>
   
@@ -942,6 +1036,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dMRI/nemo_postprocess/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    NeMo Postprocessing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -973,7 +1090,7 @@
   
   
   <span class="md-ellipsis">
-    Quantification MRI (qMRI) Pipelines
+    Perfusion (ASL) Pipelines
     
   </span>
   
@@ -984,7 +1101,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_4">
             <span class="md-nav__icon md-icon"></span>
-            Quantification MRI (qMRI) Pipelines
+            Perfusion (ASL) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -995,35 +1112,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+      <a href="../../perfusion/asl_pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Sepia QSM
+    ASL Pipeline
     
   </span>
   
@@ -1065,7 +1159,7 @@
   
   
   <span class="md-ellipsis">
-    Perfusion MRI (PWI) Pipelines
+    Multi-Modality Pipelines
     
   </span>
   
@@ -1076,7 +1170,191 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
-            Perfusion MRI (PWI) Pipelines
+            Multi-Modality Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/arts_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Quantitative MRI (qMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            Quantitative MRI (qMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SEPIA QSM (Deprecated)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    DSC-MRI (PWI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            DSC-MRI (PWI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1093,6 +1371,98 @@
   
   <span class="md-ellipsis">
     PWI Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Test Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            Test Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test_matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MATLAB Test
     
   </span>
   
@@ -1189,74 +1559,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline" class="md-nav__link">
+  <a href="#freesurfer-recon-all" class="md-nav__link">
     <span class="md-ellipsis">
-      FreesurferClinicalPipeline
+      Freesurfer recon-all
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="FreesurferClinicalPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      FreesurferPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="FreesurferPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline.__init__" class="md-nav__link">
     <span class="md-ellipsis">
       __init__
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      SynthSRPipeline
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="SynthSRPipeline">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline.__init__" class="md-nav__link">
-    <span class="md-ellipsis">
-      __init__
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -1271,13 +1587,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#freesurfer-principle-methodological-considerations" class="md-nav__link">
+  <a href="#freesurfer-recon-all-standard" class="md-nav__link">
     <span class="md-ellipsis">
-      Freesurfer: Principle Methodological Considerations
+      Freesurfer: recon-all (standard)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Freesurfer: Principle Methodological Considerations">
+    <nav class="md-nav" aria-label="Freesurfer: recon-all (standard)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1386,6 +1702,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#freesurfer-longitudinal-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Freesurfer Longitudinal Pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Freesurfer Longitudinal Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1402,183 +1751,20 @@
 
 
 
-<h1 id="freesurfer-pipeline">Freesurfer pipeline</h1>
+<h1 id="freesurfer-pipeline">Freesurfer Pipeline</h1>
+<p>This page covers the main Freesurfer pipelines. See also:</p>
+<ul>
+<li><strong>SynthSR</strong> (<a href="../synthsr/">synthsr</a>): Generate synthetic 1 mm isotropic T1w images from clinical-quality scans.</li>
+</ul>
+<h2 id="freesurfer-recon-all">Freesurfer recon-all</h2>
 
 
-<div class="doc doc-object doc-module">
+<div class="doc doc-object doc-class">
 
 
 
 
     <div class="doc doc-contents first">
-
-
-
-
-
-
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<h2 id="cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline" class="doc doc-heading">
-            <code>FreesurferClinicalPipeline</code>
-
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-
-
-
-
-
-
-
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferClinicalPipeline.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span></code>
-
-</h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Freesurfer clinical pipeline</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>subject</code>
-            </td>
-            <td>
-                  <code><span title="object">object</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The subject object.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>session</code>
-            </td>
-            <td>
-                  <code><span title="object">object</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The session object.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>output_path</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The output path for the pipeline.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>use_which_t1w</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Use specific T1w file if multiple are available. Defaults to "".</p>
-              </div>
-            </td>
-            <td>
-                  <code>&#39;&#39;</code>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h2 id="cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline" class="doc doc-heading">
-            <code>FreesurferPipeline</code>
-
-
-</h2>
-
-
-    <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="cvdproc.pipelines.smri.freesurfer.results_extractor.FreesurferStatsExtractorMixin">FreesurferStatsExtractorMixin</span></code></p>
 
@@ -1605,10 +1791,10 @@
 <div class="doc doc-object doc-function">
 
 
-<h3 id="cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline.__init__" class="doc doc-heading">
+<h2 id="cvdproc.pipelines.smri.freesurfer_pipeline.FreesurferPipeline.__init__" class="doc doc-heading">
             <code class="highlight language-python"><span class="fm">__init__</span></code>
 
-</h3>
+</h2>
 
 
     <div class="doc doc-contents ">
@@ -1833,160 +2019,14 @@
 
     </div>
 
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<h2 id="cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline" class="doc doc-heading">
-            <code>SynthSRPipeline</code>
-
-
-</h2>
-
-
-    <div class="doc doc-contents ">
-
-
-
-
-
-
-
-
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="cvdproc.pipelines.smri.freesurfer_pipeline.SynthSRPipeline.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span></code>
-
-</h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>SynthSR pipeline</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>subject</code>
-            </td>
-            <td>
-                  <code><span title="object">object</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The subject object containing BIDS information.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>session</code>
-            </td>
-            <td>
-                  <code><span title="object">object</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The session object containing BIDS information.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>output_path</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The output path for the pipeline results.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td>
-                <code>use_which_t1w</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Use specific T1w file if multiple are available. Defaults to "".</p>
-              </div>
-            </td>
-            <td>
-                  <code>&#39;&#39;</code>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-
-
-
-  </div>
-
-    </div>
-
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<h3 id="freesurfer-principle-methodological-considerations">Freesurfer: Principle Methodological Considerations</h3>
+<h3 id="freesurfer-recon-all-standard">Freesurfer: recon-all (standard)</h3>
 <h4 id="freesurfer-version">Freesurfer Version</h4>
 <p>The current pipeline uses the Freesurfer 7-dev version (freesurfer-linux-ubuntu22_x86_64-dev-20240909-9ca95c6). Although we prefer using deep learning-based tools implemented in Freesurfer 8 for more accurate and robust processing, the 8 version requires a larger RAM. For our groups with limited computational resources, we opt for the 7-dev version and parallelize the processing of multiple subjects to optimize resource usage.</p>
 <h4 id="external-brain-mask">External Brain Mask</h4>
-<p>We found that the default brainmask generated by Freesurfer may not be optimal for all datasets. Therefore, we choose to use an external brain mask with <code>mri_synthstrip</code> to replace the brain extraction step. Notably, we take the <code>--no-csf</code> option in <code>mri_synthstrip</code> to avoid misclassifying the CSF as grey matter (see the figure below).</p>
+<p>We found that the default brainmask generated by Freesurfer may not be optimal for all datasets. Therefore, the pipeline uses the external SynthStrip mask generated by <code>t1_register</code> for the same T1w image and passes it to <code>recon-all</code> with <code>-xmask</code>. If the mask does not exist yet, the Freesurfer pipeline generates it with <code>mri_synthstrip --no-csf</code> before starting <code>recon-all</code>. The <code>--no-csf</code> option avoids misclassifying the CSF as grey matter (see the figure below).</p>
+<p>The expected mask is stored under <code>derivatives/xfm/sub-&lt;subject&gt;/ses-&lt;session&gt;/</code> and retains the selected T1w acquisition entities, for example <code>sub-001_ses-baseline_acq-highres_space-T1w_desc-brain_mask.nii.gz</code>.</p>
 <p><img alt="freesurfer_mask.jpg" src="../freesurfer_mask.jpg" /></p>
 <p>We compare the results using the external brain mask (<code>mri_synthstrip</code> with <code>--no-csf</code>) versus the default Freesurfer brain mask in Freesurfer 7-dev in  n = 111 subjects.</p>
 <p>Agreement between the two processing pipelines was evaluated using the intraclass correlation coefficient (ICC(3,1)), and Pearson correlation coefficient. Results are displayed in the figures below (cortical measures from 3 parcellations)</p>
@@ -2015,6 +2055,20 @@
 <p>Although Freesurfer provides <code>aparcstats2table</code> and <code>asegstats2table</code> commands to generate CSV files, we implement our own CSV generation function to have more control over the output format. All <code>.stats</code> files are parsed to generate CSV files (also when subregions stats files are available) for cortical and subcortical measures except for <code>*h.curv.stats</code>.</p>
 <h3 id="freesurfer-recon-all-clinicalsh">Freesurfer: recon-all-clinical.sh</h3>
 <p>Some extra preprocessing steps were implemented to achieve output similar to <code>recon-all</code>, such as cortical morphology metrics. For detailed information on these steps, please refer to the <a href="https://github.com/LuuuXG/cvdproc/blob/main/cvdproc/pipelines/smri/freesurfer/recon_all_clinical.py">source code</a>.</p>
+<p>This pipeline is available as <code>freesurfer_clinical</code>. It runs <code>recon-all-clinical.sh</code> and includes SynthSR for generating a synthetic 1 mm isotropic T1w output.</p>
+<h2 id="freesurfer-longitudinal-pipeline">Freesurfer Longitudinal Pipeline</h2>
+<p>Run with <code>--pipeline freesurfer_longitudinal</code>. This pipeline runs FreeSurfer's longitudinal processing stream across multiple sessions.</p>
+<p>The <code>-base</code> and <code>-long</code> stages consume the completed cross-sectional session directories, so the external mask is applied during each preceding <code>freesurfer</code> run rather than passed again to the longitudinal commands.</p>
+<h3 id="parameters">Parameters</h3>
+<ul>
+<li><code>subregion_ha</code>: Whether to segment hippocampus and amygdala subregions (default: <code>False</code>).</li>
+<li><code>subregion_thalamus</code>: Whether to segment thalamus subregions (default: <code>False</code>).</li>
+<li><code>subregion_brainstem</code>: Whether to segment brainstem subregions (default: <code>False</code>).</li>
+<li><code>subregion_hypothalamus</code>: Whether to segment hypothalamus subunits (default: <code>False</code>).</li>
+<li><code>stats2csv</code>: Whether to convert stats to CSV (default: <code>False</code>).</li>
+<li><code>extract_from</code>: Path to extract results from for population-level summary.</li>
+</ul>
+<h2 id="references">References</h2>
 
 
 

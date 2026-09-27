@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../lesion_analysis/">
+        <link rel="prev" href="../synthsr/">
       
       
-        <link rel="next" href="../freesurfer/">
+        <link rel="next" href="../wmh_quantification/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>T1w Registration to MNI space - cvdproc</title>
+        <title>T1w Registration to MNI Space - cvdproc</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#anatomical-segmentation" class="md-skip">
+        <a href="#t1w-to-mni-registration" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              T1w Registration to MNI space
+              T1w Registration to MNI Space
             
           </span>
         </div>
@@ -433,12 +433,242 @@
   
   
     <li class="md-nav__item">
+      <a href="../anat_seg/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anatomical Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../brainage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Brain Age Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cat12/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAT12 VBM Segmentation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cmb_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CMB Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../freesurfer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Freesurfer Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fsl_anat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    FSL Anat
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hipsta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    HIPSTA
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../lesion_analysis/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     Lesion Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pvs_quantification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PVS Quantification
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Structural Covariance Network
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../synthsr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SynthSR
     
   </span>
   
@@ -470,7 +700,7 @@
   
   
   <span class="md-ellipsis">
-    T1w Registration to MNI space
+    T1w Registration to MNI Space
     
   </span>
   
@@ -483,7 +713,7 @@
   
   
   <span class="md-ellipsis">
-    T1w Registration to MNI space
+    T1w Registration to MNI Space
     
   </span>
   
@@ -530,11 +760,95 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
-      A more detailed description:
+      Description
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use_which_t1w-str-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      use_which_t1w (str, optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template_space-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      template_space (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cohort-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      cohort (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolution-float" class="md-nav__link">
+    <span class="md-ellipsis">
+      resolution (float)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example config
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output files
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -554,127 +868,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../freesurfer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Freesurfer Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../anat_seg/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Anatomical Segmentation
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../wmh_quantification/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     WMH Quantification
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pvs_quantification/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    PVS Quantification
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../brainage/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Brain Age Estimation
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hipsta/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    HIPSTA
     
   </span>
   
@@ -777,6 +976,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dMRI/nemo_postprocess/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    NeMo Postprocessing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -808,7 +1030,7 @@
   
   
   <span class="md-ellipsis">
-    Quantification MRI (qMRI) Pipelines
+    Perfusion (ASL) Pipelines
     
   </span>
   
@@ -819,7 +1041,7 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_4">
             <span class="md-nav__icon md-icon"></span>
-            Quantification MRI (qMRI) Pipelines
+            Perfusion (ASL) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -830,35 +1052,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+      <a href="../../perfusion/asl_pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    QSM Pipeline
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Sepia QSM
+    ASL Pipeline
     
   </span>
   
@@ -900,7 +1099,7 @@
   
   
   <span class="md-ellipsis">
-    Perfusion MRI (PWI) Pipelines
+    Multi-Modality Pipelines
     
   </span>
   
@@ -911,7 +1110,191 @@
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5_5">
             <span class="md-nav__icon md-icon"></span>
-            Perfusion MRI (PWI) Pipelines
+            Multi-Modality Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/arts_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_6" id="__nav_5_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Quantitative MRI (qMRI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_6">
+            <span class="md-nav__icon md-icon"></span>
+            Quantitative MRI (qMRI) Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/qsm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    QSM Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../qMRI/sepia_qsm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SEPIA QSM (Deprecated)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_7" id="__nav_5_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    DSC-MRI (PWI) Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_7">
+            <span class="md-nav__icon md-icon"></span>
+            DSC-MRI (PWI) Pipelines
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -928,6 +1311,98 @@
   
   <span class="md-ellipsis">
     PWI Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Test Pipelines
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            Test Pipelines
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Base Test
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test/test_matlab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MATLAB Test
     
   </span>
   
@@ -1048,11 +1523,95 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
-      A more detailed description:
+      Description
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use_which_t1w-str-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      use_which_t1w (str, optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template_space-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      template_space (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cohort-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      cohort (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolution-float" class="md-nav__link">
+    <span class="md-ellipsis">
+      resolution (float)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example config
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output files
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1072,7 +1631,7 @@
 
 
 
-<h1 id="anatomical-segmentation">Anatomical Segmentation</h1>
+<h1 id="t1w-to-mni-registration">T1w-to-MNI Registration</h1>
 
 
 <div class="doc doc-object doc-module">
@@ -1223,14 +1782,50 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>template_res</code>
+                <code>template_space</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Target MNI template space.
+Supported: "MNI152NLin6Asym" (default), "MNI152NLin2009cAsym", "MNIPediatricAsym".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;MNI152NLin6Asym&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cohort</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pediatric cohort number. Only used with MNIPediatricAsym. Default "".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>resolution</code>
             </td>
             <td>
                   <code><span title="float">float</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Resolution of the MNI template to use (1mm or 0.5mm). Default is 1mm.</p>
+                <p>Template resolution in mm. Default 1.
+MNI152NLin6Asym: 1 or 0.5.
+MNI152NLin2009cAsym: 1.
+MNIPediatricAsym: 1.</p>
               </div>
             </td>
             <td>
@@ -1261,8 +1856,136 @@
     </div>
 
 </div><hr />
-<h2 id="a-more-detailed-description">A more detailed description:</h2>
-<p><a href="https://martinos.org/malte/synthmorph/">Synthmorph</a> is used for fast and robust (compared to traditional FNIRT or ANTs methods) T1w to MNI registration.</p>
+<h2 id="description">Description</h2>
+<p><a href="https://martinos.org/malte/synthmorph/">Synthmorph</a> <sup id="fnref:hoffmann2022synthmorph"><a class="footnote-ref" href="#fn:hoffmann2022synthmorph">1</a></sup> is used for fast and robust T1w-to-MNI registration (compared to traditional FNIRT or ANTs methods).</p>
+<h2 id="parameters">Parameters</h2>
+<h3 id="use_which_t1w-str-optional"><code>use_which_t1w</code> (str, optional)</h3>
+<p>Keyword to select a specific T1w image when multiple are available. Default: first available.</p>
+<h3 id="template_space-str"><code>template_space</code> (str)</h3>
+<p>Target MNI template space. Supported values:</p>
+<table>
+<thead>
+<tr>
+<th>Space</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MNI152NLin6Asym</code></td>
+<td>Adult MNI ICBM 152 nonlinear asymmetric (default)</td>
+</tr>
+<tr>
+<td><code>MNI152NLin2009cAsym</code></td>
+<td>Adult MNI ICBM 152 2009c asymmetric</td>
+</tr>
+<tr>
+<td><code>MNIPediatricAsym</code></td>
+<td>Pediatric MNI asymmetric (requires <code>cohort</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>"MNI152NLin6Asym"</code>.</p>
+<h3 id="cohort-str"><code>cohort</code> (str)</h3>
+<p>Pediatric cohort number. Only used when <code>template_space = "MNIPediatricAsym"</code>. Supported values:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Template file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"1"</code></td>
+<td><code>tpl-MNIPediatricAsym_cohort-1_res-1_T1w.nii.gz</code></td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>""</code>.</p>
+<h3 id="resolution-float"><code>resolution</code> (float)</h3>
+<p>Template resolution in mm. Available options depend on the template space:</p>
+<table>
+<thead>
+<tr>
+<th>Space</th>
+<th>Supported resolutions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MNI152NLin6Asym</code></td>
+<td><code>1</code>, <code>0.5</code></td>
+</tr>
+<tr>
+<td><code>MNI152NLin2009cAsym</code></td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>MNIPediatricAsym</code></td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>1</code>.</p>
+<h2 id="example-config">Example config</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Adult MNI (default)</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNI152NLin6Asym&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+
+<span class="c1"># Pediatric MNI, cohort 1</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNIPediatricAsym&quot;</span>
+<span class="w">  </span><span class="nt">cohort</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+
+<span class="c1"># MNI 2009c</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNI152NLin2009cAsym&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</code></pre></div>
+<h2 id="output-files">Output files</h2>
+<p>Output filenames use the configured <code>template_space</code> value (e.g., <code>MNI152NLin6ASym</code>, <code>MNI152NLin2009cAsym</code>, <code>MNIPediatricAsym</code>).</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*_space-{template_space}_T1w.nii.gz</code></td>
+<td>T1w in MNI space</td>
+</tr>
+<tr>
+<td><code>*_from-T1w_to-{template_space}_warp.nii.gz</code></td>
+<td>Forward warp field</td>
+</tr>
+<tr>
+<td><code>*_from-{template_space}_to-T1w_warp.nii.gz</code></td>
+<td>Inverse warp field</td>
+</tr>
+<tr>
+<td><code>*_space-T1w_desc-brain_T1w.nii.gz</code></td>
+<td>Skull-stripped T1w</td>
+</tr>
+<tr>
+<td><code>*_space-T1w_desc-brain_mask.nii.gz</code></td>
+<td>Brain mask</td>
+</tr>
+</tbody>
+</table>
+<h3 id="references">References</h3>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:hoffmann2022synthmorph">
+<p>Malte Hoffmann, Benjamin Billot, Douglas N Greve, Juan Eugenio Iglesias, Bruce Fischl, and Adrian V Dalca. Synthmorph: learning contrast-invariant registration without acquired images. <em>IEEE Transactions on Medical Imaging</em>, 41(3):543–558, 2022. <a href="https://doi.org/10.1109/TMI.2021.3116879">doi:10.1109/TMI.2021.3116879</a>.&#160;<a class="footnote-backref" href="#fnref:hoffmann2022synthmorph" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
