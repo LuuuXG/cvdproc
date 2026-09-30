@@ -188,8 +188,8 @@ class QSMPipeline:
             mag_to_t1w_register_node.inputs.dof = 6
 
             # 02: register T1w to MNI
-            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
-            target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz')
+            target_inverse_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6Asym_to-T1w_warp.nii.gz')
             t1_2_mni_warp_node = Node(IdentityInterface(fields=['t1_2_mni_warp']), name='t1_2_mni_warp_node')
             mni_2_t1w_warp_node = Node(IdentityInterface(fields=['mni_2_t1w_warp']), name='mni_2_t1w_warp_node')
 
@@ -199,9 +199,9 @@ class QSMPipeline:
                 t1w_to_mni_register_node = Node(SynthmorphNonlinear(), name='t1w_to_mni_registration')
                 qsm_wf.connect(inputnode, 'in_t1', t1w_to_mni_register_node, 't1')
                 t1w_to_mni_register_node.inputs.mni_template = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym', 'desc':'brain'}, 'T1w', '.nii.gz'))
+                t1w_to_mni_register_node.inputs.t1_mni_out = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', rename_bids_file(t1w_file, {'space': 'MNI152NLin6Asym', 'desc':'brain'}, 'T1w', '.nii.gz'))
                 t1w_to_mni_register_node.inputs.t1_2_mni_warp = target_warp
-                t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+                t1w_to_mni_register_node.inputs.mni_2_t1_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6Asym_to-T1w_warp.nii.gz')
                 t1w_to_mni_register_node.inputs.register_between_stripped = True
 
                 qsm_wf.connect(t1w_to_mni_register_node, 't1_2_mni_warp', t1_2_mni_warp_node, 't1_2_mni_warp')
@@ -237,14 +237,14 @@ class QSMPipeline:
             ]
 
             output2_filenames = [
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_desc-QSMnet_Chimap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_R2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_S0map.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_T2starmap.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chidia.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chipara.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_Chitotal.nii.gz',
-                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6ASym_OEF.nii.gz'
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_desc-QSMnet_Chimap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_R2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_S0map.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_T2starmap.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_Chidia.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_Chipara.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_Chitotal.nii.gz',
+                f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-MNI152NLin6Asym_OEF.nii.gz'
             ]
 
             qsm_to_mni_register_node = Node(QSMRegister(), name='qsm_to_mni_registration')

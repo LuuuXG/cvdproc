@@ -10,6 +10,8 @@
 
 Source: [LQT](https://github.com/jdwor/LQT)
 
+For every subject and session, the pipeline also extracts mean disconnection values for all nonzero regions in the JHU ICBM white-matter atlas and writes a CSV file. The postprocessed MNI152 disconnection map is projected to the left and right fsaverage 164k surfaces and written as two metric GIFTI files. These outputs are always generated and require no additional configuration.
+
 !!! Note
     LQT is implemented in R, so you need to have R installed on your system. Using R in WSL seems to have some instability, try changing the cores=4 parameter in 'cvdproc/pipelines/r/lqt_single_subject.R'.
   

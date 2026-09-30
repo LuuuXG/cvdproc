@@ -157,7 +157,7 @@ def compute_pved(ttr, pvr_mask, csf_binary, lv_binary):
 
 def save_outputs(output_dir, subject, session, reference, md_2mm, ttr, lv_binary, csf_binary, pvr_mask, final_mask, metrics):
     os.makedirs(output_dir, exist_ok=True)
-    prefix = f"{subject}_{session}_space-MNI152NLin6ASym_res-2mm"
+    prefix = f"{subject}_{session}_space-MNI152NLin6Asym_res-2mm"
 
     def save(array, suffix):
         image = nib.Nifti1Image(array.astype(np.float32), reference.affine, reference.header)

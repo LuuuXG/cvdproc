@@ -42,7 +42,7 @@ The second stage uses [QQ-Net](https://github.com/junghun87/QQNET) [@cho2018qqne
 
 #### 3. Spatial Normalization (optional, `normalize=True`)
 
-If enabled, the QSM scalar maps are registered to T1w space (via 6-DOF FLIRT using the first-echo magnitude image) and subsequently to MNI space (MNI152NLin6ASym) using SynthMorph non-linear registration. Outputs include all scalar maps in both T1w and MNI spaces.
+If enabled, the QSM scalar maps are registered to T1w space (via 6-DOF FLIRT using the first-echo magnitude image) and subsequently to MNI space (MNI152NLin6Asym) using SynthMorph non-linear registration. Outputs include all scalar maps in both T1w and MNI spaces.
 
 ### Modalities
 
@@ -63,7 +63,7 @@ pipelines:
 ### Parameters
 
 - `use_which_t1w`: Select a specific T1w image by matching a substring in the filename.
-- `normalize`: If `True`, register QSM scalar maps to T1w and MNI152NLin6ASym space (default: `False`).
+- `normalize`: If `True`, register QSM scalar maps to T1w and MNI152NLin6Asym space (default: `False`).
 - `phase_image_correction`: If `True`, correct inter-slice phase polarity differences in GE data (see [SEPIA discussion](https://github.com/kschan0214/sepia/discussions/93)).
 - `reverse_phase`: Set to `1` to invert phase polarity for GE scanners (default: `0`).
 

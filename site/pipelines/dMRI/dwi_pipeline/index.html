@@ -866,6 +866,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#intermediate-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Intermediate files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#single-shell-and-multi-shell-dwi-preprocessing" class="md-nav__link">
     <span class="md-ellipsis">
       Single-shell and Multi-shell DWI preprocessing
@@ -1226,6 +1235,29 @@
   
   <span class="md-ellipsis">
     ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
     
   </span>
   
@@ -1611,6 +1643,15 @@
   
     <nav class="md-nav" aria-label="DWI Preprocessing">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intermediate-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Intermediate files
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#single-shell-and-multi-shell-dwi-preprocessing" class="md-nav__link">
@@ -2094,11 +2135,27 @@
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether to fit DTI model using FSL dtifit. Defaults to True.</p>
+                <p>Whether to fit DTI model using FSL dtifit. Defaults to False.</p>
               </div>
             </td>
             <td>
                   <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dti_low_b</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to only use b&lt;=1500 volumes for DTI fitting. Defaults to True.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -2111,6 +2168,22 @@
             <td>
               <div class="doc-md-description">
                 <p>Whether to register DWI to T1w space. Defaults to False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>dki_fit</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to fit DKI model using Dipy. Defaults to False.</p>
               </div>
             </td>
             <td>
@@ -2295,6 +2368,22 @@
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>pved_method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>PVeD implementation. <code>v1</code> uses the legacy MATLAB/QSDR workflow; <code>v2</code> uses the faster Atropos workflow with MNI-space DTI maps. Defaults to <code>v2</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;v2&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>freewater</code>
             </td>
             <td>
@@ -2439,6 +2528,22 @@
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>keep_preproc_intermediate</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to keep the preproc_intermediate directory after preprocessing. Defaults to True. Set False to clean up after the final DWI, gradients, and brain mask are ready; workflow caches and QSIPrep outputs are not removed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>extract_from</code>
             </td>
             <td>
@@ -2489,6 +2594,20 @@
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
 <h3 id="dwi-preprocessing">DWI Preprocessing</h3>
+<h4 id="intermediate-files">Intermediate files</h4>
+<p>The standard generated config includes <code>keep_preproc_intermediate: true</code>, matching
+the pipeline default. To remove preprocessing intermediates, set:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">dwi_pipeline</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">preprocess</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">keep_preproc_intermediate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
+<p>Cleanup runs once the final preprocessed DWI, bvec, bval, and brain mask are ready.
+It removes only <code>preproc_intermediate</code> under this pipeline's output directory;
+it does not remove Nipype workflow caches, Synb0 outputs, or QSIPrep outputs.
+With <code>preprocess: false</code>, it can also remove leftovers from a previous local
+preprocessing run once the existing final outputs are available. It is skipped
+for <code>preprocess_method: post_qsiprep</code>. Failed preprocessing retains intermediates
+for troubleshooting. Existing config files must have this option added manually.</p>
 <h4 id="single-shell-and-multi-shell-dwi-preprocessing">Single-shell and Multi-shell DWI preprocessing</h4>
 <p>We use customized scripts to preprocess single-shell and multi-shell DWI data, because current popular DWI preprocessing tools (e.g., <a href="https://www.mrtrix.org/">MRtrix3</a>, <a href="https://qsiprep.readthedocs.io/en/latest/index.html">QSIPrep</a>) do not provide an easy way to use <a href="https://github.com/MASILab/Synb0-DISCO">Synb0-DISCO</a> for distortion correction when no field map is available.</p>
 <p>The main steps of our DWI preprocessing pipeline are as follows:</p>
@@ -2541,7 +2660,15 @@
 <p>The original method was proposed in <sup id="fnref:taoka2017evaluation"><a class="footnote-ref" href="#fn:taoka2017evaluation">4</a></sup>. It is important to note that multiple studies have suggested that DTI-ALPS should not be simply interpreted as a reflection of glymphatic function. Instead, DTI-ALPS likely reflects complex changes in brain microstructure, pointing to a more comprehensive neurodegenerative mechanism <sup id="fnref:li2025microstructural"><a class="footnote-ref" href="#fn:li2025microstructural">5</a></sup>.</p>
 <h4 id="pved">PVeD</h4>
 <p><img alt="PVeD" src="../PVeD.png" /></p>
-<p>periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain <sup id="fnref:chen2025periventricular"><a class="footnote-ref" href="#fn:chen2025periventricular">6</a></sup>. It is calculated using the official <a href="https://github.com/ChangleChen/EstPVeD">EstPVeD</a> script.</p>
+<p>Periventricular diffusivity (PVeD) is proposed as a substitute marker reflecting the glymphatic function in the brain <sup id="fnref:chen2025periventricular"><a class="footnote-ref" href="#fn:chen2025periventricular">6</a></sup>. Enable it with <code>pved: true</code> and select the implementation with <code>pved_method</code>. The default <code>v2</code> method calls the <code>Atropos</code> executable from the system ANTs installation and does not require <code>antspyx</code>:</p>
+<ul>
+<li><code>v2</code> (default) fits the tensor with dtifit, applies the existing DWI-to-T1w affine and T1w-to-<code>MNI152NLin6Asym</code> warp to the FA, MD, and tensor maps, and estimates PVeD using ANTs Atropos instead of SPM. If the T1w-to-MNI warp is unavailable, the pipeline reports the missing file and falls back to <code>v1</code>.</li>
+<li><code>v1</code> uses the legacy QSDR, MATLAB, SPM12, and official <a href="https://github.com/ChangleChen/EstPVeD">EstPVeD</a> workflow.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="nt">dwi_pipeline</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">pved</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">pved_method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
+</code></pre></div>
 <p>Things to concern: A region growing method is used to determine the periventricular region. However, if there are lesions (such as lacunar infarcts with high MD values) in this region, these lesion areas will be ignored, leading to variability in the periventricular region among subjects.</p>
 <h3 id="connectome-analysis">Connectome Analysis</h3>
 <div class="admonition note">

@@ -92,7 +92,7 @@ process_one_subject_session() {
     base_prefix="$(basename "$fa_img" .nii.gz | sed -E 's/_space-[^_]+.*$//')"
 
     dwi_to_t1w_xfm="$(get_first_match "$xfm_single_dir" "*from-${space_entity}_to-T1w_xfm.mat")"
-    t1_to_mni_warp="$(get_first_match "$xfm_single_dir" "*from-T1w_to-MNI152NLin6ASym_warp.nii.gz")"
+    t1_to_mni_warp="$(get_first_match "$xfm_single_dir" "*from-T1w_to-MNI152NLin6Asym_warp.nii.gz")"
     t1w_ref="$(get_first_match "$xfm_single_dir" "*desc-brain_T1w.nii.gz")"
 
     if [[ -z "$dwi_to_t1w_xfm" || -z "$t1_to_mni_warp" || -z "$t1w_ref" ]]; then
@@ -212,14 +212,14 @@ process_one_subject_session() {
     local gm_mni
     local pseudo_mni
 
-    fa_mni="$mni_img_dir/FA/${base_prefix}_space-MNI152NLin6ASym_model-tensor_param-fa_dwimap.nii.gz"
-    md_mni="$mni_img_dir/MD/${base_prefix}_space-MNI152NLin6ASym_model-tensor_param-md_dwimap.nii.gz"
-    ndi_mni="$mni_img_dir/NDI/${base_prefix}_space-MNI152NLin6ASym_model-noddi_param-icvf_dwimap.nii.gz"
-    odi_mni="$mni_img_dir/ODI/${base_prefix}_space-MNI152NLin6ASym_model-noddi_param-odi_dwimap.nii.gz"
-    iso_mni="$mni_img_dir/ISOVF/${base_prefix}_space-MNI152NLin6ASym_model-noddi_param-isovf_dwimap.nii.gz"
-    wm_mni="$mni_img_dir/WM_fraction/${base_prefix}_space-MNI152NLin6ASym_label-WM_probability.nii.gz"
-    gm_mni="$mni_img_dir/GM_fraction/${base_prefix}_space-MNI152NLin6ASym_label-GM_probability.nii.gz"
-    pseudo_mni="$mni_img_dir/pseudoT1w/${base_prefix}_space-MNI152NLin6ASym_desc-pseudoT1w_T1w.nii.gz"
+    fa_mni="$mni_img_dir/FA/${base_prefix}_space-MNI152NLin6Asym_model-tensor_param-fa_dwimap.nii.gz"
+    md_mni="$mni_img_dir/MD/${base_prefix}_space-MNI152NLin6Asym_model-tensor_param-md_dwimap.nii.gz"
+    ndi_mni="$mni_img_dir/NDI/${base_prefix}_space-MNI152NLin6Asym_model-noddi_param-icvf_dwimap.nii.gz"
+    odi_mni="$mni_img_dir/ODI/${base_prefix}_space-MNI152NLin6Asym_model-noddi_param-odi_dwimap.nii.gz"
+    iso_mni="$mni_img_dir/ISOVF/${base_prefix}_space-MNI152NLin6Asym_model-noddi_param-isovf_dwimap.nii.gz"
+    wm_mni="$mni_img_dir/WM_fraction/${base_prefix}_space-MNI152NLin6Asym_label-WM_probability.nii.gz"
+    gm_mni="$mni_img_dir/GM_fraction/${base_prefix}_space-MNI152NLin6Asym_label-GM_probability.nii.gz"
+    pseudo_mni="$mni_img_dir/pseudoT1w/${base_prefix}_space-MNI152NLin6Asym_desc-pseudoT1w_T1w.nii.gz"
 
     flirt -in "$fa_img" -ref "$t1w_ref" -out "$fa_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
     flirt -in "$md_img" -ref "$t1w_ref" -out "$md_t1w" -applyxfm -init "$dwi_to_t1w_xfm" -interp trilinear
@@ -333,12 +333,12 @@ gm_list="$log_dir/gm_merge_list.txt"
 : > "$gm_list"
 
 while IFS= read -r id; do
-    fa_file="$(find "$fa_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_model-tensor_param-fa_dwimap.nii.gz" | sort | head -n 1)"
-    md_file="$(find "$md_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_model-tensor_param-md_dwimap.nii.gz" | sort | head -n 1)"
-    ndi_file="$(find "$ndi_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_model-noddi_param-icvf_dwimap.nii.gz" | sort | head -n 1)"
-    odi_file="$(find "$odi_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_model-noddi_param-odi_dwimap.nii.gz" | sort | head -n 1)"
-    isovf_file="$(find "$isovf_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_model-noddi_param-isovf_dwimap.nii.gz" | sort | head -n 1)"
-    gm_file="$(find "$gm_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6ASym_label-GM_probability.nii.gz" | sort | head -n 1)"
+    fa_file="$(find "$fa_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_model-tensor_param-fa_dwimap.nii.gz" | sort | head -n 1)"
+    md_file="$(find "$md_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_model-tensor_param-md_dwimap.nii.gz" | sort | head -n 1)"
+    ndi_file="$(find "$ndi_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_model-noddi_param-icvf_dwimap.nii.gz" | sort | head -n 1)"
+    odi_file="$(find "$odi_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_model-noddi_param-odi_dwimap.nii.gz" | sort | head -n 1)"
+    isovf_file="$(find "$isovf_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_model-noddi_param-isovf_dwimap.nii.gz" | sort | head -n 1)"
+    gm_file="$(find "$gm_mni_dir" -maxdepth 1 -type f -name "${id}_acq-*_space-MNI152NLin6Asym_label-GM_probability.nii.gz" | sort | head -n 1)"
 
     if [[ -z "$fa_file" || -z "$md_file" || -z "$ndi_file" || -z "$odi_file" || -z "$isovf_file" || -z "$gm_file" ]]; then
         continue

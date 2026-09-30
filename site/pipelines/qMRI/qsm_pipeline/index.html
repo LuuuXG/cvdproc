@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../../multi/arts_pipeline/">
+        <link rel="prev" href="../../multi/disconnection_pipeline/">
       
       
         <link rel="next" href="../sepia_qsm/">
@@ -976,6 +976,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1765,6 +1788,54 @@
                   <code>0</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>qsm_metrics_stats</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, compute and save ROI statistics.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>skip_reconstruction</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, skip the reconstruction step.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>extract_from</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory to extract results from (for population-level analysis).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -1837,7 +1908,7 @@
 <li>Output: OEF map in native QSM space.</li>
 </ul>
 <h4 id="3-spatial-normalization-optional-normalizetrue">3. Spatial Normalization (optional, <code>normalize=True</code>)</h4>
-<p>If enabled, the QSM scalar maps are registered to T1w space (via 6-DOF FLIRT using the first-echo magnitude image) and subsequently to MNI space (MNI152NLin6ASym) using SynthMorph non-linear registration. Outputs include all scalar maps in both T1w and MNI spaces.</p>
+<p>If enabled, the QSM scalar maps are registered to T1w space (via 6-DOF FLIRT using the first-echo magnitude image) and subsequently to MNI space (MNI152NLin6Asym) using SynthMorph non-linear registration. Outputs include all scalar maps in both T1w and MNI spaces.</p>
 <h3 id="modalities">Modalities</h3>
 <ul>
 <li>GRE (multi-echo gradient echo, required — auto-discovered via <code>qsm_files</code>)</li>
@@ -1854,7 +1925,7 @@
 <h3 id="parameters">Parameters</h3>
 <ul>
 <li><code>use_which_t1w</code>: Select a specific T1w image by matching a substring in the filename.</li>
-<li><code>normalize</code>: If <code>True</code>, register QSM scalar maps to T1w and MNI152NLin6ASym space (default: <code>False</code>).</li>
+<li><code>normalize</code>: If <code>True</code>, register QSM scalar maps to T1w and MNI152NLin6Asym space (default: <code>False</code>).</li>
 <li><code>phase_image_correction</code>: If <code>True</code>, correct inter-slice phase polarity differences in GE data (see <a href="https://github.com/kschan0214/sepia/discussions/93">SEPIA discussion</a>).</li>
 <li><code>reverse_phase</code>: Set to <code>1</code> to invert phase polarity for GE scanners (default: <code>0</code>).</li>
 </ul>

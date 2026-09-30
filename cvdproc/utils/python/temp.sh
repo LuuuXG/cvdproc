@@ -28,7 +28,7 @@ process_one() {
 
     local acpc_to_t1_mat="$xfm_dir/${sub}_${ses}_from-ACPC_to-T1w_xfm.mat"
     local t1_ref="$xfm_dir/${sub}_${ses}_acq-highres_desc-brain_T1w.nii.gz"
-    local t1_to_mni_warp="$xfm_dir/${sub}_${ses}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz"
+    local t1_to_mni_warp="$xfm_dir/${sub}_${ses}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz"
 
     local missing=0
     local f
@@ -56,7 +56,7 @@ process_one() {
     local pseudo_t1_name="${sub}_${ses}_acq-DSIb4000_dir-AP_space-ACPC_desc-pseudoT1w.nii.gz"
     local gm_name_acpc="${sub}_${ses}_acq-DSIb4000_dir-AP_space-ACPC_label-GM_probability.nii.gz"
     local gm_name_t1="${sub}_${ses}_acq-DSIb4000_dir-AP_space-T1w_label-GM_probability.nii.gz"
-    local gm_name_mni="${sub}_${ses}_acq-DSIb4000_dir-AP_space-MNI152NLin6ASym_label-GM_probability.nii.gz"
+    local gm_name_mni="${sub}_${ses}_acq-DSIb4000_dir-AP_space-MNI152NLin6Asym_label-GM_probability.nii.gz"
 
     local gm_acpc="$work_dir/$gm_name_acpc"
     local gm_t1="$work_dir/$gm_name_t1"

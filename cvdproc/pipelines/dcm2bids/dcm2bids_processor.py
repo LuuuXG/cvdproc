@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import os
 import shutil
 import yaml
@@ -10,16 +11,16 @@ import glob
 import pydicom
 import re
 from collections import defaultdict
-from bids.cli import layout
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from bids.layout import BIDSLayout
 from requests import session
 from openpyxl.utils import get_column_letter
 
 import nipype
 from cvdproc.pipelines.smri.fsl.deface_nipype import FSLDeface
 from cvdproc.bids_data.rename_bids_file import rename_bids_file
+from cvdproc.pipelines.dcm2bids.crop_matching import replace_cropped_images
+from cvdproc.guides import install_application_guides
 
 class Dcm2BidsProcessor:
     def __init__(self, BIDS_root_folder):
@@ -33,7 +34,7 @@ class Dcm2BidsProcessor:
         else:
             print('Output directory already exists.')
 
-        subprocess.run(['dcm2bids_scaffold', '-o', self.BIDS_root_folder])
+        subprocess.run([sys.executable, '-m', 'cvdproc.pipelines.dcm2bids.scaffold', '-o', self.BIDS_root_folder], check=True)
 
         # Experimental: create 'population', 'workflows' folder in derivatives folder
         derivatives_folder = os.path.join(self.BIDS_root_folder, 'derivatives')
@@ -90,6 +91,7 @@ class Dcm2BidsProcessor:
 
         # === Generate config template in code/ ===
         self._generate_config_template()
+        install_application_guides(self.BIDS_root_folder)
 
         print('Initialization completed.')
 
@@ -278,14 +280,16 @@ class Dcm2BidsProcessor:
                     'extract_from': None,
                 },
                 'disconnection': {
-                    'lesion_mask': 'lesion_mask',
-                    'use_which_lesion_mask': None,
-                    'force_lesion_probability_one': True,
-                    'lesion_threshold': 0.0,
-                    'atlas_assignment_radius_mm': 2.0,
-                    'individual_connectome_source': 'qsirecon',
-                    'mrtrix_bin_dir': None,
-                    'nthreads': 0,
+                    'methods': ['normative', 'individual'],
+                    'structural_methods': ['any_hit'],
+                    'functional_methods': [],
+                    'mni_lesion_mask': 'lesion_mask',
+                    'use_which_mni_lesion_mask': None,
+                    't1w_lesion_mask': 'lesion_mask',
+                    'use_which_t1w_lesion_mask': None,
+                    'individual_connectome_source': 'mrtrix3',
+                    'use_freesurfer_transform': False,
+                    'extract_from': None,
                 },
                 # --- Perfusion MRI ---
                 'asl_pipeline': {
@@ -459,7 +463,7 @@ class Dcm2BidsProcessor:
             '-c', config_file,
             '-o', self.BIDS_root_folder,
             '--auto_extract_entities'
-        ], check=False)
+        ], check=True)
 
         # Cleanup temporary filtered dicom dir if not needed
         if ignore_patterns and not keep_temp:
@@ -468,56 +472,17 @@ class Dcm2BidsProcessor:
             except Exception:
                 pass
 
-        # === cropped 3D replacement block ===
-        tmp_dcm2bids_folder = os.path.join(self.BIDS_root_folder, 'tmp_dcm2bids')
-        if os.path.exists(tmp_dcm2bids_folder):
-            print('Checking for cropped 3D images...')
-            cropped_image_count = 0
-            if session_id:
-                subject_temp_folder = os.path.join(tmp_dcm2bids_folder, f'sub-{subject_id}_ses-{session_id}')
-                subject_bids_folder = os.path.join(self.BIDS_root_folder, f'sub-{subject_id}', f'ses-{session_id}')
-            else:
-                subject_temp_folder = os.path.join(tmp_dcm2bids_folder, f'sub-{subject_id}')
-                subject_bids_folder = os.path.join(self.BIDS_root_folder, f'sub-{subject_id}')
+        tag = f'sub-{subject_id}' + (f'_ses-{session_id}' if session_id else '')
+        subject_temp_folder = os.path.join(tmp_root, tag)
+        subject_bids_folder = os.path.join(self.BIDS_root_folder, f'sub-{subject_id}')
+        if session_id:
+            subject_bids_folder = os.path.join(subject_bids_folder, f'ses-{session_id}')
+        crop_results = replace_cropped_images(subject_temp_folder, subject_bids_folder)
+        if crop_results:
+            replaced = sum(row['action'] == 'replaced' for row in crop_results)
+            print(f"Cropped images: {replaced} replaced, {len(crop_results) - replaced} preserved for review.")
+            print(f"Crop matching report: {crop_results[0]['report']}")
 
-            for file in os.listdir(subject_temp_folder):
-                if 'Crop' in file and '.nii' in file:
-                    original_file = file.replace('_Crop_1', '')
-                    original_file_path = os.path.join(subject_temp_folder, original_file)
-                    if not os.path.exists(original_file_path):
-                        print('Found cropped 3D image, moving to BIDS folder...')
-                        cropped_image = os.path.join(subject_temp_folder, file)
-                        cropped_nii = nib.load(cropped_image)
-                        cropped_shape = cropped_nii.shape
-                        cropped_voxel_size = cropped_nii.header.get_zooms()
-                        
-                        files_matched = 0
-                        for root, dirs, files in os.walk(subject_bids_folder):
-                            for file in files:
-                                if '.nii' in file:
-                                    nii_file = os.path.join(root, file)
-                                    nii = nib.load(nii_file)
-                                    if (nii.shape[0] == cropped_shape[0] and
-                                        nii.shape[1] == cropped_shape[1] and
-                                        nii.header.get_zooms() == cropped_voxel_size):
-                                        bids_converted_file_path = nii_file
-                                        files_matched += 1
-                                        cropped_image_count += 1
-
-                        if files_matched == 1:
-                            print(f'{cropped_image} -> {bids_converted_file_path}')
-                            os.rename(cropped_image, bids_converted_file_path)
-                        elif files_matched > 1:
-                            print('More than one file matched, please check the files manually.')
-                        else:
-                            print('No file matched, please check the files manually.')
-
-            if cropped_image_count == 0:
-                print('No cropped 3D image found.')
-        else:
-            print('No temporary dcm2bids folder found, or it is not in the BIDS root folder.')
-
-    
     def fix_intendedfor_for_subject_session(self, subject_id, session_id):
         """
         Fix 'IntendedFor' fields only under a specific subject/session.

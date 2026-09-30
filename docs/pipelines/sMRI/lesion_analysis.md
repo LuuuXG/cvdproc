@@ -12,7 +12,12 @@ A basic consideration is to use T1w structural MRI for the basic processing of l
 
 - if output contralateral lesions is desired (`out_contra_mask: true`): left-right flipped in 'MNI152NLin2009aSym' space and transformed to native space.
 
-- if normalization is desired (`normalize: true`): the lesion mask is normalized to the standard 'MNI152NLin6ASym' space.
+- if normalization is desired (`normalize: true`): the lesion mask is normalized to the standard 'MNI152NLin6Asym' space.
+  This runs the same SynthStrip/SynthMorph processing as the default `t1_register` configuration (MNI152NLin6Asym, 1 mm, registration between skull-stripped images). It uses the lesion-filled T1w if one is generated, or the selected original T1w otherwise (including `lesion_fill: false`). The mask is transformed with nearest-neighbor interpolation.
+
+  The subject/session `derivatives/xfm` directory receives all five default `t1_register` outputs: the MNI-space T1w, forward and inverse warp fields, native-space skull-stripped T1w, and native-space brain mask. Output names follow the selected T1w filename and the `t1_register` naming convention. A separate default `t1_register` run is therefore unnecessary. Other template spaces and resolutions still require `t1_register`.
+
+  The registration node is included even if a forward warp already exists, so a partial previous result does not skip the remaining outputs. Running it may replace existing registration outputs; normal Nipype workflow caching still applies. Lesion size metrics continue to use the input lesion mask in native space.
 
 ### Lesion Filling
 

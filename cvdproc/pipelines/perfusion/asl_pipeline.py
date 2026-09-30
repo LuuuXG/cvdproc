@@ -245,7 +245,7 @@ class ASLPipeline:
                 "xfm",
                 f"sub-{self.subject.subject_id}",
                 f"ses-{self.session.session_id}",
-                f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz",
+                f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz",
             )
             target_inverse_warp = os.path.join(
                 self.subject.bids_dir,
@@ -253,7 +253,7 @@ class ASLPipeline:
                 "xfm",
                 f"sub-{self.subject.subject_id}",
                 f"ses-{self.session.session_id}",
-                f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz",
+                f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6Asym_to-T1w_warp.nii.gz",
             )
 
             if not os.path.exists(target_warp) or not os.path.exists(target_inverse_warp):
@@ -273,7 +273,7 @@ class ASLPipeline:
                     os.path.dirname(target_warp),
                     rename_bids_file(
                         t1w_file,
-                        {"space": "MNI152NLin6ASym", "desc": "brain"},
+                        {"space": "MNI152NLin6Asym", "desc": "brain"},
                         "T1w",
                         ".nii.gz",
                     ),
@@ -335,7 +335,7 @@ class ASLPipeline:
             asl_wf.connect(t1_to_mni_warp_node, "warp_image", cbf_to_mni_node, "warp_image")
             cbf_to_mni_node.inputs.output_image = os.path.join(
                 self.output_path,
-                f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_cbf.nii.gz",
+                f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6Asym_cbf.nii.gz",
             )
 
             # --------------------------------
@@ -356,7 +356,7 @@ class ASLPipeline:
                 asl_wf.connect(t1_to_mni_warp_node, "warp_image", att_to_mni_node, "warp_image")
                 att_to_mni_node.inputs.output_image = os.path.join(
                     self.output_path,
-                    f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_att.nii.gz",
+                    f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6Asym_att.nii.gz",
                 )
 
         elif self.skip_preprocess:
@@ -364,7 +364,7 @@ class ASLPipeline:
             cbf_t1w_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-T1w_cbf.nii.gz")
             if not os.path.exists(cbf_t1w_path):
                 raise FileNotFoundError(f"[ASL Pipeline] skip_preprocess=True but CBF T1w map not found: {cbf_t1w_path}")
-            cbf_mni_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_cbf.nii.gz")
+            cbf_mni_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6Asym_cbf.nii.gz")
             if not os.path.exists(cbf_mni_path):
                 raise FileNotFoundError(f"[ASL Pipeline] skip_preprocess=True but CBF MNI map not found: {cbf_mni_path}")
             print(f"[ASL Pipeline] skip_preprocess=True, using existing CBF maps")
@@ -375,7 +375,7 @@ class ASLPipeline:
             cbf_to_mni_node.inputs.output_image = cbf_mni_path
 
             att_t1w_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-T1w_att.nii.gz")
-            att_mni_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6ASym_att.nii.gz")
+            att_mni_path = os.path.join(self.output_path, f"sub-{self.subject.subject_id}_{self.session.session_id}_space-MNI152NLin6Asym_att.nii.gz")
             has_att = os.path.exists(att_t1w_path) and os.path.exists(att_mni_path)
             if has_att:
                 print(f"[ASL Pipeline] skip_preprocess=True, using existing ATT maps")

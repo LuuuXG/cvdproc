@@ -205,14 +205,14 @@ process_one_subject() {
     # ------------------------------------------------------------------
     # Step H: transform to MNI space
     # ------------------------------------------------------------------
-    local fa_mni="$mni_img_dir/FA/${base_prefix}_space-MNI152NLin6ASym_FA.nii.gz"
-    local md_mni="$mni_img_dir/MD/${base_prefix}_space-MNI152NLin6ASym_MD.nii.gz"
-    local ndi_mni="$mni_img_dir/NDI/${base_prefix}_space-MNI152NLin6ASym_NDI.nii.gz"
-    local odi_mni="$mni_img_dir/ODI/${base_prefix}_space-MNI152NLin6ASym_ODI.nii.gz"
-    local iso_mni="$mni_img_dir/ISOVF/${base_prefix}_space-MNI152NLin6ASym_ISOVF.nii.gz"
-    local wm_mni="$mni_img_dir/WM_fraction/${base_prefix}_space-MNI152NLin6ASym_label-WM_probability.nii.gz"
-    local gm_mni="$mni_img_dir/GM_fraction/${base_prefix}_space-MNI152NLin6ASym_label-GM_probability.nii.gz"
-    local pseudo_mni="$mni_img_dir/pseudoT1w/${base_prefix}_space-MNI152NLin6ASym_desc-pseudoT1w_T1w.nii.gz"
+    local fa_mni="$mni_img_dir/FA/${base_prefix}_space-MNI152NLin6Asym_FA.nii.gz"
+    local md_mni="$mni_img_dir/MD/${base_prefix}_space-MNI152NLin6Asym_MD.nii.gz"
+    local ndi_mni="$mni_img_dir/NDI/${base_prefix}_space-MNI152NLin6Asym_NDI.nii.gz"
+    local odi_mni="$mni_img_dir/ODI/${base_prefix}_space-MNI152NLin6Asym_ODI.nii.gz"
+    local iso_mni="$mni_img_dir/ISOVF/${base_prefix}_space-MNI152NLin6Asym_ISOVF.nii.gz"
+    local wm_mni="$mni_img_dir/WM_fraction/${base_prefix}_space-MNI152NLin6Asym_label-WM_probability.nii.gz"
+    local gm_mni="$mni_img_dir/GM_fraction/${base_prefix}_space-MNI152NLin6Asym_label-GM_probability.nii.gz"
+    local pseudo_mni="$mni_img_dir/pseudoT1w/${base_prefix}_space-MNI152NLin6Asym_desc-pseudoT1w_T1w.nii.gz"
 
     mri_convert -at "$t1_to_mni_warp" "$fa_t1w" "$fa_mni"
     mri_convert -at "$t1_to_mni_warp" "$md_t1w" "$md_mni"
@@ -302,12 +302,12 @@ gm_list="$log_dir/gm_merge_list.txt"
 : > "$gm_list"
 
 while IFS= read -r id; do
-    fa_file="$fa_mni_dir/${id}_space-MNI152NLin6ASym_FA.nii.gz"
-    md_file="$md_mni_dir/${id}_space-MNI152NLin6ASym_MD.nii.gz"
-    ndi_file="$ndi_mni_dir/${id}_space-MNI152NLin6ASym_NDI.nii.gz"
-    odi_file="$odi_mni_dir/${id}_space-MNI152NLin6ASym_ODI.nii.gz"
-    isovf_file="$isovf_mni_dir/${id}_space-MNI152NLin6ASym_ISOVF.nii.gz"
-    gm_file="$gm_mni_dir/${id}_space-MNI152NLin6ASym_label-GM_probability.nii.gz"
+    fa_file="$fa_mni_dir/${id}_space-MNI152NLin6Asym_FA.nii.gz"
+    md_file="$md_mni_dir/${id}_space-MNI152NLin6Asym_MD.nii.gz"
+    ndi_file="$ndi_mni_dir/${id}_space-MNI152NLin6Asym_NDI.nii.gz"
+    odi_file="$odi_mni_dir/${id}_space-MNI152NLin6Asym_ODI.nii.gz"
+    isovf_file="$isovf_mni_dir/${id}_space-MNI152NLin6Asym_ISOVF.nii.gz"
+    gm_file="$gm_mni_dir/${id}_space-MNI152NLin6Asym_label-GM_probability.nii.gz"
 
     if [[ ! -f "$fa_file" || ! -f "$md_file" || ! -f "$ndi_file" || ! -f "$odi_file" || ! -f "$isovf_file" || ! -f "$gm_file" ]]; then
         continue

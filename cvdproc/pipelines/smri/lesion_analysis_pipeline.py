@@ -39,7 +39,7 @@ class LesionAnalysisPipeline:
             lesion_fill_method (str, optional): Lesion filling method. Defaults to 'LIT'. can be 'left-right', 'sym_MNI', or 'LIT'.
             out_contra_mask (bool, optional): Whether to save contralateral lesion mask when using 'sym_MNI' method. Defaults to False.
             lesion_size_analysis (bool, optional): Whether to perform lesion size analysis (MUST be one cluster). Defaults to True.
-            normalize (bool, optional): Whether to normalize lesion mask to MNI space. Defaults to False.
+            normalize (bool, optional): Run default T1w-to-MNI registration with brain extraction and normalize the lesion mask. Defaults to False.
             extract_from (str, optional): Folder name to extract results from. Defaults to None.
         """
         self.subject = subject
@@ -92,13 +92,6 @@ class LesionAnalysisPipeline:
             lesion_mask_file = lesion_mask_files[0]
         print(f"[LESION FILLING] Using lesion mask file: {lesion_mask_file}")
 
-        # get nonlinear warp files if needed
-        # if self.normalize:
-        #     target_warp_fwd = os.path.join(self.session.xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
-        #     if not os.path.exists(target_warp_fwd):
-        #         print(f"[WARNING] Non-linear warp file not found: {target_warp_fwd}. Normalization will be skipped.")
-        #         self.normalize = False
-        
         if self.session.xfm_dir is None:
             xfm_dir = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}' if self.session else '')
         else:
@@ -113,6 +106,8 @@ class LesionAnalysisPipeline:
 
         gather_lesionfilled_t1w_node = Node(IdentityInterface(fields=['lesion_filled_t1w']),
                                                 name='gather_lesionfilled_t1w_node')
+        # Use the selected T1w unless a lesion-filling output replaces it.
+        gather_lesionfilled_t1w_node.inputs.lesion_filled_t1w = t1w_file
         if self.lesion_fill:
             if self.lesion_fill_method == 'left-right':
                 lesion_fill_node = Node(LeftRightLesionFill(), name='lesion_fill_node')
@@ -199,31 +194,27 @@ class LesionAnalysisPipeline:
                 lesion_size_analysis_node.inputs.out_csv = os.path.join(self.output_path, f'lesion_metrics.csv')
             
         if self.normalize:
-            # add normalization step for lesion mask
+            # Match the default t1_register processing and persistent outputs.
             from cvdproc.pipelines.common.register import MRIConvertApplyWarp
             from cvdproc.pipelines.common.register import SynthmorphNonlinear
 
-            target_warp_fwd = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+            target_warp_fwd = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz')
 
-            if os.path.exists(target_warp_fwd):
-                normalize_lesion_node = Node(MRIConvertApplyWarp(), name='normalize_lesion_node')
-                lesion_filling_wf.connect([(inputnode, normalize_lesion_node, [('lesion_mask', 'input_image')])])
-                normalize_lesion_node.inputs.warp_image = target_warp_fwd
-                normalize_lesion_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(lesion_mask_file, {'space': 'MNI152NLin6ASym'}, 'mask', '.nii.gz'))
-                normalize_lesion_node.inputs.interp = 'nearest'
-            else:
-                register_node = Node(SynthmorphNonlinear(), name='synthmorph_register_for_normalization')
-                lesion_filling_wf.connect([(gather_lesionfilled_t1w_node, register_node, [('lesion_filled_t1w', 't1')])])
-                register_node.inputs.mni_template = get_package_path('data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
-                register_node.inputs.t1_mni_out = os.path.join(xfm_dir, rename_bids_file(t1w_file, {'space': 'MNI152NLin6ASym'}, 'T1w', '.nii.gz'))
-                register_node.inputs.t1_2_mni_warp = target_warp_fwd
-                register_node.inputs.mni_2_t1_warp = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+            register_node = Node(SynthmorphNonlinear(), name='synthmorph_register_for_normalization')
+            lesion_filling_wf.connect([(gather_lesionfilled_t1w_node, register_node, [('lesion_filled_t1w', 't1')])])
+            register_node.inputs.mni_template = get_package_path('data', 'standard', 'MNI152', 'MNI152_T1_1mm_brain.nii.gz')
+            register_node.inputs.register_between_stripped = True
+            register_node.inputs.t1_mni_out = os.path.join(xfm_dir, rename_bids_file(t1w_file, {'space': 'MNI152NLin6Asym'}, 'T1w', '.nii.gz'))
+            register_node.inputs.t1_2_mni_warp = target_warp_fwd
+            register_node.inputs.mni_2_t1_warp = os.path.join(xfm_dir, f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6Asym_to-T1w_warp.nii.gz')
+            register_node.inputs.t1_stripped_out = os.path.join(xfm_dir, rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'brain'}, 'T1w', '.nii.gz'))
+            register_node.inputs.brain_mask_out = os.path.join(xfm_dir, rename_bids_file(t1w_file, {'space': 'T1w', 'desc': 'brain'}, 'mask', '.nii.gz'))
 
-                normalize_lesion_node = Node(MRIConvertApplyWarp(), name='normalize_lesion_node')
-                lesion_filling_wf.connect([(inputnode, normalize_lesion_node, [('lesion_mask', 'input_image')])])
-                lesion_filling_wf.connect(register_node, 't1_2_mni_warp', normalize_lesion_node, 'warp_image')
-                normalize_lesion_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(lesion_mask_file, {'space': 'MNI152NLin6ASym'}, 'mask', '.nii.gz'))
-                normalize_lesion_node.inputs.interp = 'nearest'
+            normalize_lesion_node = Node(MRIConvertApplyWarp(), name='normalize_lesion_node')
+            lesion_filling_wf.connect([(inputnode, normalize_lesion_node, [('lesion_mask', 'input_image')])])
+            lesion_filling_wf.connect(register_node, 't1_2_mni_warp', normalize_lesion_node, 'warp_image')
+            normalize_lesion_node.inputs.output_image = os.path.join(self.output_path, rename_bids_file(lesion_mask_file, {'space': 'MNI152NLin6Asym'}, 'mask', '.nii.gz'))
+            normalize_lesion_node.inputs.interp = 'nearest'
 
         return lesion_filling_wf
     

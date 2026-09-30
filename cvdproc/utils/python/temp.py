@@ -66,7 +66,7 @@ def load_roi_lookup(candidates):
 
 def get_subject_file_list(odi_directory):
     pattern = re.compile(
-        r"^(sub-[^_]+_ses-[^_]+)_acq-DSIb4000_dir-AP_space-MNI152NLin6ASym_model-noddi_param-odi_dwimap\.nii\.gz$"
+        r"^(sub-[^_]+_ses-[^_]+)_acq-DSIb4000_dir-AP_space-MNI152NLin6Asym_model-noddi_param-odi_dwimap\.nii\.gz$"
     )
 
     files = []

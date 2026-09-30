@@ -38,7 +38,7 @@ class TestMatlab(BaseInterface):
             script_file.write(script_content)
         
         cmd_str = f"run('{script_path}'); exit;"
-        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='stream')
+        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='allatonce')
 
         result = mlab.run()
 

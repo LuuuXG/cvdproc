@@ -67,3 +67,9 @@ pipelines:
 The `--pipeline` parameter is used to specify which pipeline to run. The `--subject_id` and `--session_id` parameters are used to specify the subject and session to be processed. You can run multiple subjects and sessions serially by specifying multiple `--subject_id` and `--session_id` parameters. For example, if you want to run the `wmh_quantification` pipeline for subjects `SUB0001` and `SUB0002`, both at session `01`, you can run: `cvdproc --config_file /mnt/f/BIDS/demo_wmh/code/config.yml --run_pipeline --pipeline wmh_quantification --subject_id 0001 0002 --session_id 01 01`.
 
 The detailed parameters for each pipeline can be found in the respective documentation pages (see below). Parameters except for `subject`, `session`, and `output_path` should be set in the configuration file.
+
+## Terminal output
+
+Importing `cvdproc.pipelines` sets the Nipype `CommandLine` default to `allatonce` for the current Python process. Command-line interfaces capture stdout and stderr in `result.runtime.stdout` and `result.runtime.stderr` without streaming them to the console or creating separate Nipype log text files. Explicit MATLAB command wrappers use the same mode. Nipype node progress and error reporting remain enabled.
+
+This setting does not capture Python `print()` calls or direct subprocess calls in Python interfaces. Interfaces that explicitly require another mode retain their own setting.

@@ -61,7 +61,7 @@ class PVeD(BaseInterface):
             f.write(new_script_content)
         
         cmd_str = f"run('{subject_matlab_script}'); exit;"
-        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='stream')
+        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='allatonce')
         result = mlab.run()
 
         # outputs will be in the fib_dir, move them to output_dir
@@ -157,12 +157,12 @@ class PVeDAtropos(CommandLine):
         outputs = self.output_spec().get()
         output_dir = os.path.abspath(self.inputs.output_dir)
         prefix = f"{self.inputs.subject_id}_{self.inputs.session_id}"
-        outputs["ttr_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_param-ttr_dwimap.nii.gz")
-        outputs["lateral_ventricle_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-LateralVentricle_mask.nii.gz")
-        outputs["csf_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-CSF_desc-Atropos_mask.nii.gz")
-        outputs["pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-PeriventricularArea_mask.nii.gz")
-        outputs["final_pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_label-PeriventricularArea_desc-CSFExcluded_mask.nii.gz")
-        outputs["md_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6ASym_res-2mm_model-tensor_param-md_dwimap.nii.gz")
+        outputs["ttr_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_param-ttr_dwimap.nii.gz")
+        outputs["lateral_ventricle_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_label-LateralVentricle_mask.nii.gz")
+        outputs["csf_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_label-CSF_desc-Atropos_mask.nii.gz")
+        outputs["pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_label-PeriventricularArea_mask.nii.gz")
+        outputs["final_pvs_mask"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_label-PeriventricularArea_desc-CSFExcluded_mask.nii.gz")
+        outputs["md_map"] = os.path.join(output_dir, f"{prefix}_space-MNI152NLin6Asym_res-2mm_model-tensor_param-md_dwimap.nii.gz")
         outputs["metrics_csv"] = os.path.join(output_dir, "PVeD_metrics.csv")
         outputs["summary_json"] = os.path.join(output_dir, "PVeD_summary.json")
         return outputs
@@ -208,7 +208,7 @@ class PVeDPrepareMNI(BaseInterface):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         output_dir = os.path.abspath(self.inputs.output_dir)
-        prefix = f"{self.inputs.subject_id}_{self.inputs.session_id}_space-MNI152NLin6ASym_model-tensor_param"
+        prefix = f"{self.inputs.subject_id}_{self.inputs.session_id}_space-MNI152NLin6Asym_model-tensor_param"
         outputs["fa_file"] = os.path.join(output_dir, f"{prefix}-fa_dwimap.nii.gz")
         outputs["md_file"] = os.path.join(output_dir, f"{prefix}-md_dwimap.nii.gz")
         outputs["tensor_file"] = os.path.join(output_dir, f"{prefix}-tensor_dwimap.nii.gz")

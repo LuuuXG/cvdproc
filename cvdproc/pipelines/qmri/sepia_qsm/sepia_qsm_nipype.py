@@ -57,7 +57,7 @@ class SepiaQSM(BaseInterface):
             script_file.write(new_script_content)
 
         cmd_str = f"run('{subject_matlab_script}'); exit;"
-        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='stream')
+        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='allatonce')
         result = mlab.run()
 
         self._output_folder = self.inputs.subject_output_folder

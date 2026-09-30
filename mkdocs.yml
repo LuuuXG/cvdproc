@@ -31,6 +31,7 @@ nav:
           - ASL Pipeline: pipelines/perfusion/asl_pipeline.md
       - Multi-Modality Pipelines:
           - ARTS Pipeline: pipelines/multi/arts_pipeline.md
+          - Disconnection Pipeline: pipelines/multi/disconnection_pipeline.md
       - Quantitative MRI (qMRI) Pipelines:
           - QSM Pipeline: pipelines/qMRI/qsm_pipeline.md
           - SEPIA QSM (Deprecated): pipelines/qMRI/sepia_qsm.md
@@ -61,4 +62,4 @@ plugins:
             show_root_toc_entry: false
             show_source: false
             show_signature: false
-            exclude: "__init__"
+            filters: ["!^_[^_]", "!^__init__$"]

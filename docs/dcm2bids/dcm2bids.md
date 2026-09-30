@@ -4,10 +4,22 @@ We are using the [dcm2bids](https://unfmontreal.github.io/Dcm2Bids/3.1.1/) to co
 
 ## Create a new BIDS dataset
 
+### Agent-assisted application workflow
+
+New datasets receive a root `AGENTS.md` and `code/agent/guides/dcm2bids.md` from the installed package. Open the dataset root in your agent and ask it to read these files before converting DICOMs. Agents that do not automatically discover `AGENTS.md` need an explicit instruction to read it.
+
+For an existing dataset, install the guidance without rerunning initialization:
+
+```bash
+python -m cvdproc.guides --bids_dir /path/to/MyStudy
+```
+
+Existing instructions are preserved. If `AGENTS.md` already exists, add the reference to `code/agent/guides/dcm2bids.md` there. The packaged source is `cvdproc/guides/application/dcm2bids.md`; dataset copies capture the instructions installed for that study. Review differences manually when updating an existing copy. Installing guidance does not modify participant tables or imaging data.
+
 If you want to create a new BIDS dataset, you can use the following command:
 
 ```bash
-cvdproc --run_initialization <path/to/the/folder/you/want/to/create>
+cvdproc --run_initialization --bids_dir <path/to/the/folder/you/want/to/create>
 ```
 
 You don't need to create the folder manually, the code will create it for you.
@@ -15,6 +27,16 @@ You don't need to create the folder manually, the code will create it for you.
 ## Convert DICOM to BIDS
 
 If you already have a BIDS root folder or just created one with the command above, you can follow the steps below to convert DICOM files to BIDS format.
+
+For `--run_dcm2bids`, provide `--config_file`, `--subject_id`, `--session_id`, and exactly one of `--dicom_dir` or `--dicom_subdir`. Subject IDs, session IDs, and DICOM directories must have equal lengths and are paired in the supplied order. Repeat a shared session explicitly, for example `--subject_id 001 002 --session_id 01 01`. Missing or unequal lists are rejected before processing; no values are inferred or broadcast.
+
+### Matching orphaned cropped images
+
+After a successful conversion, CVDProc checks for orphaned `*_Crop_<number>.nii[.gz]` files in the current subject/session's conversion directory. It identifies the corresponding BIDS image using the default NIfTI affine and exact equality of every voxel in the mapped subvolume. Image dimensions or filename similarity alone do not establish a match. Axis permutations and flips are supported; resampling and approximate intensity matching are not performed.
+
+Only a unique match is replaced. Multiple matching images, multiple crops targeting one image, unreadable candidates, and different compression formats leave the files unchanged for review. The converted crop is moved byte-for-byte: its spatial header and the BIDS JSON are not modified.
+
+Original uncropped images are retained under `tmp_dcm2bids/sub-<id>[_ses-<id>]/crop_backups/`. A `crop_matching_*.jsonl` file in the same conversion directory records matches, skipped files, replacements, and backup paths. Keep these backups until the outputs have been checked. A failed external conversion stops postprocessing rather than replacing images from a partial run.
 
 ### Create a dcm2bids configuration file
 
@@ -31,14 +53,14 @@ Create a file named `dcm2bids_config.json` in the `code` folder of your BIDS roo
       "datatype": "anat",
       "suffix": "T1w",
       "criteria": {
-        "SeriesDescription": "*mprage*",
+        "SeriesDescription": "*mprage*"
       }
     }
   ]
 }
 ```
 
-The most important part of the configuration file is the `criteria` field, which specifies how to match the DICOM files. In this case, we are matching the `SeriesDescription` field with a regular expression `*mprage*`. If your DICOM files do not have this field or have a different value, you can try to use the `dcm2bids_helper` command to get the information, or you can use `dcm2niix` (which can also be found in MRIcroGL) to get the information in the JSON file. **You can also skip this step (just copy the content above) and wait for the next step to see how we solve it.**
+The most important part of the configuration file is the `criteria` field, which specifies how to match the DICOM files. In this case, we are matching the `SeriesDescription` field with a shell-style wildcard pattern `*mprage*`. If your DICOM files do not have this field or have a different value, you can try to use the `dcm2bids_helper` command to get the information, or you can use `dcm2niix` (which can also be found in MRIcroGL) to get the information in the JSON file. **You can also skip this step (just copy the content above) and wait for the next step to see how we solve it.**
 
 ### Create a cvdproc configuration file
 
@@ -50,7 +72,7 @@ Create a `config.yml` file in the `code` folder (note that we use the yaml forma
 ```yml
 # You need to specify the BIDS root folder here
 bids_dir: /mnt/f/BIDS/demo_wmh
-dcm2bids: 
+dcm2bids:
   config_file: /mnt/f/BIDS/demo_wmh/code/dcm2bids_config.json # You need to specify the dcm2bids configuration file here
   # And there are other parameters you can specify:
   # You can skip these parameters (left as empty) to do nothing additional

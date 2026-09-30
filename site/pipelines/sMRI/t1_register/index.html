@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#anatomical-segmentation" class="md-skip">
+        <a href="#t1w-to-mni-registration" class="md-skip">
           Skip to content
         </a>
       
@@ -760,13 +760,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
-      A more detailed description:
+      Description
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="A more detailed description:">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use_which_t1w-str-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      use_which_t1w (str, optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template_space-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      template_space (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cohort-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      cohort (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolution-float" class="md-nav__link">
+    <span class="md-ellipsis">
+      resolution (float)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example config
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output files
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output files">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1058,6 +1127,29 @@
   
   <span class="md-ellipsis">
     ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
     
   </span>
   
@@ -1431,13 +1523,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-more-detailed-description" class="md-nav__link">
+  <a href="#description" class="md-nav__link">
     <span class="md-ellipsis">
-      A more detailed description:
+      Description
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="A more detailed description:">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#use_which_t1w-str-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      use_which_t1w (str, optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template_space-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      template_space (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cohort-str" class="md-nav__link">
+    <span class="md-ellipsis">
+      cohort (str)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resolution-float" class="md-nav__link">
+    <span class="md-ellipsis">
+      resolution (float)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example config
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output files
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output files">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1470,7 +1631,7 @@
 
 
 
-<h1 id="anatomical-segmentation">Anatomical Segmentation</h1>
+<h1 id="t1w-to-mni-registration">T1w-to-MNI Registration</h1>
 
 
 <div class="doc doc-object doc-module">
@@ -1621,14 +1782,50 @@
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>template_res</code>
+                <code>template_space</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Target MNI template space.
+Supported: "MNI152NLin6Asym" (default), "MNI152NLin2009cAsym", "MNIPediatricAsym".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;MNI152NLin6Asym&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cohort</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pediatric cohort number. Only used with MNIPediatricAsym. Default "".</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>resolution</code>
             </td>
             <td>
                   <code><span title="float">float</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Resolution of the MNI template to use (1mm or 0.5mm). Default is 1mm.</p>
+                <p>Template resolution in mm. Default 1.
+MNI152NLin6Asym: 1 or 0.5.
+MNI152NLin2009cAsym: 1.
+MNIPediatricAsym: 1.</p>
               </div>
             </td>
             <td>
@@ -1659,8 +1856,127 @@
     </div>
 
 </div><hr />
-<h2 id="a-more-detailed-description">A more detailed description:</h2>
-<p><a href="https://martinos.org/malte/synthmorph/">Synthmorph</a> <sup id="fnref:hoffmann2022synthmorph"><a class="footnote-ref" href="#fn:hoffmann2022synthmorph">1</a></sup> is used for fast and robust (compared to traditional FNIRT or ANTs methods) T1w to MNI registration.</p>
+<h2 id="description">Description</h2>
+<p><a href="https://martinos.org/malte/synthmorph/">Synthmorph</a> <sup id="fnref:hoffmann2022synthmorph"><a class="footnote-ref" href="#fn:hoffmann2022synthmorph">1</a></sup> is used for fast and robust T1w-to-MNI registration (compared to traditional FNIRT or ANTs methods).</p>
+<h2 id="parameters">Parameters</h2>
+<h3 id="use_which_t1w-str-optional"><code>use_which_t1w</code> (str, optional)</h3>
+<p>Keyword to select a specific T1w image when multiple are available. Default: first available.</p>
+<h3 id="template_space-str"><code>template_space</code> (str)</h3>
+<p>Target MNI template space. Supported values:</p>
+<table>
+<thead>
+<tr>
+<th>Space</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MNI152NLin6Asym</code></td>
+<td>Adult MNI ICBM 152 nonlinear asymmetric (default)</td>
+</tr>
+<tr>
+<td><code>MNI152NLin2009cAsym</code></td>
+<td>Adult MNI ICBM 152 2009c asymmetric</td>
+</tr>
+<tr>
+<td><code>MNIPediatricAsym</code></td>
+<td>Pediatric MNI asymmetric (requires <code>cohort</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>"MNI152NLin6Asym"</code>.</p>
+<h3 id="cohort-str"><code>cohort</code> (str)</h3>
+<p>Pediatric cohort number. Only used when <code>template_space = "MNIPediatricAsym"</code>. Supported values:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Template file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"1"</code></td>
+<td><code>tpl-MNIPediatricAsym_cohort-1_res-1_T1w.nii.gz</code></td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>""</code>.</p>
+<h3 id="resolution-float"><code>resolution</code> (float)</h3>
+<p>Template resolution in mm. Available options depend on the template space:</p>
+<table>
+<thead>
+<tr>
+<th>Space</th>
+<th>Supported resolutions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MNI152NLin6Asym</code></td>
+<td><code>1</code>, <code>0.5</code></td>
+</tr>
+<tr>
+<td><code>MNI152NLin2009cAsym</code></td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>MNIPediatricAsym</code></td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Default: <code>1</code>.</p>
+<h2 id="example-config">Example config</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Adult MNI (default)</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNI152NLin6Asym&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+
+<span class="c1"># Pediatric MNI, cohort 1</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNIPediatricAsym&quot;</span>
+<span class="w">  </span><span class="nt">cohort</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+
+<span class="c1"># MNI 2009c</span>
+<span class="nt">t1_register</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">template_space</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MNI152NLin2009cAsym&quot;</span>
+<span class="w">  </span><span class="nt">resolution</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</code></pre></div>
+<h2 id="output-files">Output files</h2>
+<p>Output filenames use the configured <code>template_space</code> value (e.g., <code>MNI152NLin6ASym</code>, <code>MNI152NLin2009cAsym</code>, <code>MNIPediatricAsym</code>).</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*_space-{template_space}_T1w.nii.gz</code></td>
+<td>T1w in MNI space</td>
+</tr>
+<tr>
+<td><code>*_from-T1w_to-{template_space}_warp.nii.gz</code></td>
+<td>Forward warp field</td>
+</tr>
+<tr>
+<td><code>*_from-{template_space}_to-T1w_warp.nii.gz</code></td>
+<td>Inverse warp field</td>
+</tr>
+<tr>
+<td><code>*_space-T1w_desc-brain_T1w.nii.gz</code></td>
+<td>Skull-stripped T1w</td>
+</tr>
+<tr>
+<td><code>*_space-T1w_desc-brain_mask.nii.gz</code></td>
+<td>Brain mask</td>
+</tr>
+</tbody>
+</table>
 <h3 id="references">References</h3>
 <div class="footnote">
 <hr />

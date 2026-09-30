@@ -1,4 +1,4 @@
-# CVDProc: CerebroVascular Disease imaging Processing
+# CVDProc: CerebroVascular Disease image Processing
 ![LOGO](cvdproc_logo_transparent.png)
 
 > **⚠️ Important Notice**

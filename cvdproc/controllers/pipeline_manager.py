@@ -6,14 +6,13 @@ class PipelineManager:
         Retrieve an instance of the specified pipeline.
         :param pipeline_name: str, pipeline name
         :param subject: BIDSSubject instance
-        :param session: optional BIDSSession instance
+        :param session: BIDSSession instance, required when generating a default output path
         :param output_path: str, user-specified output path
         :return: pipeline instance
         """
         # Default output path: <pipeline_name>/sub-<subject_id>/ses-<session_id>
-        if subject is not None:
-            default_output_path = self._generate_default_output_path(subject, session, pipeline_name)
-            output_path = output_path or default_output_path
+        if subject is not None and not output_path:
+            output_path = self._generate_default_output_path(subject, session, pipeline_name)
 
         matlab_path = kwargs.pop("matlab_path", None)
 
@@ -82,9 +81,6 @@ class PipelineManager:
         elif pipeline_name.lower() == "lqt_pipeline":
             from ..pipelines.dmri.lqt_pipeline import LQTPipeline
             return LQTPipeline(subject, session, output_path=output_path, **kwargs)
-        elif pipeline_name.lower() == "disconnection":
-            from ..pipelines.dmri.disconnection_pipeline import DisconnectionPipeline
-            return DisconnectionPipeline(subject, session, output_path=output_path, **kwargs)
         
         #### Perfusion MRI ####
         elif pipeline_name.lower() == "asl_pipeline":
@@ -92,6 +88,9 @@ class PipelineManager:
             return ASLPipeline(subject, session, output_path=output_path, **kwargs)
 
         #### Multi-Modality MRI ####
+        elif pipeline_name.lower() == "disconnection":
+            from ..pipelines.multi.disconnection_pipeline import DisconnectionPipeline
+            return DisconnectionPipeline(subject, session, output_path=output_path, **kwargs)
         elif pipeline_name.lower() == "arts_pipeline":
             from ..pipelines.multi.arts_pipeline import ARTSPipeline
             return ARTSPipeline(subject, session, output_path=output_path, **kwargs)
@@ -128,11 +127,6 @@ class PipelineManager:
         :param pipeline_name: str, pipeline name
         :return: str, default output path
         """
-        session_part = f"/ses-{session.session_id}" if session else ""
-        return os.path.join(
-            subject.bids_dir,
-            "derivatives",
-            pipeline_name,
-            f"sub-{subject.subject_id}",
-            session_part
-        )
+        if session is None or not session.session_id:
+            raise ValueError("A session with a non-empty session_id is required for the default output path.")
+        return os.path.join(subject.bids_dir, "derivatives", pipeline_name, f"sub-{subject.subject_id}", f"ses-{session.session_id}")

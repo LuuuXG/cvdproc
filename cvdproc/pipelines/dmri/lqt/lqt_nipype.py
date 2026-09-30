@@ -23,7 +23,7 @@ class LQTInputSpec(BaseInterfaceInputSpec):
     dsi_path = Str(desc="Path to DSI Studio", mandatory=True)
     postprocess_percent_tdi = traits.Bool(True, usedefault=True, desc="Postprocess raw LQT percent TDI maps")
     convert_percent_to_fraction = traits.Bool(True, usedefault=True, desc="Convert percent TDI values from 0-100 to 0-1 before spatial transformation")
-    output_space_label = Str("MNI152NLin6ASym", usedefault=True, desc="Output space label for the final postprocessed TDI file")
+    output_space_label = Str("MNI152NLin6Asym", usedefault=True, desc="Output space label for the final postprocessed TDI file")
     output_desc_label = Str("LQTdisconnection", usedefault=True, desc="Output description label")
     keep_intermediate = traits.Bool(False, usedefault=True, desc="Keep intermediate HCP842 TDI file")
 

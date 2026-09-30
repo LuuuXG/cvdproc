@@ -12,7 +12,7 @@
         <link rel="prev" href="../../perfusion/asl_pipeline/">
       
       
-        <link rel="next" href="../../qMRI/qsm_pipeline/">
+        <link rel="next" href="../disconnection_pipeline/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -1080,6 +1080,29 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1600,6 +1623,25 @@
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>method</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>ARTS implementation to use. <code>v2</code> transforms the native
+dtifit FA map through the existing DWI-to-T1w affine and
+T1w-to-MNI152NLin6Asym warp. Legacy <code>v1</code> is unavailable because
+its ARTS.sif image has been removed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;v2&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>extract_from</code>
             </td>
             <td>
@@ -1634,21 +1676,24 @@
 <h3 id="modalities-and-dependencies">Modalities and Dependencies</h3>
 <p>ARTS requires outputs from several other pipelines (must be run first):</p>
 <ul>
-<li><strong>xfm</strong> (T1w registration): T1w brain and FLAIR brain in T1w space</li>
 <li><strong>anat_seg</strong>: SynthSeg anatomical segmentation</li>
-<li><strong>dwi_pipeline</strong>: FA map from DTI tensor fitting</li>
+<li><strong>dwi_pipeline</strong>: Native-space FA for <code>v1</code>, or an FA map in <code>MNI152NLin6Asym</code> space for <code>v2</code></li>
 <li><strong>wmh_quantification</strong>: WMH mask in T1w space</li>
+<li><strong>xfm</strong> (only for <code>v1</code>): T1w brain and FLAIR brain in T1w space</li>
 </ul>
 <p>Additional inputs:
 - <code>participants.tsv</code> for age and sex information
-- <code>IITmean_FA.nii.gz</code> mean FA template (IIT space)
-- ARTS Singularity image (<code>ARTS.sif</code>)</p>
+- ARTS data resources, including the IIT mean FA template, IIT atlas files, feature extractor, and classifier
+- MNI152NLin6Asym-to-IIT warp distributed in the cvdproc data package (only for <code>v2</code>)</p>
+<p>The pipeline locates the packaged ARTS data directory automatically; it is not a user-configurable parameter.</p>
 <h3 id="configuration-example">Configuration Example</h3>
 <div class="highlight"><pre><span></span><code><span class="nt">pipelines</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">arts_pipeline</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="w">    </span><span class="nt">arts_pipeline</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v2</span>
 </code></pre></div>
 <h3 id="parameters">Parameters</h3>
 <ul>
+<li><code>method</code>: ARTS implementation to use. <code>v2</code> (default) uses an FA map already registered to <code>MNI152NLin6Asym</code> space and skips T1w, FLAIR, and SynthMorph registration. The legacy <code>v1</code> method requires <code>ARTS.sif</code>, which is no longer included; selecting <code>v1</code> raises an error that directs the user to <code>v2</code>.</li>
 <li><code>extract_from</code>: Path to ARTS output directory from which to extract group-level score summaries.</li>
 </ul>
 <h3 id="references">References</h3>

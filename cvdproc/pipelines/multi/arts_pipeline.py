@@ -183,7 +183,7 @@ class ARTSPipeline:
             dwi_to_t1w_affine = os.path.abspath(dwi_to_t1w_matches[0])
 
             t1w_to_mni_matches = sorted(
-                glob.glob(os.path.join(xfm_dir, "*_from-T1w_to-MNI152NLin6ASym_warp.nii.gz"))
+                glob.glob(os.path.join(xfm_dir, "*_from-T1w_to-MNI152NLin6A[Ss]ym_warp.nii.gz"))
             )
             if len(t1w_to_mni_matches) != 1:
                 raise RuntimeError(
@@ -195,7 +195,11 @@ class ARTSPipeline:
             t1w_reference_matches = sorted(
                 f for f in glob.glob(os.path.join(xfm_dir, "**", "*.nii*"), recursive=True)
                 if "desc-brain_T1w" in os.path.basename(f)
+                and ("_space-" not in os.path.basename(f) or "_space-T1w_" in os.path.basename(f))
             )
+            preferred_t1w_references = [f for f in t1w_reference_matches if "_space-T1w_" in os.path.basename(f)]
+            if preferred_t1w_references:
+                t1w_reference_matches = preferred_t1w_references
             if len(t1w_reference_matches) == 1:
                 t1w_reference = os.path.abspath(t1w_reference_matches[0])
             elif len(t1w_reference_matches) > 1:
@@ -273,7 +277,7 @@ class ARTSPipeline:
             prepare_fa_node.inputs.output_file = os.path.join(
                 self.output_path,
                 "input_preparation",
-                f"{subject_label}_{session_label}_space-MNI152NLin6ASym_model-tensor_param-fa_dwimap.nii.gz",
+                f"{subject_label}_{session_label}_space-MNI152NLin6Asym_model-tensor_param-fa_dwimap.nii.gz",
             )
             arts_wf.connect(inputnode, "fa", prepare_fa_node, "fa_file")
             arts_wf.connect(inputnode, "dwi_to_t1w_affine", prepare_fa_node, "dwi_to_t1w_affine")

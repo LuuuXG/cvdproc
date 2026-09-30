@@ -921,9 +921,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cortical-metrics-cortical_metricstrue" class="md-nav__link">
+  <a href="#surface-projection-always-enabled" class="md-nav__link">
     <span class="md-ellipsis">
-      Cortical Metrics (cortical_metrics=True)
+      Surface Projection (always enabled)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freesurfer-metrics-cortical_metricstrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      FreeSurfer Metrics (cortical_metrics=True)
     </span>
   </a>
   
@@ -1094,6 +1103,29 @@
   
   <span class="md-ellipsis">
     ARTS Pipeline
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../multi/disconnection_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Disconnection Pipeline
     
   </span>
   
@@ -1490,9 +1522,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cortical-metrics-cortical_metricstrue" class="md-nav__link">
+  <a href="#surface-projection-always-enabled" class="md-nav__link">
     <span class="md-ellipsis">
-      Cortical Metrics (cortical_metrics=True)
+      Surface Projection (always enabled)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freesurfer-metrics-cortical_metricstrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      FreeSurfer Metrics (cortical_metrics=True)
     </span>
   </a>
   
@@ -1762,22 +1803,25 @@ matrices (ChacoConn) for population-level analysis.</p>
 
 </div><hr />
 <h2 id="a-more-detailed-description">A more detailed description:</h2>
-<p>This pipeline postprocesses outputs from the <a href="https://github.com/KUL-Radneuron/NeMo">NeMo</a> toolbox, which computes network-based measures from structural connectivity data. The pipeline extracts and aggregates cortical metrics, subcortical volumes, and structural connectivity matrices for population-level analysis.</p>
+<p>This pipeline postprocesses outputs from the <a href="https://github.com/KUL-Radneuron/NeMo">NeMo</a> toolbox, which computes network-based measures from structural connectivity data. Postprocessed files use BIDS-style subject/session, atlas, tractography-model, space, hemisphere, density, description, and statistic entities.</p>
+<p>The unsmoothed mean ChacoVol image is always projected from MNI152 to the left and right fsaverage 164k surfaces. Both <code>ifod2act</code> and <code>sdstream</code> outputs are discovered automatically; either method can be present on its own. Smoothed maps are not projected.</p>
 <h3 id="dependencies">Dependencies</h3>
 <ul>
 <li>NeMo output directory (auto-discovered via BIDS derivatives)</li>
-<li>FreeSurfer <code>recon-all</code>, <code>recon-all-clinical.sh</code>, or longitudinal FreeSurfer results for cortical metrics extraction</li>
+<li>FreeSurfer <code>recon-all</code>, <code>recon-all-clinical.sh</code>, or longitudinal FreeSurfer results only when weighted cortical metric extraction is enabled</li>
 </ul>
 <h3 id="processing-options">Processing Options</h3>
-<h4 id="cortical-metrics-cortical_metricstrue">Cortical Metrics (<code>cortical_metrics=True</code>)</h4>
-<p>Extracts weighted cortical metrics (weighted degree, betweenness centrality, clustering coefficient, etc.) from NeMo's output. Requires FreeSurfer results.</p>
+<h4 id="surface-projection-always-enabled">Surface Projection (always enabled)</h4>
+<p>Projects each available unsmoothed mean ChacoVol map to fsaverage 164k and masks the medial wall. This step does not require FreeSurfer subject results.</p>
+<h4 id="freesurfer-metrics-cortical_metricstrue">FreeSurfer Metrics (<code>cortical_metrics=True</code>)</h4>
+<p>Extracts ChacoVol-weighted metrics from the optional FreeSurfer outputs. Surface projection still runs when this option is <code>False</code>.</p>
 <h4 id="chacovol-chacoconn-results_to_csvtrue">ChacoVol / ChacoConn (<code>results_to_csv=True</code>)</h4>
-<p>Converts NeMo's ChacoVol (subcortical volumes per atlas) and ChacoConn (structural connectivity matrices) outputs to CSV format for group-level analysis.</p>
+<p>Converts every discovered ChacoVol atlas and ChacoConn atlas to CSV independently. Atlas counts do not need to match. Packaged labels are used for AAL116, FreeSurfer86, and Shen268; other atlases use a matching CSV/TSV label table when available and otherwise receive numeric ROI labels.</p>
 <h3 id="parameters">Parameters</h3>
 <ul>
 <li><code>use_freesurfer_clinical</code>: Set to <code>True</code> if using <code>recon-all-clinical.sh</code> outputs instead of standard <code>recon-all</code>.</li>
 <li><code>use_freesurfer_longitudinal</code>: Set to <code>True</code> if using longitudinal FreeSurfer outputs.</li>
-<li><code>cortical_metrics</code>: Whether to extract cortical metrics from NeMo outputs (default: <code>False</code>).</li>
+<li><code>cortical_metrics</code>: Whether to extract optional ChacoVol-weighted FreeSurfer metrics (default: <code>False</code>).</li>
 <li><code>results_to_csv</code>: Whether to convert ChacoVol/ChacoConn results to CSV (default: <code>False</code>).</li>
 <li><code>extract_from</code>: Path to extract results from for population-level summary.</li>
 </ul>

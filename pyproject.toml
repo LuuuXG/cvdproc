@@ -74,3 +74,6 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["cvdproc*"]
+
+[tool.setuptools.package-data]
+"cvdproc.guides" = ["application/*.md"]

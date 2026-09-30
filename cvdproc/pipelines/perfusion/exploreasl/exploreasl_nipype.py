@@ -48,7 +48,7 @@ class ExploreASLCustom(BaseInterface):
             f.write(new_script_content)
         
         cmd_str = f"run('{subject_matlab_script}'); exit;"
-        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='stream')
+        mlab = CommandLine('matlab', args=f"-nodisplay -nosplash -nodesktop -r \"{cmd_str}\"", terminal_output='allatonce')
         result = mlab.run()
             
         return result.runtime

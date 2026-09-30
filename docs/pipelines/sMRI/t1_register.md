@@ -70,7 +70,7 @@ t1_register:
 
 ## Output files
 
-Output filenames use the configured `template_space` value (e.g., `MNI152NLin6ASym`, `MNI152NLin2009cAsym`, `MNIPediatricAsym`).
+Output filenames use the configured `template_space` value (e.g., `MNI152NLin6Asym`, `MNI152NLin2009cAsym`, `MNIPediatricAsym`).
 
 | File | Description |
 |------|-------------|

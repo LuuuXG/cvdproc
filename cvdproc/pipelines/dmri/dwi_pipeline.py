@@ -361,7 +361,7 @@ class DWIPipeline:
                 #         print(f"[DWI Pipeline] FreeSurfer longitudinal output found: {fs_long_output_dir}. Related to surface metrics extraction in tractography.")
 
         if self.pved and self.pved_method == 'v2':
-            pved_t1w_to_mni_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+            pved_t1w_to_mni_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz')
             if os.path.isfile(pved_t1w_to_mni_warp):
                 self.dti_fit = True
                 self.dwi_t1w_register = True
@@ -408,10 +408,10 @@ class DWIPipeline:
         else:
             fdt_bedpostx = False
         
-        t1w_to_mni_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+        t1w_to_mni_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz')
         if not os.path.exists(t1w_to_mni_warp):
             t1w_to_mni_warp = ""
-        mni_to_t1w_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6ASym_to-T1w_warp.nii.gz')
+        mni_to_t1w_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-MNI152NLin6Asym_to-T1w_warp.nii.gz')
         if not os.path.exists(mni_to_t1w_warp):
             mni_to_t1w_warp = ""
 
@@ -1698,14 +1698,14 @@ class DWIPipeline:
             dwi_workflow.connect(dti_fit_output_node, 'tensor_img', dti_alps_node, 'tensor_img')
 
             # BIDS output filenames in MNI space
-            mni_entities = {"space": "MNI152NLin6ASym", "desc": None, "model": "tensor"}
+            mni_entities = {"space": "MNI152NLin6Asym", "desc": None, "model": "tensor"}
             dti_alps_node.inputs.fa_out = os.path.join(dti_alps_node.inputs.output_dir, rename_bids_file(preproc_dwi_filename, {**mni_entities, "param": "fa"}, "dwimap", ".nii.gz"))
             dti_alps_node.inputs.xx_out = os.path.join(dti_alps_node.inputs.output_dir, rename_bids_file(preproc_dwi_filename, {**mni_entities, "param": "xx"}, "dwimap", ".nii.gz"))
             dti_alps_node.inputs.yy_out = os.path.join(dti_alps_node.inputs.output_dir, rename_bids_file(preproc_dwi_filename, {**mni_entities, "param": "yy"}, "dwimap", ".nii.gz"))
             dti_alps_node.inputs.zz_out = os.path.join(dti_alps_node.inputs.output_dir, rename_bids_file(preproc_dwi_filename, {**mni_entities, "param": "zz"}, "dwimap", ".nii.gz"))
 
             # If warp already exists
-            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6ASym_warp.nii.gz')
+            target_warp = os.path.join(self.subject.bids_dir, 'derivatives', 'xfm', f'sub-{self.subject.subject_id}', f'ses-{self.session.session_id}', f'sub-{self.subject.subject_id}_ses-{self.session.session_id}_from-T1w_to-MNI152NLin6Asym_warp.nii.gz')
             if self.dtialps_register_method == 2 and os.path.exists(target_warp) and self.dwi_t1w_register:
                 dwi_workflow.connect(inputnode, 't1w_file', dti_alps_node, 't1_img')
                 dwi_workflow.connect(dwi_to_t1w_reg_node, 'out_matrix_file', dti_alps_node, 'fa_to_t1w_affine')
@@ -2159,7 +2159,10 @@ class DWIPipeline:
             dwi_metrics_output_dir = os.path.join(self.output_path, 'dwi_metrics_stats')
             os.makedirs(dwi_metrics_output_dir, exist_ok=True)
 
-            dwi_metrics_node = Node(Merge(15), name='dwi_metrics_node')
+            # Keep names in the same order as the scalar inputs below.
+            # Missing maps retain their slots so downstream CSV columns stay aligned.
+            dwi_metric_names = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+            dwi_metrics_node = Node(Merge(len(dwi_metric_names)), name='dwi_metrics_node')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'fa_img', dwi_metrics_node, 'in1')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'md_img', dwi_metrics_node, 'in2')
             dwi_workflow.connect(dwi_scalarmaps_output_node, 'markvcid2_fw_img', dwi_metrics_node, 'in3')
@@ -2180,7 +2183,8 @@ class DWIPipeline:
             dwi_workflow.connect(dwi_metrics_node, 'out', exist_dwi_metrics_node, 'input_file_list')
 
             if vp_extract:
-                # Add WMH probmap to scalar maps
+                # Add WMH probmap after all base scalar maps, including DKI.
+                vp_metric_names = dwi_metric_names + ["WMHprobmap"]
                 vp_dwi_metrics_node = Node(Merge(2), name='vp_dwi_metrics_node')
                 dwi_workflow.connect(dwi_metrics_node, 'out', vp_dwi_metrics_node, 'in1')
                 dwi_workflow.connect(wmhprobmap_to_dwi_node, 'out_file', vp_dwi_metrics_node, 'in2')
@@ -2192,7 +2196,7 @@ class DWIPipeline:
                 seed_tract_scalar_maps_node = Node(TckSampleMultiScalarBundle(), name='seed_tract_scalar_maps')
                 dwi_workflow.connect(seed_based_track_node, 'seed_based_track', seed_tract_scalar_maps_node, 'tck_file')
                 dwi_workflow.connect(dwi_metrics_node, 'out', seed_tract_scalar_maps_node, 'scalar_files')
-                seed_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                seed_tract_scalar_maps_node.inputs.scalar_names = dwi_metric_names
                 seed_tract_scalar_maps_node.inputs.stat_tck = 'mean'
                 seed_tract_scalar_maps_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-ROIseedTract_desc-mean_dwimap.csv")
 
@@ -2200,7 +2204,7 @@ class DWIPipeline:
                 vp_tract_scalar_maps_node = MapNode(TckSampleMultiScalarProfile(), name='vp_tract_scalar_maps', iterfield=['tck_file', 'output_csv'])
                 dwi_workflow.connect(tt_to_tck_node, 'out_tck', vp_tract_scalar_maps_node, 'tck_file')
                 dwi_workflow.connect(vp_dwi_metrics_node, 'out', vp_tract_scalar_maps_node, 'scalar_files')
-                vp_tract_scalar_maps_node.inputs.scalar_names = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
+                vp_tract_scalar_maps_node.inputs.scalar_names = vp_metric_names
                 vp_tract_scalar_maps_node.inputs.output_csv = [
                     os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-L_label-OT_desc-alongtract_dwimap.csv"),
                     os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_hemi-R_label-OT_desc-alongtract_dwimap.csv"),
@@ -2216,7 +2220,7 @@ class DWIPipeline:
             # 1. Seed mask
             if seed_mask != '' and seed_mask is not None:
                 calc_seedmask_node = Node(CalculateScalarMaps(), name="scalar_maps_for_seedmask")
-                calc_seedmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                calc_seedmask_node.inputs.colnames = dwi_metric_names
                 calc_seedmask_node.inputs.roi_label = 1
                 calc_seedmask_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-seedmask_desc-mean_dwimap.csv")
                 dwi_workflow.connect(seed_mask_to_dwi_node, 'out_file', calc_seedmask_node, 'mask_file')
@@ -2226,7 +2230,7 @@ class DWIPipeline:
             # 2. WMH mask
             if wmh_mask_file != '' and wmh_mask_file is not None:
                 scalar_maps_for_wmhmask_node = Node(CalculateScalarMaps(), name='scalar_maps_for_wmhmask')
-                scalar_maps_for_wmhmask_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_wmhmask_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_wmhmask_node.inputs.roi_label = 1
                 scalar_maps_for_wmhmask_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-WMH_desc-mean_dwimap.csv")
                 dwi_workflow.connect(wmh_mask_to_dwi_node, 'out_file', scalar_maps_for_wmhmask_node, 'mask_file')
@@ -2236,7 +2240,7 @@ class DWIPipeline:
             # 3. NAWM dseg (1=left, 2=right): per-ROI and combined
             if self.dwi_t1w_register and nawm_dseg is not None:
                 scalar_maps_for_nawm_perroi_node = Node(CalculateScalarMaps(), name='scalar_maps_for_nawm_perroi')
-                scalar_maps_for_nawm_perroi_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_nawm_perroi_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_nawm_perroi_node.inputs.roi_labels = [1, 2]
                 scalar_maps_for_nawm_perroi_node.inputs.statistic = "mean"
                 scalar_maps_for_nawm_perroi_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-NAWM_desc-perROI_dwimap.csv")
@@ -2245,7 +2249,7 @@ class DWIPipeline:
                 scalar_maps_for_nawm_perroi_node.inputs.ignore_background = False
 
                 scalar_maps_for_nawm_combined_node = Node(CalculateScalarMaps(), name='scalar_maps_for_nawm_combined')
-                scalar_maps_for_nawm_combined_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_nawm_combined_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_nawm_combined_node.inputs.roi_labels = [1, 2]
                 scalar_maps_for_nawm_combined_node.inputs.combine_rois = True
                 scalar_maps_for_nawm_combined_node.inputs.statistic = "mean"
@@ -2257,7 +2261,7 @@ class DWIPipeline:
             # 4. NAWM dseg without tract mask (combined)
             if self.dwi_t1w_register and nawm_dseg is not None and 'mrtrix3' in self.tractography:
                 scalar_maps_for_nawm_without_tract_node = Node(CalculateScalarMaps(), name='scalar_maps_for_nawm_without_tract')
-                scalar_maps_for_nawm_without_tract_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_nawm_without_tract_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_nawm_without_tract_node.inputs.roi_labels = [1, 2]
                 scalar_maps_for_nawm_without_tract_node.inputs.combine_rois = True
                 scalar_maps_for_nawm_without_tract_node.inputs.statistic = "mean"
@@ -2269,7 +2273,7 @@ class DWIPipeline:
             if self.dwi_t1w_register and fs_output_process:
                 # 5. wmparc from fs
                 scalar_maps_for_wmparc_node = Node(CalculateScalarMaps(), name='scalar_maps_for_wmparc')
-                scalar_maps_for_wmparc_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_wmparc_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_wmparc_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-wmparc_desc-median_dwimap.csv")
                 scalar_maps_for_wmparc_node.inputs.statistic = "median" # From Dr.Maria's code
                 dwi_workflow.connect(final_wmparc_node, 'final_wmparc', scalar_maps_for_wmparc_node, 'mask_file')
@@ -2278,7 +2282,7 @@ class DWIPipeline:
 
                 # 6. aparc+aseg from fs
                 scalar_maps_for_aparc_aseg_node = Node(CalculateScalarMaps(), name='scalar_maps_for_aparc_aseg')
-                scalar_maps_for_aparc_aseg_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_aparc_aseg_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_aparc_aseg_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-aparcaseg_desc-mean_dwimap.csv")
                 scalar_maps_for_aparc_aseg_node.inputs.statistic = "mean"
                 dwi_workflow.connect(fs_aparcaseg_to_dwi_node, 'out_file', scalar_maps_for_aparc_aseg_node, 'mask_file')
@@ -2288,7 +2292,7 @@ class DWIPipeline:
             # 7. chpseg
             if chpseg_process:
                 scalar_maps_for_chpseg_node = Node(CalculateScalarMaps(), name='scalar_maps_for_chpseg')
-                scalar_maps_for_chpseg_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_chpseg_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_chpseg_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-chpseg_desc-mean_dwimap.csv")
                 scalar_maps_for_chpseg_node.inputs.statistic = "mean"
                 dwi_workflow.connect(chpseg_mask_to_dwi_node, 'out_file', scalar_maps_for_chpseg_node, 'mask_file')
@@ -2312,7 +2316,7 @@ class DWIPipeline:
                 jhu_atlas_to_dwi_node.inputs.out_file = os.path.join(anat_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_space-{space_entity}_seg-JHU_dseg.nii.gz")
 
                 scalar_maps_for_jhu_node = Node(CalculateScalarMaps(), name='scalar_maps_for_jhu')
-                scalar_maps_for_jhu_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "MK", "AK", "RK"]
+                scalar_maps_for_jhu_node.inputs.colnames = dwi_metric_names
                 scalar_maps_for_jhu_node.inputs.output_csv = os.path.join(dwi_metrics_output_dir, f"sub-{self.subject.subject_id}_ses-{self.session.session_id}_label-JHU_desc-mean_dwimap.csv")
                 scalar_maps_for_jhu_node.inputs.statistic = 'mean'
                 dwi_workflow.connect(jhu_atlas_to_dwi_node, 'out_file', scalar_maps_for_jhu_node, 'mask_file')
@@ -2322,7 +2326,7 @@ class DWIPipeline:
             # visual pathway analysis: TDI image
             if vp_extract:
                 scalar_maps_for_vptdi_node = MapNode(CalculateTDIWeightedScalars(), name='scalar_maps_for_vptdi', iterfield=['weight_file', 'output_csv'])
-                scalar_maps_for_vptdi_node.inputs.colnames = ["FA", "MD", "FW (MarkVCID2)", "AD", "RD", "ODI", "ICVF", "ISOVF", "GQI_GFA", "GQI_ISO", "GQI_QA", "CHIDIA", "WMHprobmap"]
+                scalar_maps_for_vptdi_node.inputs.colnames = vp_metric_names
                 dwi_workflow.connect(vp_dwi_metrics_node, 'out', scalar_maps_for_vptdi_node, 'data_files')
                 dwi_workflow.connect(tt_to_tdi_node, 'out_tdi', scalar_maps_for_vptdi_node, 'weight_file')
                 scalar_maps_for_vptdi_node.inputs.output_csv = [

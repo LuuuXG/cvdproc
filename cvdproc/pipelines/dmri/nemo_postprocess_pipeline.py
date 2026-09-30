@@ -54,7 +54,7 @@ class NemoPostprocessPipeline:
         """
         :return: bool
         """
-        return self.session.get_t1w_files() is not None
+        return True
     
     def create_workflow(self):
         # Search for nemo output directory
@@ -133,13 +133,15 @@ class NemoPostprocessPipeline:
         input_node.inputs.nemo_output_dir = nemo_output_dir
         input_node.inputs.nemo_postprocessed_dir = os.path.join(nemo_output_dir, 'postprocess')
 
-        # If need cortical metrics
+        bids_prefix = f"sub-{self.subject.subject_id}_ses-{self.session.session_id}"
+        nemo_cortical_metrics = Node(NemoCorticalMetrics(), name='nemo_cortical_metrics')
+        nemo_postprocess_wf.connect([
+            (input_node, nemo_cortical_metrics, [('nemo_output_dir', 'nemo_output_dir'),
+                                                  ('nemo_postprocessed_dir', 'nemo_postprocessed_dir')])
+        ])
+        nemo_cortical_metrics.inputs.bids_prefix = bids_prefix
+        nemo_cortical_metrics.inputs.mean_only = True
         if self.cortical_metrics:
-            nemo_cortical_metrics = Node(NemoCorticalMetrics(), name='nemo_cortical_metrics')
-            nemo_postprocess_wf.connect([
-                (input_node, nemo_cortical_metrics, [('nemo_output_dir', 'nemo_output_dir'),
-                                                      ('nemo_postprocessed_dir', 'nemo_postprocessed_dir')])
-            ])
             nemo_cortical_metrics.inputs.freesurfer_output_dirs = freesurfer_output_dirs
             nemo_cortical_metrics.inputs.output_csv_dir = os.path.join(nemo_output_dir, 'postprocess', 'weighted_cortical_metrics')
         
@@ -150,18 +152,21 @@ class NemoPostprocessPipeline:
                 (input_node, nemo_chacovol, [('nemo_output_dir', 'nemo_output_dir'),
                                               ('nemo_postprocessed_dir', 'nemo_postprocessed_dir')])
             ])
+            nemo_chacovol.inputs.bids_prefix = bids_prefix
 
             nemo_chacoconnsc = Node(NemoChacoconnSC(), name='nemo_chacoconnsc')
             nemo_postprocess_wf.connect([
                 (input_node, nemo_chacoconnsc, [('nemo_output_dir', 'nemo_output_dir'),
                                                ('nemo_postprocessed_dir', 'nemo_postprocessed_dir')])
             ])
+            nemo_chacoconnsc.inputs.bids_prefix = bids_prefix
 
             nemo_chacoconn = Node(NemoChacoconn(), name='nemo_chacoconn')
             nemo_postprocess_wf.connect([
                 (input_node, nemo_chacoconn, [('nemo_output_dir', 'nemo_output_dir'),
                                                ('nemo_postprocessed_dir', 'nemo_postprocessed_dir')])
             ])
+            nemo_chacoconn.inputs.bids_prefix = bids_prefix
 
         return nemo_postprocess_wf
     
@@ -178,8 +183,10 @@ class NemoPostprocessPipeline:
         chacovol_merged = {}  # {atlas: list of DataFrames} for chacovol summaries
 
         # Patterns
-        weighted_pat = re.compile(r"(nemo_output_.*)_cortical_metrics\.csv$")
-        chacovol_pat = re.compile(r"chacovol_(?P<atlas>.+?)_mean\.csv$")
+        weighted_pat = re.compile(r"(?P<id>.+)_desc-NemoChacovolWeighted_stat-mean_metrics\.csv$")
+        weighted_legacy_pat = re.compile(r"(?P<id>nemo_output_.*)_cortical_metrics\.csv$")
+        chacovol_pat = re.compile(r".+_atlas-(?P<atlas>[^_]+)_model-[^_]+_desc-NemoChacovol_stat-mean_metrics\.csv$")
+        chacovol_legacy_pat = re.compile(r".*chacovol_(?P<atlas>.+?)_mean\.csv$")
 
         for subject_folder in os.listdir(nemo_postprocessed_dir):
             if not subject_folder.startswith("sub-"):
@@ -213,11 +220,11 @@ class NemoPostprocessPipeline:
                         if not file.endswith(".csv"):
                             continue
 
-                        m = weighted_pat.search(file)
+                        m = weighted_pat.search(file) or weighted_legacy_pat.search(file)
                         if not m:
                             continue
 
-                        chacovol_id = m.group(1)
+                        chacovol_id = m.group("id")
                         csv_path = os.path.join(nemo_csv_dir, file)
 
                         try:
@@ -241,7 +248,7 @@ class NemoPostprocessPipeline:
                         if not file.endswith(".csv"):
                             continue
 
-                        m = chacovol_pat.search(file)
+                        m = chacovol_pat.search(file) or chacovol_legacy_pat.search(file)
                         if not m:
                             continue
 

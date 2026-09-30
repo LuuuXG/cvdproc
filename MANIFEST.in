@@ -1,5 +1,6 @@
 include README.md
 include LICENSE
+recursive-include cvdproc/guides/application *.md
 recursive-include cvdproc/bash *.sh
 recursive-include cvdproc/pipelines/bash/arts *.sh
 recursive-include cvdproc/matlab *.m

@@ -19,6 +19,8 @@ from nipype.interfaces.io import DataSink
 from .pipelines.dcm2bids.dcm2bids_processor import Dcm2BidsProcessor
 from .bids_data.subject import BIDSSubject
 from .controllers.pipeline_manager import PipelineManager
+from .controllers.pipeline_runner import run_pipeline_batch
+from .guides import show_agent_next_steps
 
 from cvdproc.bids_data.subject import BIDSSubject
 from cvdproc.bids_data.session import BIDSSession
@@ -59,6 +61,7 @@ def main():
     parser.add_argument("--dicom_dir", type=str, nargs='+', help="Full path(s) to DICOM directory (alternative to --dicom_subdir)")
     parser.add_argument("--check_data", action="store_true", help="Check the presence of specific data in the BIDS directory.")
     parser.add_argument("--run_pipeline", action="store_true", help="Run a BIDS-based analysis pipeline")
+    parser.add_argument("--n_jobs", type=int, default=1, help="Maximum concurrent subject/session pipeline runs (default: 1)")
     parser.add_argument("--extract_results", action="store_true", help="Extract analysis results for all subjects.")
     parser.add_argument("--pipeline", type=str, help="Pipeline to run (e.g., 'wmh_quantification')")
 
@@ -67,6 +70,28 @@ def main():
     parser.add_argument("--output_path", type=str, help="Override default output path (not recommended)")
 
     args = parser.parse_args()
+
+    if args.n_jobs < 1:
+        parser.error("--n_jobs must be a positive integer.")
+    if args.run_pipeline:
+        for name in ("config_file", "pipeline", "subject_id", "session_id"):
+            if not getattr(args, name):
+                parser.error(f"--run_pipeline requires --{name}.")
+        if len(args.subject_id) != len(args.session_id):
+            parser.error("--subject_id and --session_id must have the same number of values; no values are inferred.")
+
+    if args.run_dcm2bids:
+        for name in ("config_file", "subject_id", "session_id"):
+            if not getattr(args, name):
+                parser.error(f"--run_dcm2bids requires --{name}.")
+        if bool(args.dicom_dir) == bool(args.dicom_subdir):
+            parser.error("Provide exactly one of --dicom_dir or --dicom_subdir.")
+        source_option = "dicom_dir" if args.dicom_dir else "dicom_subdir"
+        sources = getattr(args, source_option)
+        if not (len(args.subject_id) == len(args.session_id) == len(sources)):
+            parser.error(f"--subject_id, --session_id and --{source_option} must have the same number of values "
+                         f"(got {len(args.subject_id)}, {len(args.session_id)}, {len(sources)}). "
+                         "Provide one session ID per subject; values are not repeated automatically.")
 
     # === BIDS Initialization ===
     if args.run_initialization:
@@ -106,15 +131,9 @@ def main():
 
         # Determine source of DICOM directories
         if args.dicom_dir:
-            if len(args.dicom_dir) != len(args.subject_id):
-                parser.error("The number of --dicom_dir must match the number of --subject_id.")
             dicom_dirs = args.dicom_dir
-        elif args.dicom_subdir:
-            if len(args.dicom_subdir) != len(args.subject_id):
-                parser.error("The number of --dicom_subdir must match the number of --subject_id.")
-            dicom_dirs = [os.path.join(bids_dir, "sourcedata", sub) for sub in args.dicom_subdir]
         else:
-            parser.error("Please provide either --dicom_dir or --dicom_subdir.")
+            dicom_dirs = [os.path.join(bids_dir, "sourcedata", sub) for sub in args.dicom_subdir]
         
         dicom_dirname = os.path.basename(dicom_dirs[0])
         subjects_info = os.path.join(bids_dir, 'participants.tsv')
@@ -188,85 +207,14 @@ def main():
         print_boxed_message_rich(f"Checking whether the arguments are correct...", color="bold cyan")
 
         config = load_config(args.config_file)
-        global_matlab_path = config.get("matlab_path", None)
-
-        if not args.pipeline:
-            parser.error("To run a pipeline, please provide --pipeline.")
-
-        if args.session_id is not None:
-            if len(args.session_id) > 0 and len(args.subject_id) != len(args.session_id):
-                parser.error("Number of subject IDs and session IDs must match.")
-
         pipeline_config = config.get("pipelines", {}).get(args.pipeline, {})
         if not pipeline_config:
             raise ValueError(f"No configuration found for pipeline '{args.pipeline}' in the configuration file.")
-
-        subject_ids = args.subject_id
-        session_ids = args.session_id
-        bids_dir = config["bids_dir"]
-        output_base = config.get("output_dir", "./output")
-        numbers = len(args.subject_id)
-
-        print(f"[green]Arguements seem correct[/green]")
-
-        if numbers == 1:
-            print_boxed_message_rich(f"Running '{args.pipeline}' for {numbers} visit...", color="bold cyan")
-        else:
-            print_boxed_message_rich(f"Running '{args.pipeline}' for {numbers} visits...", color="bold cyan")
-        for i in range(len(subject_ids)):
-            sub_id = subject_ids[i]
-            ses_id = session_ids[i] if session_ids else None
-
-            if session_ids is not None:
-                print(f"[green]Currently processing: sub-{subject_ids[i]} ses-{session_ids[i]}[/green]")
-            else:
-                print(f"[green]Currently processing: sub-{subject_ids[i]}[/green]")
-            
-            print(f"[green]Stage 1: Create nipype workflow for {args.pipeline}[/green]")
-
-            # Create BIDSSubject and BIDSSession instances
-            subject = BIDSSubject(sub_id, bids_dir)
-            session = None
-            if ses_id:
-                session = next((s for s in subject.get_all_sessions() if s.session_id == ses_id), None)
-                if session is None:
-                    raise ValueError(f"No session {ses_id} found for subject {sub_id}")
-
-            # Set output path
-            output_path = os.path.join(output_base, args.pipeline, f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-            if not any(k in output_path for k in (
-                "t1_register",
-                "lesion_analysis",
-                "freesurfer_longitudinal",
-                "nemo_postprocess",
-                "freesurfer",
-                "synthsr"
-            )):
-                os.makedirs(output_path, exist_ok=True)
-
-            # Get pipeline object and create workflow
-            manager = PipelineManager()
-            pipeline = manager.get_pipeline(
-                args.pipeline,
-                subject=subject,
-                session=session,
-                output_path=output_path,
-                matlab_path=global_matlab_path,
-                **pipeline_config
-            )
-
-            wf = pipeline.create_workflow()
-            wf.base_dir = os.path.join(bids_dir, "derivatives", "workflows", f"sub-{sub_id}", f"ses-{ses_id}" if ses_id else "")
-
-            print(f"[green]Stage 2: Running nipype workflow for {args.pipeline}[/green]")
-            wf.run()
-
-            print(f"[green]Finished processing sub-{sub_id} ses-{ses_id if ses_id else 'N/A'}[/green]")
-        
-        if numbers == 1:
-            print_boxed_message_rich(f"Finished!", color="bold cyan")
-        else:
-            print_boxed_message_rich(f"All {numbers} visits finished!", color="bold cyan")
+        visits = list(zip(args.subject_id, args.session_id))
+        print_boxed_message_rich(f"Running '{args.pipeline}' for {len(visits)} visits (up to {min(args.n_jobs, len(visits))} at once)...", color="bold cyan")
+        run_pipeline_batch(args.pipeline, visits, config["bids_dir"], config.get("output_dir", "./output"),
+                           pipeline_config, matlab_path=config.get("matlab_path"), n_jobs=args.n_jobs)
+        print_boxed_message_rich(f"All {len(visits)} visits finished!", color="bold cyan")
 
     # === Extract results ===
     if args.extract_results:
@@ -300,6 +248,9 @@ def main():
 
     if not args.run_dcm2bids and not args.run_pipeline and not args.run_initialization and not args.extract_results and not args.check_data:
         print("No action specified. Use --run_dcm2bids, --run_pipeline, --extract_results or --run_initialization.")
+
+    if args.run_initialization:
+        show_agent_next_steps(args.bids_dir)
 
 
 def print_boxed_message_rich(message, color="cyan"):

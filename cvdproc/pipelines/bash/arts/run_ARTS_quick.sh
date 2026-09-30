@@ -61,7 +61,8 @@ if [ "${ss_dim[0]}" != "${wmh_dim[0]}" ] || [ "${ss_dim[1]}" != "${wmh_dim[1]}" 
   exit 1
 fi
 
-rm -rf "${SUB_OUT}"
+rm -rf "${SUB_OUT}/analysis" "${SUB_OUT}/DTI" "${SUB_OUT}/GMWM" \
+  "${SUB_OUT}/WMH" "${SUB_OUT}/WMH_processing" "${SUB_OUT}/FA_processing" "${SUB_OUT}/QC"
 mkdir -p "${SUB_OUT}/analysis" "${SUB_OUT}/DTI" "${SUB_OUT}/GMWM" "${SUB_OUT}/WMH" "${SUB_OUT}/WMH_processing" "${SUB_OUT}/FA_processing/tbss/stats" "${SUB_OUT}/QC"
 export FSLOUTPUTTYPE=NIFTI_GZ
 

@@ -105,62 +105,6 @@ class MRIConvertApplyWarp(CommandLine):
         outputs['output_image'] = self.inputs.output_image
         return outputs
 
-#####################################
-# 2-step Normalization to MNI space #
-#####################################
-from nipype import Node, Workflow
-from nipype.interfaces import fsl
-from nipype.interfaces.base import CommandLineInputSpec, File, TraitedSpec, CommandLine, InputMultiPath
-from nipype.interfaces.utility import IdentityInterface
-from traits.api import Bool, Str, List
-import os
-
-# Usage:
-#   $0 \
-#     --t1w <T1w image> \
-#     --t1w_to_mni_warp <T1w->MNI warp .nii.gz/.mgz> \
-#     --qsm_to_t1w_affine <QSM->T1w affine .mat> \
-#     --output_dir <Output directory> \
-#     --input   <in1.nii.gz [in2.nii.gz ...]> \
-#     --output1 <out1_T1w.nii.gz [out2_T1w.nii.gz ...]> \
-#     --output2 <out1_MNI.nii.gz [out2_MNI.nii.gz ...]>
-
-class TwoStepNormalizationInputSpec(CommandLineInputSpec):
-    struct = File(exists=True, desc="Struct image", mandatory=True, argstr="--t1w %s")
-    struct_to_mni_warp = File(exists=True, desc="Struct to MNI warp file (.nii.gz/.mgz)", mandatory=True, argstr="--t1w_to_mni_warp %s")
-    source_to_struct_affine = File(exists=True, desc="source to struct affine matrix file (.mat)", mandatory=True, argstr="--qsm_to_t1w_affine %s")
-    output_dir = Str(desc="Output directory", mandatory=True, argstr="--output_dir %s")
-    # input = List(Str(exists=True), desc="Input QSM files", mandatory=True, argstr="--input %s...")
-    # output1 = List(Str(), desc="Output files in T1w space", argstr="--output1 %s...")
-    # output2 = List(Str(), desc="Output files in MNI space", argstr="--output2 %s...")
-    input = InputMultiPath(File(exists=True), argstr="--input %s", sep=" ", mandatory=True)
-    output_struct = List(Str, argstr="--output1 %s", sep=" ", mandatory=True)
-    output_mni = List(Str, argstr="--output2 %s", sep=" ", mandatory=True)
-
-
-class TwoStepNormalizationOutputSpec(TraitedSpec):
-    outputs_in_struct = List(Str(), desc="Outputs registered to Struct space")
-    outputs_in_mni = List(Str(), desc="Outputs registered to MNI space")
-
-class TwoStepNormalization(CommandLine):
-    _cmd = 'bash ' + os.path.join(os.path.dirname(__file__), '..', 'bash', 'qsm', 'qsm_register2.sh')
-    input_spec = TwoStepNormalizationInputSpec
-    output_spec = TwoStepNormalizationOutputSpec
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs_in_t1w = []
-        outputs_in_mni = []
-
-        for out in self.inputs.output1:
-            outputs_in_t1w.append(os.path.abspath(os.path.join(self.inputs.output_dir, os.path.basename(out))))
-        for out in self.inputs.output2:
-            outputs_in_mni.append(os.path.abspath(os.path.join(self.inputs.output_dir, os.path.basename(out))))
-        
-        outputs['outputs_in_struct'] = outputs_in_t1w
-        outputs['outputs_in_mni'] = outputs_in_mni
-        return outputs
-
 ###############
 # tkregister2 #
 ###############

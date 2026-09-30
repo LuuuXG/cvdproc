@@ -24,7 +24,7 @@ class Synb0OutputSpec(TraitedSpec):
     b0_u = File(desc="Path to the b0_u image")
 
 class Synb0(CommandLine):
-    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "synb0", "run_synb0.sh"))
+    _cmd = 'bash ' + os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "bash", "synb0", "run_synb0_affine.sh"))
     input_spec = Synb0InputSpec
     output_spec = Synb0OutputSpec
 

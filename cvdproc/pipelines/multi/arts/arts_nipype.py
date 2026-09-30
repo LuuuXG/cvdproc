@@ -19,7 +19,7 @@ from cvdproc.config.paths import get_package_path
 
 arts_fast_bash = get_package_path("pipelines", "bash", "arts", "run_ARTS_fast_synthmorph.sh")
 arts_quick_bash = get_package_path("pipelines", "bash", "arts", "run_ARTS_quick.sh")
-arts_mni_to_iit_warp = get_package_path("data", "standard", "MNI152", "custom", "from-MNI152NLin6ASym_to-IIT_warp.nii.gz")
+arts_mni_to_iit_warp = get_package_path("data", "standard", "MNI152", "custom", "from-MNI152NLin6Asym_to-IIT_warp.nii.gz")
 
 
 class PrepareARTSMNIFAInputSpec(BaseInterfaceInputSpec):
